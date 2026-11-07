@@ -14,7 +14,7 @@ import { createInput } from './input.js';
 import { Effects } from './effects.js';
 import { RemoteTrack } from './remote.js';
 import { FirebaseNet, LocalNet, SoloNet } from './net.js';
-import { sound } from './sound.js';
+import { sound, music } from './sound.js';
 import { createUI } from './ui.js';
 import { initMemoriesUI } from './memories-ui.js';
 import { initQuizUI } from './quiz-editor.js';
@@ -146,6 +146,8 @@ const levelApi = {
     G.net?.collectStar(id);
     updateStarCount(true);
   },
+  /** play a different music track for a while (e.g. at the Trex table); null = the level's own */
+  setMusic(id) { G.musicOverride = id; },
   /** stop / resume the player's controls (while a minigame screen is open) */
   setInput(on) { input.setEnabled(on); },
 };
@@ -188,8 +190,9 @@ function caption(text, ms = 3500) {
 function nextCaption() {
   const it = capQ.shift();
   const el = $('#caption');
-  if (!it) { capBusy = false; capNow = ''; return; }
+  if (!it) { capBusy = false; capNow = ''; music.duck(1); return; }
   capBusy = true; capNow = it[0];
+  music.duck(0.55);
   el.textContent = it[0];
   el.classList.add('on');
   setTimeout(() => { el.classList.remove('on'); setTimeout(nextCaption, 450); }, it[1]);
@@ -352,6 +355,18 @@ function enterPlay() {
   }
 }
 
+// a soft click for menu buttons (not the game buttons, they make their own sounds)
+document.addEventListener('click', (e) => { const btn = e.target.closest('button'); if (btn && !btn.closest('#hud')) sound.play('click'); });
+const musicBtn = $('#opt-music');
+const paintMusic = () => { musicBtn.textContent = music.enabled ? '🎵 Music on' : '🎵 Music off'; };
+paintMusic();
+musicBtn.addEventListener('click', () => { music.toggle(); paintMusic(); });
+let creditsFrom = null;
+const openCredits = (from) => { creditsFrom = from; from.hidden = true; $('#credits').hidden = false; $('#credits').scrollTop = 0; };
+$('#credits-close').addEventListener('click', () => { $('#credits').hidden = true; if (creditsFrom) creditsFrom.hidden = false; });
+$('#lobby-credits').addEventListener('click', () => openCredits($('#lobby')));
+$('#opt-credits').addEventListener('click', () => openCredits($('#conn')));
+
 // auto-rejoin after "Try again"
 if (sessionStorage.getItem('eclipse.autojoin') && store.get('role') && store.get('word')) {
   sessionStorage.removeItem('eclipse.autojoin');
@@ -503,7 +518,7 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
       sound.play('bounce'); world.bounce(landed.collider); ctl.jumps = 1; ctl.cut = true;
       chars[role].land(10);
     } else if (landed.impact > 7) {
-      sound.play('land'); fx.dust(b.pos, 6); chars[role].land(landed.impact);
+      sound.play('land', { vol: Math.min(1, 0.35 + (landed.impact - 7) / 14) }); fx.dust(b.pos, 6); chars[role].land(landed.impact);
     } else chars[role].land(landed.impact);
   }
 
@@ -964,6 +979,33 @@ function frame(nowMs) {
     if (G.kind !== 'solo') sendState(nowMs);
   }
 
+  // music: the title track in the lobby, otherwise the level's (or a minigame's) track
+  music.play(G.mode === 'lobby' || G.mode === 'connecting' ? 'fun' : G.musicOverride || world.music);
+
+  // footsteps (yours, and your partner's a little softer)
+  if (playing) {
+    const surf = (b) => b.ground?.surface || world.surface || 'grass';
+    for (const r of (G.kind === 'solo' ? ROLES : [G.role])) {
+      const b = bodies[r], ctl = ctls[r], sp = Math.hypot(b.vel.x, b.vel.z);
+      if (b.grounded && ctl.state === 'free' && sp > 1.2) {
+        ctl.stepAcc = (ctl.stepAcc || 0) + sp * dt;
+        const stride = world.kid ? 0.62 : r === 'sun' ? 0.95 : 0.8;
+        if (ctl.stepAcc > stride) { ctl.stepAcc = 0; sound.step(surf(b), r === G.active ? 1 : 0.5); }
+      } else ctl.stepAcc = 0.5;
+    }
+    if (G.kind !== 'solo' && partnerVisible && G.track.grounded) {
+      const v = G.track.vel, sp = Math.hypot(v.x, v.z);
+      if (sp > 1.2) {
+        G.pStep = (G.pStep || 0) + sp * dt;
+        if (G.pStep > (world.kid ? 0.62 : other === 'sun' ? 0.95 : 0.8)) {
+          G.pStep = 0;
+          const d = chars[other].root.position.distanceTo(bodies[G.role].pos);
+          if (d < 14) sound.step(world.surface || 'grass', 0.45 * (1 - d / 14));
+        }
+      }
+    }
+  }
+
   // character animation
   for (const r of ROLES) {
     const c = chars[r];
@@ -1012,7 +1054,7 @@ requestAnimationFrame(frame);
 
 // for automated tests
 window.__eclipse = {
-  G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold,
+  G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
   /** Deterministic simulation at 60 Hz for tests: moves `role` with a fixed input. */
   sim(n, o = {}) {
     const r = o.role || G.active, dt = 1 / 60, trace = [];

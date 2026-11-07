@@ -70,7 +70,7 @@ export function createBubbles(parent, colliders, { pool = 14 } = {}) {
     const ring = add(g, geoRing, matRing, 0, -H / 2, 0, { cast: false, receive: false });
     ring.visible = false;
     g.userData.noHide = true;
-    const col = { type: 'cyl', x: 0, z: 0, r: R, top: 0, bottom: -H, disabled: true, dx: 0, dy: 0, dz: 0, noGrab: false, bubble: true };
+    const col = { type: 'cyl', x: 0, z: 0, r: R, top: 0, bottom: -H, disabled: true, dx: 0, dy: 0, dz: 0, noGrab: false, bubble: true, surface: 'carpet' };
     colliders.push(col);
     slots.push({ i, g, body, rim, top, tail, pin, ring, col, active: false, id: null, kind: 'sun', born: 0, pinned: false, pinSeq: 0, path: null, pos: new THREE.Vector3(), scale: 0, popT: 0 });
   }

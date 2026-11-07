@@ -68,7 +68,7 @@ function chipStack(parent, x, z, n, colors, colliders) {
     const s = add(g, spot, mat(0xffffff), Math.cos(a) * 0.93, 0.12 + (n - 1) * 0.25, Math.sin(a) * 0.93, { cast: false });
     s.rotation.y = -a;
   }
-  colliders.push({ type: 'cyl', x, z, r: 0.95, top: n * 0.25, bottom: 0 });
+  colliders.push({ type: 'cyl', x, z, r: 0.95, top: n * 0.25, bottom: 0, surface: 'wood' });
   return n * 0.25;
 }
 
@@ -124,7 +124,7 @@ export function buildCh1Cards(root, scene) {
     add(pivot, new THREE.PlaneGeometry(2.3, 3.2).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ map: back, roughness: 0.6 }), 0, -0.045, 0, { cast: false });
     add(pivot, new THREE.BoxGeometry(2.3, 0.08, 3.2), mat(0xf1ebdf), 0, 0, 0, { receive: false });
     front.receiveShadow = true;
-    const col = { type: 'box', x0: -1.15, x1: 1.15, z0: z - 1.6, z1: z + 1.6, top: 0, bottom: -0.3 };
+    const col = { type: 'box', x0: -1.15, x1: 1.15, z0: z - 1.6, z1: z + 1.6, top: 0, bottom: -0.3, surface: 'wood' };
     colliders.push(col);
     return { pivot, col, off: i * 1100 };
   });
@@ -142,7 +142,7 @@ export function buildCh1Cards(root, scene) {
 
   // ---------- the felt table ----------
   islandMeshes(world, 0, 0, FELT_R, 0, 7, 0x2f8a5b, 0xb07a52, 0x6e4d7a);
-  colliders.push({ type: 'cyl', x: 0, z: 0, r: FELT_R - 0.05, top: 0, bottom: -1.2, safe: true });
+  colliders.push({ type: 'cyl', x: 0, z: 0, r: FELT_R - 0.05, top: 0, bottom: -1.2, safe: true, surface: 'carpet' });
   const felt = add(world, new THREE.CylinderGeometry(FELT_R - 0.35, FELT_R - 0.35, 0.05, 64), new THREE.MeshStandardMaterial({ map: feltTex(), roughness: 0.95 }), 0, 0.03, 0, { cast: false });
   felt.receiveShadow = true;
   const rim = add(world, new THREE.TorusGeometry(FELT_R - 0.1, 0.32, 14, 96), mat(0x8a5634, { roughness: 0.45 }), 0, 0.12, 0, { receive: false });
@@ -169,7 +169,7 @@ export function buildCh1Cards(root, scene) {
     m.rotation.y = Math.sin(i * 2.3) * 0.012;
   }
   add(deck, new THREE.PlaneGeometry(deckW, deckD).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: back, roughness: 0.6 }), (DECK.x0 + DECK.x1) / 2, DECK.top + 0.01, (DECK.z0 + DECK.z1) / 2, { cast: false }).receiveShadow = true;
-  colliders.push({ type: 'box', ...DECK, bottom: 0, safe: true });
+  colliders.push({ type: 'box', ...DECK, bottom: 0, safe: true, surface: 'wood' });
   sign(world, 2.2, -1.8, 0.35, ['The table is up there.', 'Build a staircase together!']);
 
   // Trex corner on top of the deck: a low table, four cushions, two bots
@@ -241,7 +241,7 @@ export function buildCh1Cards(root, scene) {
     return { seed: t.seed, plays };
   };
   let table = null, seatedBefore = false, finishedT = 0;
-  function newMatch() { api.setSave('ch1/trex', { seed: 1 + Math.floor(Math.random() * 1e9), p: null }); }
+  function newMatch() { api.setSave('ch1/trex', { seed: 1 + Math.floor(Math.random() * 1e9), p: null }); api.sound.play('shuffle'); }
   function ensureTable() {
     if (table) return table;
     const solo = api.kind === 'solo';
@@ -255,7 +255,8 @@ export function buildCh1Cards(root, scene) {
         if (won) api.collectStar('c1-trex');
         if (!api.save?.ch1?.cards) api.setSave('ch1/cards', true);
       },
-      onClose() { api.setInput(true); },
+      onClose() { api.setInput(true); api.setMusic(null); },
+      onOpen() { api.setMusic('hideout'); },
     });
     return table;
   }

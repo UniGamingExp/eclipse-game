@@ -97,7 +97,7 @@ export function buildCh1Plane(root, scene) {
     add(g, cardGeo, mat(0xfbf8ff, { roughness: 0.5 }), 0, -0.17, 0);
     const face = add(g, new THREE.PlaneGeometry(2.6, 1.8).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: msgTex(c.hue, i), roughness: 0.6 }), 0, 0.005, 0, { cast: false });
     face.receiveShadow = true;
-    const col = { type: 'box', x0: 0, x1: 0, z0: 0, z1: 0, top: 0, bottom: 0, dx: 0, dy: 0, dz: 0, safe: !c.slide && !c.bob };
+    const col = { type: 'box', x0: 0, x1: 0, z0: 0, z1: 0, top: 0, bottom: 0, dx: 0, dy: 0, dz: 0, safe: !c.slide && !c.bob, surface: 'carpet' };
     colliders.push(col);
     return { ...c, g, col, px: c.x, py: c.y };
   });
@@ -108,7 +108,7 @@ export function buildCh1Plane(root, scene) {
     add(world, rbox(w, 0.5, d, 0.2), mat(0xfbf8ff, { roughness: 0.5 }), (P.x0 + P.x1) / 2, P.top - 0.25, (P.z0 + P.z1) / 2);
     const f = add(world, new THREE.PlaneGeometry(w - 0.3, d - 0.3).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: msgTex(hue, seed), roughness: 0.6 }), (P.x0 + P.x1) / 2, P.top + 0.005, (P.z0 + P.z1) / 2, { cast: false });
     f.receiveShadow = true;
-    colliders.push({ type: 'box', x0: P.x0, x1: P.x1, z0: P.z0, z1: P.z1, top: P.top, bottom: P.top - 0.5, safe: true });
+    colliders.push({ type: 'box', x0: P.x0, x1: P.x1, z0: P.z0, z1: P.z1, top: P.top, bottom: P.top - 0.5, safe: true, surface: 'carpet' });
   };
   pad(P1, 40, 5);
   const s1 = sign(world, 2.2, -26, 0.25, ['Too far and too high!', 'Shout, pin, climb on,', 'shout again ↗']);

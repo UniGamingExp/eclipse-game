@@ -8,11 +8,11 @@ import { buildCh1Cards } from './levels/ch1-cards.js';
 import { buildCh1Plane } from './levels/ch1-plane.js';
 
 export const LEVELS = {
-  prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue' },
-  'ch1-square': { build: buildCh1Square, title: 'Chapter 1 · The Town Square', chip: '💬 Ch.1 Town Square' },
-  'ch1-cards': { build: buildCh1Cards, title: 'Chapter 1 · The Card Tables', chip: '🃏 Ch.1 Card Tables' },
-  'ch1-plane': { build: buildCh1Plane, title: 'Chapter 1 · 8 October', chip: '✈️ Ch.1 8 October' },
-  playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground' },
+  prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue', music: 'woods' },
+  'ch1-square': { build: buildCh1Square, title: 'Chapter 1 · The Town Square', chip: '💬 Ch.1 Town Square', music: 'town' },
+  'ch1-cards': { build: buildCh1Cards, title: 'Chapter 1 · The Card Tables', chip: '🃏 Ch.1 Card Tables', music: 'paws' },
+  'ch1-plane': { build: buildCh1Plane, title: 'Chapter 1 · 8 October', chip: '✈️ Ch.1 8 October', music: 'lonely' },
+  playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground', music: 'fun' },
 };
 
 export function loadLevel(scene, id) {
@@ -22,6 +22,7 @@ export function loadLevel(scene, id) {
   scene.add(root);
   const w = def.build(root, scene);
   w.id = id in LEVELS ? id : 'playground';
+  w.music = def.music || null;
   w.root = root;
   w.dispose = () => {
     scene.remove(root);

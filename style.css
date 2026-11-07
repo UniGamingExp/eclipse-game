@@ -268,3 +268,12 @@ h2 { margin: 0 0 4px; font-size: 22px; }
 .trex .t-end button.primary { background: linear-gradient(90deg, #f7a23b, #e8608d); }
 @media (max-width: 700px) { .trex .tcard { width: 40px; height: 58px; } .trex .tcard b { font-size: 15px; } .trex .tcard i { font-size: 22px; } .trex .t-hand .tcard { margin-left: -14px; } }
 .screen.trex { align-items: stretch; justify-content: flex-start; }
+
+/* credits */
+.credits-card { text-align: left; }
+.credits-card h2, .credits-card .who { text-align: center; }
+.credits-card h3 { margin: 14px 0 4px; font-size: 15px; }
+.credits-card p { margin: 4px 0; font-size: 13px; line-height: 1.45; }
+.credits-card a { color: #7b4fd0; }
+.credits-card #credits-close { display: block; margin: 16px auto 0; }
+.link.small { font-size: inherit; padding: 0; text-decoration: underline; }

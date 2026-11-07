@@ -40,7 +40,7 @@ export function createTrexTable(opts) {
   let shown = 0, nextAt = 0, timer = null, lastKey = '', finishedShown = false, holdTrick = null;
   const view = (seat) => POS[(seat - opts.mySeat + 4) % 4];
 
-  function open() { root.hidden = false; shown = 0; nextAt = 0; finishedShown = false; holdTrick = null; tick(); timer = setInterval(tick, 120); }
+  function open() { opts.onOpen?.(); root.hidden = false; shown = 0; nextAt = 0; finishedShown = false; holdTrick = null; tick(); timer = setInterval(tick, 120); }
   function close() { root.hidden = true; clearInterval(timer); timer = null; opts.onClose?.(); }
 
   function tick() {
@@ -53,7 +53,8 @@ export function createTrexTable(opts) {
     if (shown < r.events.length && now >= nextAt) {
       const ev = r.events[shown];
       shown++;
-      sound.play('pin');
+      sound.play('card');
+      if (ev.trickEnd) setTimeout(() => sound.play('trick'), 700 * (window.__trexSpeed ?? 1));
       const k = window.__trexSpeed ?? 1;   // tests speed this up
       nextAt = now + k * (ev.trickEnd ? 1100 : opts.humanSeats.includes(r.events[shown]?.seat) ? 150 : 520);
       if (ev.trickEnd) holdTrick = { until: now + 1000 * k, ev };
@@ -105,7 +106,7 @@ export function createTrexTable(opts) {
       hand.innerHTML = '';
       for (const c of myCards) {
         const e = cardEl(c, okSet.has(c) ? 'ok' : myTurn ? 'no' : '');
-        if (okSet.has(c)) e.onclick = () => { if (!root.hidden) { sound.play('jump'); opts.play(c); } };
+        if (okSet.has(c)) e.onclick = () => { if (!root.hidden) opts.play(c); };
         hand.appendChild(e);
       }
     }
@@ -134,7 +135,7 @@ export function createTrexTable(opts) {
       $('.t-end h3').textContent = won ? 'You two win! 🏆' : tie ? "It's a draw 🤝" : 'The bots win this time 🤖';
       $('.t-end p').innerHTML = r.roundScores.map((s, i) => `${CONTRACTS[MATCH[i]].name}: ☀️🌙 ${s.us} · 🤖 ${s.them}`).join('<br>') + `<br><b>Total: ☀️🌙 ${r.totals.us} · 🤖 ${r.totals.them}</b>`;
       $('.t-end').hidden = false;
-      sound.play(won ? 'star' : 'respawn');
+      sound.play(won ? 'win' : 'respawn');
       opts.onFinish?.({ ...r.totals, won });
     }
   }

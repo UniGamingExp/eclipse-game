@@ -144,7 +144,7 @@ export function buildCh1Square(root, scene) {
 
   // ---------- the square ----------
   islandMeshes(world, 0, 0, SQ_R, 0, 8, 0x86c98f, 0xd9a58a, 0x7d6aa6);
-  colliders.push({ type: 'cyl', x: 0, z: 0, r: SQ_R - 0.05, top: 0, bottom: -1.2, safe: true });
+  colliders.push({ type: 'cyl', x: 0, z: 0, r: SQ_R - 0.05, top: 0, bottom: -1.2, safe: true, surface: 'concrete' });
   const floor = add(world, new THREE.CylinderGeometry(SQ_R - 0.9, SQ_R - 0.9, 0.06, 64), new THREE.MeshStandardMaterial({ map: plazaTex(), roughness: 0.85 }), 0, 0.03, 0, { cast: false });
   floor.receiveShadow = true;
 
@@ -152,7 +152,7 @@ export function buildCh1Square(root, scene) {
   const bx0 = -5, bx1 = 5, bz0 = -16.5, bz1 = -10.8;
   add(world, rbox(bx1 - bx0, ROOF, bz1 - bz0, 0.2), mat(0x2d5e4a), 0, ROOF / 2, (bz0 + bz1) / 2);
   add(world, rbox(bx1 - bx0 + 0.3, 0.3, bz1 - bz0 + 0.3, 0.12), mat(0xe9e2cf), 0, ROOF, (bz0 + bz1) / 2);
-  colliders.push({ type: 'box', x0: bx0, x1: bx1, z0: bz0, z1: bz1, top: ROOF + 0.15, bottom: 0, safe: true });
+  colliders.push({ type: 'box', x0: bx0, x1: bx1, z0: bz0, z1: bz1, top: ROOF + 0.15, bottom: 0, safe: true, surface: 'concrete' });
   const badge = add(world, new THREE.CircleGeometry(2.4, 48), new THREE.MeshStandardMaterial({ map: badgeTex(), roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.06 }), 0, 4.4, bz1 + 0.02, { cast: false });
   badge.receiveShadow = true;
   for (const x of [-3.6, 3.6]) add(world, rbox(0.9, ROOF - 0.4, 0.3, 0.1), mat(0x24503e), x, ROOF / 2, bz1 + 0.1); // pilasters

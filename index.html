@@ -11,7 +11,7 @@
 <title>Eclipse</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="style.css?v=8a676365d9">
+<link rel="stylesheet" href="style.css?v=d732849e01">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -59,7 +59,7 @@
     <button id="solo" class="link">Practice alone</button>
     <button id="lobby-mem" class="link mem-link">📷 Our memories</button>
     <p id="lobby-err" class="err"></p>
-    <p class="ver" id="ver"></p>
+    <p class="ver"><span id="ver"></span> · <button id="lobby-credits" class="link small">Credits</button></p>
   </div>
 </div>
 
@@ -79,12 +79,32 @@
     <div class="extras" id="level-chips"></div>
     <div class="extras" id="conn-extras">
       <button id="opt-sound" class="chip">🔊 Sound on</button>
+      <button id="opt-music" class="chip">🎵 Music on</button>
       <button id="opt-full" class="chip" hidden>⛶ Full screen</button>
       <button id="opt-stars" class="chip">⭐ Reset stars</button>
       <button id="opt-mem" class="chip">📷 Memories</button>
       <button id="opt-quiz" class="chip">✍️ My quiz</button>
+      <button id="opt-credits" class="chip">ℹ️ Credits</button>
     </div>
     <button id="conn-leave" class="link">Leave</button>
+  </div>
+</div>
+
+<div id="credits" class="screen" hidden>
+  <div class="card credits-card">
+    <h2>ℹ️ Credits</h2>
+    <p class="who">Made with love for Sun &amp; Moon, with these free works. Thank you to their creators!</p>
+    <h3>Music</h3>
+    <p><b>"It's Always Fun with You", "Riding an Animal with Large Paws", "Our Hideout Behind the Waterfall"</b> by <a href="https://vividglo.itch.io/playfulwhimsical-orchestral-soundtrack" target="_blank" rel="noopener">VividGlo</a>, licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>. Converted to MP3 and volume adjusted; the changed files are shared under CC BY-SA 4.0 too.</p>
+    <p><b>"Enchanted Woods", "Mystic Forest", "Winter Ruins", "Tiefsee", "Fight The Devil", "Sneaky", "Suspense"</b>: Music by <a href="https://farbeyond-studio.itch.io/" target="_blank" rel="noopener">FarBeyond Studio</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Converted to MP3 and volume adjusted.</p>
+    <p><b>"the town where i got the magic bottle", "it is dangerous to be lonely without a sword"</b> by <a href="https://ragnarrandom.itch.io/orchestral-and-world-music-for-games" target="_blank" rel="noopener">Ragnar Random</a> (CC0).</p>
+    <h3>Sound effects</h3>
+    <p>Casino Audio, Impact Sounds and Interface Sounds by <a href="https://kenney.nl" target="_blank" rel="noopener">Kenney</a> (CC0).</p>
+    <h3>3D models</h3>
+    <p>Stylized Nature MegaKit by <a href="https://quaternius.com" target="_blank" rel="noopener">Quaternius</a> (CC0).</p>
+    <h3>Code</h3>
+    <p><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT) and the Firebase JavaScript SDK (Apache 2.0).</p>
+    <button id="credits-close" class="primary">Close</button>
   </div>
 </div>
 
@@ -126,6 +146,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=8a676365d9"></script>
+<script type="module" src="build/game.js?v=d732849e01"></script>
 </body>
 </html>
