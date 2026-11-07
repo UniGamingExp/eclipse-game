@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { damp } from './util.js';
 
-export const MODE = { normal: 0, hang: 1, wall: 2, carried: 3, carry: 4, glide: 5, climb: 6 };
+export const MODE = { normal: 0, hang: 1, wall: 2, carried: 3, carry: 4, glide: 5, climb: 6, dash: 7 };
 export const SIZES = { sun: { r: 0.4, h: 1.45 }, moon: { r: 0.32, h: 1.2 } };
 
 const sphere = new THREE.SphereGeometry(1, 28, 20);
@@ -268,6 +268,8 @@ export function makeCharacter(kind) {
         headX = -0.15;
       } else if (mode === MODE.carried) {
         lax = rax = -0.4; laz = -1.1; raz = 1.1; llx = 1.25; rlx = 1.05; lean = -0.15;
+      } else if (mode === MODE.dash) {
+        lax = rax = 0.95; laz = -0.35; raz = 0.35; llx = -0.7; rlx = 0.5; lean = 0.55; headX = -0.25;
       } else if (mode === MODE.glide) {
         lax = rax = 0; laz = -1.45 + Math.sin(t * 6) * 0.08; raz = 1.45 - Math.sin(t * 6) * 0.08;
         llx = -0.15; rlx = -0.25; lean = 0.18;

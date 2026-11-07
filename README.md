@@ -12,6 +12,8 @@ A cosy co-op 3D game for two phones: the Sun and the Moon, playing together from
 
 Controls: drag on the left to walk, drag anywhere else to look around, **Jump** (tap again in the air for a double jump), **♥** sends a heart. The action button changes with the situation: Sun can **Lift** Moon when she's close and **Throw** her; otherwise it's Shine/Tide.
 
+**Dash** (») gives a quick burst forward, once per jump in the air. Keyboard: Shift.
+
 Moves: jump short of an edge and you **grab it** (push forward or tap Jump to climb up). Between two walls marked with white arrows you can **wall jump**. Moon **floats** down slowly while you hold Jump.
 
 On iPhone, use Share → **Add to Home Screen** for full screen.

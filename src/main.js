@@ -76,6 +76,7 @@ for (const r of ROLES) {
     state: 'free',          // free | hang | climb | carried
     anim: MODE.normal,      // what the doll shows (and what we send to the partner)
     wallT: 0, wallNX: 0, wallNZ: 0, wjLock: 0, regrab: 0,
+    dashT: 0, dashCd: 0, dashX: 0, dashZ: 0, airDashUsed: false,
     ledge: null, hangT: 0, climbT: 0, from: new THREE.Vector3(), to: new THREE.Vector3(),
     carrying: false, liftT: 0, liftSeen: false, notCarriedT: 0,
   };
@@ -110,7 +111,7 @@ const serverNow = () => (G.net ? G.net.serverNow() : Date.now());
 const input = createInput({
   canvas,
   joyZone: $('#joy-zone'), joyBase: $('#joy-base'), joyKnob: $('#joy-knob'),
-  buttons: { jump: $('#btn-jump'), ability: $('#btn-ability'), heart: $('#btn-heart'), swap: $('#btn-swap') },
+  buttons: { jump: $('#btn-jump'), ability: $('#btn-ability'), heart: $('#btn-heart'), swap: $('#btn-swap'), dash: $('#btn-dash') },
 });
 const canFullscreen = isTouch && !isIOS && !!document.documentElement.requestFullscreen;
 function goFullscreen() {
@@ -236,11 +237,11 @@ function updateStarCount(byMe) {
 }
 
 // ---------------------------------------------------------------- player control
-const SPEED = 5.6, JUMP = 11, JUMP2 = 9.5, WALL_UP = 10.5, WALL_OUT = 6.2;
+const SPEED = 5.6, JUMP = 11, JUMP2 = 9.5, WALL_UP = 10.5, WALL_OUT = 6.2, DASH_SPEED = 14, DASH_TIME = 0.17;
 const _v = new THREE.Vector3();
 const fade = $('#fade');
 
-function control(ctl, mv, wantJump, jumpHeld, dt) {
+function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   const b = ctl.body, role = ctl.role;
   // camera-relative input direction
   const yaw = G.cam.yaw;
@@ -256,13 +257,32 @@ function control(ctl, mv, wantJump, jumpHeld, dt) {
   if (ctl.state === 'hang') return hangUpdate(ctl, ix, iz, mag, wantJump, dt);
   if (ctl.state === 'climb') return climbUpdate(ctl, dt);
 
+  // dash: a quick burst in the stick direction (or where you face); one dash per jump in the air
+  ctl.dashCd -= dt;
+  if (b.grounded) ctl.airDashUsed = false;
+  if (wantDash && ctl.dashCd <= 0 && !ctl.carrying && (b.grounded || !ctl.airDashUsed)) {
+    let ddx = ix, ddz = iz;
+    if (mag < 0.2) { const y = chars[role].yaw; ddx = Math.sin(y); ddz = Math.cos(y); }
+    ctl.dashX = ddx; ctl.dashZ = ddz; ctl.dashT = DASH_TIME; ctl.dashCd = 0.45;
+    if (!b.grounded) ctl.airDashUsed = true;
+    chars[role].setYaw(Math.atan2(ddx, ddz));
+    sound.play('dash'); fx.dust(b.pos, 4);
+  }
+
   const speed = SPEED * (ctl.carrying ? 0.82 : 1);
-  const dx = ix * speed * mag, dz = iz * speed * mag;
-  const accel = (b.grounded ? 48 : ctl.wjLock > 0 ? 5 : 24) * dt;
-  let ex = dx - b.vel.x, ez = dz - b.vel.z;
-  const el = Math.hypot(ex, ez);
-  if (el > accel) { ex *= accel / el; ez *= accel / el; }
-  b.vel.x += ex; b.vel.z += ez;
+  if (ctl.dashT > 0) {
+    ctl.dashT -= dt;
+    b.vel.x = ctl.dashX * DASH_SPEED; b.vel.z = ctl.dashZ * DASH_SPEED;
+    if (!b.grounded) b.vel.y = Math.max(b.vel.y, 0);
+    if (Math.random() < 0.6) fx.dust(_v.copy(b.pos).add(new THREE.Vector3(0, b.h * 0.4, 0)), 1);
+  } else {
+    const dx = ix * speed * mag, dz = iz * speed * mag;
+    const accel = (b.grounded ? 48 : ctl.wjLock > 0 ? 5 : 24) * dt;
+    let ex = dx - b.vel.x, ez = dz - b.vel.z;
+    const el = Math.hypot(ex, ez);
+    if (el > accel) { ex *= accel / el; ez *= accel / el; }
+    b.vel.x += ex; b.vel.z += ez;
+  }
 
   // forgiving jumps: coyote time, jump buffer, one air jump, wall jumps
   if (b.grounded) { ctl.coyote = 0.13; ctl.jumps = 0; ctl.airT = 0; ctl.wallT = 0; } else { ctl.coyote -= dt; ctl.airT += dt; }
@@ -315,7 +335,8 @@ function control(ctl, mv, wantJump, jumpHeld, dt) {
     }
   }
 
-  if (ctl.state === 'free') ctl.anim = gliding ? MODE.glide : (ctl.wallT > 0 && !b.grounded) ? MODE.wall : ctl.carrying ? MODE.carry : MODE.normal;
+  if (ctl.wallT > 0 || ctl.state === 'hang') ctl.airDashUsed = false;
+  if (ctl.state === 'free') ctl.anim = ctl.dashT > 0 ? MODE.dash : gliding ? MODE.glide : (ctl.wallT > 0 && !b.grounded) ? MODE.wall : ctl.carrying ? MODE.carry : MODE.normal;
 
   // remember a safe spot to respawn
   if (b.grounded && b.ground && b.ground.safe) {
@@ -328,6 +349,7 @@ function control(ctl, mv, wantJump, jumpHeld, dt) {
 
 function startHang(ctl, L) {
   const b = ctl.body;
+  ctl.dashT = 0; ctl.airDashUsed = false;
   ctl.state = 'hang'; ctl.ledge = L; ctl.hangT = 0; ctl.anim = MODE.hang;
   b.vel.set(0, 0, 0); b.grounded = false; b.ground = null;
   b.pos.y = L.top - b.h * 0.92;
@@ -565,6 +587,7 @@ function frame(nowMs) {
     // cooldowns & one-shot buttons
     G.cooldown.ability -= dt; G.cooldown.heart -= dt;
     const wantJump = input.consume('jump');
+    const wantDash = input.consume('dash');
     if (input.consume('ability') && G.cooldown.ability <= 0) {
       G.cooldown.ability = 0.45;
       const who = G.kind === 'solo' ? G.active : G.role;
@@ -590,7 +613,7 @@ function frame(nowMs) {
     const mine = G.kind === 'solo' ? ROLES : [G.role];
     for (const r of mine) {
       const active = r === G.active && G.mode === 'play';
-      control(ctls[r], active ? input.state.move : idleInput, active && wantJump, active && input.state.jumpHeld, dt);
+      control(ctls[r], active ? input.state.move : idleInput, active && wantJump, active && input.state.jumpHeld, dt, active && wantDash);
     }
     for (const r of mine) {
       syncPlayerCollider(pcols[r], bodies[r].pos, bodies[r].h);
@@ -681,7 +704,7 @@ window.__eclipse = {
       world.update(T, G.t, dt);
       for (const k of ROLES) syncPlayerCollider(pcols[k], bodies[k].pos, bodies[k].h);
       if (G.kind === 'solo') pcols.moon.disabled = ctls.moon.state === 'carried';
-      control(ctls[r], o.move || idleInput, (o.jumpAt || []).includes(i), o.hold ?? true, dt);
+      control(ctls[r], o.move || idleInput, (o.jumpAt || []).includes(i), o.hold ?? true, dt, (o.dashAt || []).includes(i));
       if (G.kind === 'solo') for (const k of ROLES) if (k !== r) control(ctls[k], idleInput, (o.otherJumpAt || []).includes(i), false, dt);
       if (o.actionAt && o.actionAt.includes(i)) sunAction();
       if (o.every && i % o.every === 0) trace.push([+bodies[r].pos.x.toFixed(2), +bodies[r].pos.y.toFixed(2), +bodies[r].pos.z.toFixed(2), bodies[r].grounded ? 1 : 0, ctls[r].state[0] + ctls[r].anim]);

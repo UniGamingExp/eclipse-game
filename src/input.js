@@ -119,6 +119,7 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
     if (e.code === 'KeyE') press('ability');
     if (e.code === 'KeyH') press('heart');
     if (e.code === 'KeyQ') press('swap');
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyK') press('dash');
     keyMove();
   });
   window.addEventListener('keyup', (e) => {
