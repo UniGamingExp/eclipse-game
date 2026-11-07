@@ -1,6 +1,6 @@
 // Trex (Trix), the Syrian/Lebanese card game, as a short partnership match: Sun (south) and Moon (north)
 // against two bots (west, east). Two "avoid" contracts are played in a row:
-//   · King of Hearts: whoever wins the trick with K♥ in it loses 75. You can't lead ♥ unless you only have ♥.
+//   · King of Hearts: whoever wins the trick with K♥ in it loses 75. Any card may be led.
 //     The deal ends as soon as the king is taken.
 //   · Diamonds: −10 for every ♦ in the tricks you win. Ends once all 13 diamonds are taken.
 // Pure logic: the whole match is a function of (seed, human plays in order). Bots are deterministic, so
@@ -10,7 +10,7 @@ export const SUIT_SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
 export const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 export const SEATS = ['south', 'west', 'north', 'east'];
 export const CONTRACTS = {
-  king: { name: 'King of Hearts', short: 'K♥', rule: "Don't take the K♥ (−75). No leading ♥ unless you only have ♥." },
+  king: { name: 'King of Hearts', short: 'K♥', rule: "Don't take the K♥ (−75)." },
   diamonds: { name: 'Diamonds', short: '♦', rule: '−10 for every ♦ in the tricks you take.' },
 };
 export const MATCH = ['king', 'diamonds'];
@@ -41,11 +41,7 @@ export function legal(hand, trick, contract) {
     const follow = hand.filter((c) => suitOf(c) === led);
     return follow.length ? follow : hand.slice();
   }
-  if (contract === 'king') {
-    const nonH = hand.filter((c) => suitOf(c) !== 'H');
-    if (nonH.length) return nonH;
-  }
-  return hand.slice();
+  return hand.slice();   // any card may be led (♥ too, also in King of Hearts)
 }
 
 export function trickWinner(trick) {

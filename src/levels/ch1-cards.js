@@ -242,12 +242,16 @@ export function buildCh1Cards(root, scene) {
   };
   let table = null, seatedBefore = false, finishedT = 0;
   function newMatch() { api.setSave('ch1/trex', { seed: 1 + Math.floor(Math.random() * 1e9), p: null }); api.sound.play('shuffle'); }
+  let tableKind = null, practiceSeat = 0;
   function ensureTable() {
-    if (table) return table;
+    if (table && tableKind === api.kind + api.role) return table;
+    table?.destroy();
+    tableKind = api.kind + api.role;
     const solo = api.kind === 'solo';
     table = createTrexTable({
-      mySeat: solo ? 0 : api.role === 'sun' ? 0 : 2,
-      humanSeats: solo ? [0] : [0, 2],
+      // practice: you play both Sun's and Moon's hands (the view turns to whoever's turn it is)
+      mySeat: solo ? (r) => (r.current && [0, 2].includes(r.current.waiting) ? (practiceSeat = r.current.waiting) : practiceSeat) : api.role === 'sun' ? 0 : 2,
+      humanSeats: [0, 2],
       getMatch: matchOf,
       play(card) { const m = matchOf(); if (m) api.setSave(`ch1/trex/p/${m.plays.length}`, card); },
       newMatch,

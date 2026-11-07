@@ -15,7 +15,7 @@ function cardEl(c, extra = '') {
 }
 
 /**
- * opts: { mySeat, humanSeats, getMatch() → { seed, plays[] }, play(card), newMatch(), onFinish({ us, them, won }), onClose() }
+ * opts: { mySeat (a seat, or a function(replay) → seat, e.g. in practice where you play both hands), humanSeats, getMatch() → { seed, plays[] }, play(card), newMatch(), onFinish({ us, them, won }), onClose() }
  */
 export function createTrexTable(opts) {
   const root = el('div', 'screen trex');
@@ -38,7 +38,8 @@ export function createTrexTable(opts) {
   $('.t-done').onclick = () => close();
 
   let shown = 0, nextAt = 0, timer = null, lastKey = '', finishedShown = false, holdTrick = null;
-  const view = (seat) => POS[(seat - opts.mySeat + 4) % 4];
+  let me = typeof opts.mySeat === 'function' ? 0 : opts.mySeat;
+  const view = (seat) => POS[(seat - me + 4) % 4];
 
   function open() { opts.onOpen?.(); root.hidden = false; shown = 0; nextAt = 0; finishedShown = false; holdTrick = null; tick(); timer = setInterval(tick, 120); }
   function close() { root.hidden = true; clearInterval(timer); timer = null; opts.onClose?.(); }
@@ -65,6 +66,7 @@ export function createTrexTable(opts) {
   function draw(r, now) {
     const evs = r.events.slice(0, shown);
     const caughtUp = shown === r.events.length;
+    if (typeof opts.mySeat === 'function' && caughtUp) { const s = opts.mySeat(r); if (s !== me) { me = s; lastKey = '__'; } }
     const last = evs[evs.length - 1];
     // the round on the table: the round of the next card to show, else the one waiting for a human
     const round = !caughtUp ? r.events[shown].round : r.current ? r.current.round : last ? last.round : 0;
@@ -96,9 +98,9 @@ export function createTrexTable(opts) {
     }
 
     // hands: rebuild my hand from the deal minus what I've shown being played
-    const myCards = handAt(r, opts.mySeat, round, evs);
-    const myTurn = caughtUp && r.current && r.current.waiting === opts.mySeat;
-    const okSet = myTurn ? new Set(legal(r.current.hands[opts.mySeat], r.current.trick, r.current.contract)) : new Set();
+    const myCards = handAt(r, me, round, evs);
+    const myTurn = caughtUp && r.current && r.current.waiting === me;
+    const okSet = myTurn ? new Set(legal(r.current.hands[me], r.current.trick, r.current.contract)) : new Set();
     const hand = $('.t-hand');
     const hkey = myCards.join() + '|' + [...okSet].join();
     if (hand.dataset.k !== hkey) {
@@ -111,7 +113,7 @@ export function createTrexTable(opts) {
       }
     }
     for (let s = 0; s < 4; s++) {
-      if (s === opts.mySeat) continue;
+      if (s === me) continue;
       const box = root.querySelector(`.t-seat.${view(s)}`);
       box.querySelector('.t-name').textContent = NAMES[s];
       const n = handAt(r, s, round, evs).length;
@@ -124,7 +126,7 @@ export function createTrexTable(opts) {
     if (holdTrick && now < holdTrick.until) msg = `${NAMES[holdTrick.ev.trickEnd.winner]} takes the trick`;
     else if (!caughtUp) msg = '…';
     else if (r.finished) msg = '';
-    else if (myTurn) msg = 'Your turn: tap a raised card';
+    else if (myTurn) msg = typeof opts.mySeat === 'function' ? `${NAMES[me]}'s turn: tap a raised card` : 'Your turn: tap a raised card';
     else msg = `${NAMES[r.current.waiting]} is thinking…`;
     $('.t-msg').textContent = msg;
     root.classList.toggle('myturn', !!myTurn);
@@ -152,5 +154,5 @@ export function createTrexTable(opts) {
   const cache = { deal: {} };
   function dealFor(seed, round) { return dealCards(seed + round * 7919); }
 
-  return { open, close, get isOpen() { return !root.hidden; } };
+  return { open, close, destroy() { clearInterval(timer); root.remove(); }, get isOpen() { return !root.hidden; } };
 }
