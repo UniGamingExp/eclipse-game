@@ -49,6 +49,8 @@ GitHub Pages serves the repo root from `main`, so **commit `build/game.js` after
 | `src/levels/ch1-square.js`, `ch1-cards.js`, `ch1-plane.js` | Chapter 1 · Syria Unfiltered: The Town Square, The Card Tables, 8 October |
 | `src/levels/bubbles.js` | Chapter 1 powers: Sun's Megaphone (speech-bubble platforms), Moon's Reply pin (pin / pop to launch), synced by events |
 | `src/trex.js`, `src/trex-ui.js` | Trex (King of Hearts + Diamonds) as partners vs two bots: deterministic rules + the card table screen; plays stored in `save.ch1.trex` |
+| `src/sound.js` | Sound effects (Kenney samples + synth fallbacks), music per level with seamless loops / crossfades, ducking, sound + music switches |
+| `assets/music/`, `assets/sfx/` | Music and sound effects (MP3). Licenses and attribution: `CREDITS.md` (also in the game: ☰ → Credits) |
 | `src/look.js` | Rim light on all materials, colour grade + vignette, floating sparkles |
 | `src/levels/sky.js` | Sky dome with stars and nebula, planets with rings and moons, shooting stars, cloud sea |
 | `src/levels/hooks.js` | Per-frame callbacks for level pieces + shared shader time |
