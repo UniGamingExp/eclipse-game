@@ -150,6 +150,20 @@ h2 { margin: 0 0 4px; font-size: 22px; }
 #fade { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .25s; }
 #fade.on { opacity: .85; }
 
+/* ---------- Memories ---------- */
+.mem-link { display: block; margin: 0 auto; font-size: 14px; }
+#mem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin: 6px 0 4px; }
+#mem-grid button { position: relative; border: 0; padding: 0; border-radius: 14px; overflow: hidden; aspect-ratio: 3 / 4; background: #e9e3f5; box-shadow: 0 2px 8px rgba(43, 37, 80, 0.15); }
+#mem-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#mem-grid span { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 5px; font-size: 11px; font-weight: 800; color: #fff; text-align: left; background: linear-gradient(transparent, rgba(30, 20, 60, 0.75)); }
+#mem-view { position: fixed; inset: 0; background: rgba(20, 14, 40, 0.96); display: flex; align-items: center; justify-content: center; z-index: 10; }
+#mem-img { max-width: calc(100% - 24px); max-height: calc(100% - 110px); border-radius: 16px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+.mem-cap { position: absolute; left: 0; right: 0; bottom: calc(var(--sb) + 14px); text-align: center; color: #fff; display: flex; flex-direction: column; gap: 2px; padding: 0 60px; }
+.mem-cap b { font-size: 18px; } .mem-cap span { opacity: .8; font-weight: 600; font-size: 14px; }
+.mem-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 72px; border: 0; background: rgba(255, 255, 255, 0.12); color: #fff; font-size: 40px; border-radius: 14px; }
+#mem-prev { left: calc(var(--sl) + 8px); } #mem-next { right: calc(var(--sr) + 8px); }
+#mem-x { position: absolute; top: calc(var(--st) + 10px); right: calc(var(--sr) + 12px); }
+
 /* Short landscape phones: two-column lobby */
 @media (orientation: landscape) and (max-height: 500px) {
   .card { width: min(640px, 100%); padding: 14px 18px; }
@@ -159,7 +173,8 @@ h2 { margin: 0 0 4px; font-size: 22px; }
   #lobby .roles { grid-column: 1; grid-row: 3 / span 2; margin: 0; }
   #lobby .word { grid-column: 2; margin-bottom: 8px; }
   #lobby #join { grid-column: 2; }
-  #lobby #solo, #lobby .err, #lobby .ver { grid-column: 1 / -1; }
+  #lobby #solo, #lobby .mem-link, #lobby .err, #lobby .ver { grid-column: 1 / -1; }
+  #mem-img { max-height: calc(100% - 80px); }
   #lobby #solo { margin-top: 2px; padding: 4px; }
   .role { padding: 16px 6px; }
   #conn .card { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; }

@@ -11,7 +11,7 @@
 <title>Eclipse</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="style.css?v=744a0038ff">
+<link rel="stylesheet" href="style.css?v=d8afb79a83">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -53,6 +53,7 @@
     </label>
     <button id="join" class="primary">Play together</button>
     <button id="solo" class="link">Practice alone</button>
+    <button id="lobby-mem" class="link mem-link">📷 Our memories</button>
     <p id="lobby-err" class="err"></p>
     <p class="ver" id="ver"></p>
   </div>
@@ -74,12 +75,36 @@
       <button id="opt-sound" class="chip">🔊 Sound on</button>
       <button id="opt-full" class="chip" hidden>⛶ Full screen</button>
       <button id="opt-stars" class="chip">⭐ Reset stars</button>
+      <button id="opt-mem" class="chip">📷 Memories</button>
     </div>
     <button id="conn-leave" class="link">Leave</button>
   </div>
 </div>
 
+<div id="mem" class="screen" hidden>
+  <div class="card mem-card">
+    <h2>📷 Our memories</h2>
+    <div id="mem-lock">
+      <p class="who">These are locked. Type your password to open them.</p>
+      <label class="word"><span>Password</span>
+        <input id="mem-pw" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="80">
+      </label>
+      <button id="mem-open" class="primary">Unlock</button>
+      <p id="mem-err" class="err"></p>
+    </div>
+    <div id="mem-grid" hidden></div>
+    <button id="mem-close" class="link">Close</button>
+  </div>
+</div>
+<div id="mem-view" hidden>
+  <img id="mem-img" alt="">
+  <div class="mem-cap"><b id="mem-title"></b><span id="mem-caption"></span></div>
+  <button id="mem-prev" class="mem-nav" aria-label="Previous">‹</button>
+  <button id="mem-next" class="mem-nav" aria-label="Next">›</button>
+  <button id="mem-x" class="round" aria-label="Close">✕</button>
+</div>
+
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=744a0038ff"></script>
+<script type="module" src="build/game.js?v=d8afb79a83"></script>
 </body>
 </html>
