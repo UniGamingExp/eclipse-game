@@ -4,8 +4,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { buildWorld } from './world.js';
-import { makeCharacter, MODE, SIZES } from './characters.js';
+import { loadLevel, LEVELS } from './world.js';
+import { makeCharacter, MODE, SIZES, KID_SIZES } from './characters.js';
 import { Body, moveBody, findLedge, playerCollider, syncPlayerCollider } from './physics.js';
 import { createInput } from './input.js';
 import { Effects } from './effects.js';
@@ -61,14 +61,23 @@ window.addEventListener('resize', resize);
 window.visualViewport?.addEventListener('resize', resize);
 
 // ---------------------------------------------------------------- world & actors
-const world = buildWorld(scene);
+let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
 const fx = new Effects(scene, camera);
 const ROLES = ['sun', 'moon'];
 const chars = {}, bodies = {}, pcols = {}, ctls = {};
+const sizeOf = (r) => (world.kid ? KID_SIZES : SIZES)[r];
+function makeChars() {
+  for (const r of ROLES) {
+    const old = chars[r];
+    if (old) scene.remove(old.root);
+    chars[r] = makeCharacter(r, { kid: !!world.kid });
+    if (old) { chars[r].root.position.copy(old.root.position); chars[r].setYaw(old.yaw); }
+    scene.add(chars[r].root);
+  }
+}
+makeChars();
 for (const r of ROLES) {
-  chars[r] = makeCharacter(r);
-  scene.add(chars[r].root);
-  bodies[r] = new Body(SIZES[r].r, SIZES[r].h);
+  bodies[r] = new Body(sizeOf(r).r, sizeOf(r).h);
   pcols[r] = playerCollider(bodies[r]);
   pcols[r].disabled = true;
   ctls[r] = {
@@ -78,17 +87,24 @@ for (const r of ROLES) {
     wallT: 0, wallNX: 0, wallNZ: 0, wjLock: 0, regrab: 0,
     dashT: 0, dashCd: 0, dashX: 0, dashZ: 0, airDashUsed: false,
     ledge: null, hangT: 0, climbT: 0, from: new THREE.Vector3(), to: new THREE.Vector3(),
-    carrying: false, liftT: 0, liftSeen: false, notCarriedT: 0,
+    carrying: false, liftT: 0, liftSeen: false, notCarriedT: 0, forceJump: false,
   };
 }
+const facingYaw = (r) => (world.camYaw ? world.camYaw[r] : 0) + Math.PI;
 function placeAtSpawn(r) {
   bodies[r].pos.copy(world.spawn[r]);
   bodies[r].vel.set(0, 0, 0);
+  bodies[r].grounded = false; bodies[r].ground = null;
   chars[r].root.position.copy(world.spawn[r]);
-  chars[r].setYaw(Math.PI);
+  chars[r].setYaw(facingYaw(r));
 }
 ROLES.forEach(placeAtSpawn);
-const colliders = [...world.colliders, pcols.sun, pcols.moon];
+const colliders = [];
+function rebuildColliders() {
+  colliders.length = 0;
+  colliders.push(...world.colliders, pcols.sun, pcols.moon);
+}
+rebuildColliders();
 
 // ---------------------------------------------------------------- state
 const G = {
@@ -104,7 +120,84 @@ const G = {
   stars: {},
   cooldown: { ability: 0, heart: 0 },
   t: 0,
+  save: null,       // shared story progress from the network
+  starsMap: {},
+  hold: false,      // holding hands
+  holdHeartT: 0,
 };
+
+// ---------------------------------------------------------------- story captions
+const capQ = [];
+let capBusy = false, capNow = '';
+function caption(text, ms = 3500) {
+  if (text === capNow || capQ.some((c) => c[0] === text)) return;
+  capQ.push([text, ms]);
+  if (!capBusy) nextCaption();
+}
+function nextCaption() {
+  const it = capQ.shift();
+  const el = $('#caption');
+  if (!it) { capBusy = false; capNow = ''; return; }
+  capBusy = true; capNow = it[0];
+  el.textContent = it[0];
+  el.classList.add('on');
+  setTimeout(() => { el.classList.remove('on'); setTimeout(nextCaption, 450); }, it[1]);
+}
+function introCaptions() {
+  const i = world.intro;
+  if (!i) { caption(world.title, 2600); return; }
+  i.all.forEach((t) => caption(t, 2700));
+  const mineTxt = G.kind === 'solo' ? null : i[G.role];
+  if (mineTxt) caption(mineTxt, 3000);
+}
+
+// ---------------------------------------------------------------- levels
+function switchLevel(id) {
+  if (world.id === id || !LEVELS[id]) return;
+  const wasKid = !!world.kid;
+  world.dispose();
+  world = loadLevel(scene, id);
+  store.set('lastLevel', id);
+  if (!!world.kid !== wasKid) makeChars();
+  for (const r of ROLES) {
+    const sz = sizeOf(r), b = bodies[r], c = ctls[r];
+    b.r = sz.r; b.h = sz.h; pcols[r].r = sz.r * 0.92; pcols[r].ready = false;
+    c.state = 'free'; c.anim = MODE.normal; c.carrying = false; c.wallT = 0; c.dashT = 0; c.k++;
+    c.safe.copy(world.spawn[r]);
+    placeAtSpawn(r);
+  }
+  G.hold = false;
+  G.track.buf.length = 0; G.track.has = false; G.partnerK = null;
+  rebuildColliders();
+  shownAll = false;
+  onStars(G.starsMap);
+  if (G.mode === 'play' || G.mode === 'menu') {
+    G.cam.yaw = world.camYaw ? world.camYaw[G.active] : 0; G.cam.pitch = 0.3;
+    G.cam.target.copy(bodies[G.active].pos);
+    fade.classList.add('on'); setTimeout(() => fade.classList.remove('on'), 350);
+    introCaptions();
+  }
+}
+function chooseLevel(id) {
+  if (!G.net) return;
+  if (id === 'prologue') G.net.setSave('prologue', null); // replay the story from the start
+  G.net.setSave('level', id);
+  if (G.mode === 'menu') enterPlay();
+}
+function onLevelFinished() {
+  if (world.id === 'prologue') {
+    caption('Chapter 1 · Syria Unfiltered is coming next ✨', 3500);
+    setTimeout(() => G.net?.setSave('level', 'playground'), 1500);
+  }
+}
+const levelChips = $('#level-chips');
+for (const [id, def] of Object.entries(LEVELS)) {
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.textContent = def.chip;
+  b.addEventListener('click', () => chooseLevel(id));
+  levelChips.appendChild(b);
+}
 const serverNow = () => (G.net ? G.net.serverNow() : Date.now());
 
 // ---------------------------------------------------------------- UI & input
@@ -168,6 +261,10 @@ function startSession(kind, role, word) {
   net.on('event', onRemoteEvent);
   net.on('stars', onStars);
   net.on('quiz', (mine, partner) => quizUI.update(mine, partner));
+  net.on('save', (sv) => {
+    G.save = sv;
+    if (sv.level && sv.level !== world.id) switchLevel(sv.level);
+  });
   net.join(kind === 'solo' ? 'solo' : roomIdFromWord(word), role);
 
   if (kind === 'solo') { refreshStatus(); enterPlay(); return; }
@@ -182,10 +279,11 @@ function enterPlay() {
   ui.showHud();
   input.setEnabled(true);
   if (first) {
-    G.cam.yaw = 0; G.cam.pitch = 0.3;
+    G.cam.yaw = world.camYaw ? world.camYaw[G.active] : 0; G.cam.pitch = 0.3;
     G.cam.target.copy(bodies[G.active].pos).add(new THREE.Vector3(0, 1.1, 0));
     if (isTouch && innerHeight > innerWidth && !store.get('rotateOk', false)) $('#rotate-hint').hidden = false;
-    ui.toast(G.kind === 'solo' ? 'Practice: tap ⇄ to switch characters' : 'Find the 3 stars together ⭐');
+    if (G.kind === 'solo') ui.toast('Practice: tap ⇄ to switch characters');
+    introCaptions();
   }
 }
 
@@ -214,12 +312,19 @@ function onRemoteEvent(e) {
     if (ctls.moon.state === 'carried' && Array.isArray(e.v)) release(ctls.moon, new THREE.Vector3(e.v[0], e.v[1], e.v[2]));
   } else if (e.type === 'drop' && G.role === 'sun') {
     ctls.sun.carrying = false;
+  } else if (e.type === 'hold') {
+    if (e.on && handReachable(G.role, 3.2)) setHold(true, false);
+    else if (!e.on) setHold(false, false);
+  } else if (e.type === 'hjump' && G.hold) {
+    ctls[G.role].forceJump = true;
   }
 }
 function useAbilityFx(role) {
   if (role === 'sun') { fx.shine(chars.sun); sound.play('shine'); } else { fx.tide(chars.moon); sound.play('tide'); }
 }
 function onStars(map) {
+  G.starsMap = map || {};
+  map = G.starsMap;
   for (const s of world.stars) {
     const now = !!map[s.id];
     if (now && !s.collected) { fx.sparks(s.pos.clone().setY(s.pos.y - 0.6), 0xffe27a, 22); sound.play('star'); }
@@ -253,6 +358,8 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   ctl.regrab = Math.max(0, ctl.regrab - dt);
   ctl.wjLock = Math.max(0, ctl.wjLock - dt);
 
+  const forced = ctl.forceJump;
+  if (forced) { wantJump = true; ctl.forceJump = false; }
   if (ctl.state === 'carried') return carriedUpdate(ctl, wantJump);
   if (ctl.state === 'hang') return hangUpdate(ctl, ix, iz, mag, wantJump, dt);
   if (ctl.state === 'climb') return climbUpdate(ctl, dt);
@@ -276,6 +383,17 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
     if (!b.grounded) b.vel.y = Math.max(b.vel.y, 0);
     if (Math.random() < 0.6) fx.dust(_v.copy(b.pos).add(new THREE.Vector3(0, b.h * 0.4, 0)), 1);
   } else {
+    if (G.hold) { // holding hands: a soft spring keeps you together
+      const pp = partnerPos(role);
+      if (pp) {
+        const hx = pp.x - b.pos.x, hz = pp.z - b.pos.z, d = Math.hypot(hx, hz);
+        if (d > 1.05) {
+          const a = Math.min(20, (d - 1.05) * 14) * dt;
+          b.vel.x += (hx / d) * a; b.vel.z += (hz / d) * a;
+          if (d > 1.9) { b.pos.x += (hx / d) * (d - 1.9) * 0.5; b.pos.z += (hz / d) * (d - 1.9) * 0.5; }
+        }
+      }
+    }
     const dx = ix * speed * mag, dz = iz * speed * mag;
     const accel = (b.grounded ? 48 : ctl.wjLock > 0 ? 5 : 24) * dt;
     let ex = dx - b.vel.x, ez = dz - b.vel.z;
@@ -289,9 +407,13 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   ctl.buffer = wantJump ? 0.16 : ctl.buffer - dt;
   if (ctl.buffer > 0) {
     if (b.grounded || ctl.coyote > 0) {
-      b.vel.y = ctl.carrying ? JUMP * 0.88 : JUMP; ctl.jumps = 1; ctl.coyote = 0; ctl.buffer = 0; ctl.cut = false;
+      b.vel.y = ctl.carrying ? JUMP * 0.88 : G.hold ? JUMP * 1.12 : JUMP; ctl.jumps = 1; ctl.coyote = 0; ctl.buffer = 0; ctl.cut = G.hold;
       b.grounded = false; b.ground = null;
       sound.play('jump'); fx.dust(b.pos, 4);
+      if (G.hold) { // jumping while holding hands: you both jump, higher, with a twirl
+        chars[role].spin();
+        if (!forced) { if (G.kind === 'solo') ctls[otherRole(role)].forceJump = true; else G.net.sendEvent('hjump'); }
+      }
     } else if (ctl.wallT > 0 && !ctl.carrying) {
       b.vel.set(ctl.wallNX * WALL_OUT, WALL_UP, ctl.wallNZ * WALL_OUT);
       ctl.jumps = 1; ctl.buffer = 0; ctl.cut = true; ctl.wallT = 0; ctl.wjLock = 0.2;
@@ -394,6 +516,7 @@ function partnerPos(role) {
   return G.track.has && G.net?.status.partnerOnline ? G.track.pos : null;
 }
 function canLift() {
+  if (world.kid) return false;
   const sb = bodies.sun, mp = partnerPos('sun');
   if (!mp || !sb.grounded || ctls.sun.state !== 'free') return false;
   if (G.kind === 'solo' && ctls.moon.state !== 'free') return false;
@@ -424,7 +547,7 @@ function carriedUpdate(ctl, wantJump) {
   const b = ctl.body;
   const carrier = G.kind === 'solo' ? bodies.sun.pos : (G.track.has && G.net.status.partnerOnline ? G.track.pos : null);
   if (!carrier) { release(ctl, new THREE.Vector3(0, 4, 0)); return; }
-  b.pos.set(carrier.x, carrier.y + SIZES.sun.h + 0.02, carrier.z);
+  b.pos.set(carrier.x, carrier.y + sizeOf('sun').h + 0.02, carrier.z);
   b.vel.set(0, 0, 0); b.grounded = true; b.ground = null;
   ctl.anim = MODE.carried;
   chars[ctl.role].setYaw(chars.sun.yaw);
@@ -458,6 +581,24 @@ function respawn(ctl) {
   }
 }
 
+// ---- holding hands
+function handReachable(role, range = 1.9) {
+  const pp = partnerPos(role), b = bodies[role];
+  if (!pp || ctls[role].state !== 'free' || ctls.sun.carrying) return false;
+  return Math.hypot(pp.x - b.pos.x, pp.z - b.pos.z) < range && Math.abs(pp.y - b.pos.y) < 1.0;
+}
+function setHold(on, send) {
+  if (G.hold === on) return;
+  G.hold = on;
+  if (send && G.kind !== 'solo') G.net.sendEvent('hold', { on });
+  if (on) {
+    sound.play('heart');
+    const a = bodies.sun.pos, b = bodies.moon.pos;
+    fx.hearts(new THREE.Vector3().addVectors(a, partnerPos('sun') || b).multiplyScalar(0.5), 0xff7eb6);
+    if (!G.holdHintShown) { G.holdHintShown = true; ui.toast('Holding hands 💞 Jump together!'); }
+  }
+}
+
 // ---------------------------------------------------------------- networking out
 function sendState(now) {
   const ctl = ctls[G.role], b = ctl.body;
@@ -470,7 +611,7 @@ function sendState(now) {
   let base = null;
   if (ctl.state === 'carried' && G.track.has) { base = G.track.pos; s.b = otherRole(G.role); }
   else if (b.grounded && b.ground) {
-    if (b.ground.id === 'raft') base = world.movers.raft.pos(serverNow(), new THREE.Vector3());
+    if (b.ground.id === 'raft' && world.movers?.raft) base = world.movers.raft.pos(serverNow(), new THREE.Vector3());
     else if (b.ground === pcols[otherRole(G.role)] && G.track.has) base = G.track.pos;
     if (base) s.b = b.ground.id === 'raft' ? 'raft' : otherRole(G.role);
   }
@@ -478,7 +619,7 @@ function sendState(now) {
   G.net.sendState(s);
 }
 function resolveBase(id, out) {
-  if (id === 'raft') return world.movers.raft.pos(serverNow(), out);
+  if (id === 'raft') return world.movers?.raft ? world.movers.raft.pos(serverNow(), out) : null;
   if (id === G.role) return out.copy(bodies[G.role].pos);
   return null;
 }
@@ -489,9 +630,10 @@ function updateCamera(dt) {
   const c = G.cam;
   if (G.mode === 'lobby' || G.mode === 'connecting') {
     const a = G.t * 0.06;
-    const R = camera.aspect < 1 ? 36 : 24;
-    camera.position.set(6 + Math.sin(a) * R, 10 + Math.sin(G.t * 0.1) * 1.5, -2 + Math.cos(a) * R);
-    camera.lookAt(6, 0.5, -2);
+    const L = world.lobbyCam || { cx: 6, cz: -2, r: 24, h: 10 };
+    const R = L.r * (camera.aspect < 1 ? 1.5 : 1);
+    camera.position.set(L.cx + Math.sin(a) * R, L.h + Math.sin(G.t * 0.1) * 1.5, L.cz + Math.cos(a) * R);
+    camera.lookAt(L.cx, 0.5, L.cz);
     return;
   }
   const d = input.takeCam();
@@ -513,7 +655,7 @@ function updateCamera(dt) {
   c.target.x = damp(c.target.x, _look.x, 12, dt);
   c.target.z = damp(c.target.z, _look.z, 12, dt);
   c.target.y = damp(c.target.y, _look.y, b.grounded ? 8 : 3.5, dt);
-  const dist = c.dist * (camera.aspect < 1 ? 1.25 : 1);
+  const dist = c.dist * (camera.aspect < 1 ? 1.25 : 1) * (world.kid ? 0.85 : 1);
   const cp = Math.cos(c.pitch);
   camera.position.set(c.target.x + Math.sin(c.yaw) * cp * dist, c.target.y + Math.sin(c.pitch) * dist, c.target.z + Math.cos(c.yaw) * cp * dist);
   if (camera.position.y < c.target.y - 1.0) camera.position.y = c.target.y - 1.0;
@@ -597,11 +739,21 @@ function frame(nowMs) {
       }
     }
     if (input.consume('heart') && G.cooldown.heart <= 0) {
-      G.cooldown.heart = 0.8;
+      G.cooldown.heart = 0.6;
       const who = G.kind === 'solo' ? G.active : G.role;
-      fx.hearts(chars[who].root.position, who === 'sun' ? 0xffa64d : 0xb48cff);
-      sound.play('heart');
-      G.net.sendEvent('heart');
+      if (G.hold) setHold(false, true);
+      else if (handReachable(who)) setHold(true, true);
+      else {
+        fx.hearts(chars[who].root.position, who === 'sun' ? 0xffa64d : 0xb48cff);
+        sound.play('heart');
+        G.net.sendEvent('heart');
+      }
+    }
+    // let go automatically if you drift apart
+    if (G.hold) {
+      const who = G.kind === 'solo' ? G.active : G.role;
+      if (!handReachable(who, 3.2)) setHold(false, false);
+      else if ((G.holdHeartT -= dt) < 0) { G.holdHeartT = 2.6; fx.hearts(chars[who].root.position, 0xff7eb6); }
     }
     if (input.consume('swap') && G.kind === 'solo') {
       G.active = otherRole(G.active);
@@ -627,8 +779,18 @@ function frame(nowMs) {
 
     // someone on top of the tower → the toy steps slide out
     const T = world.towerTop;
-    const onTop = (p) => p && p.y > T.y - 0.15 && p.x > T.x0 && p.x < T.x1 && p.z > T.z0 && p.z < T.z1;
-    if (mine.some((r) => onTop(bodies[r].pos)) || (partnerVisible && G.kind !== 'solo' && onTop(G.track.pos))) world.setTowerOccupied(true);
+    if (T) {
+      const onTop = (p) => p && p.y > T.y - 0.15 && p.x > T.x0 && p.x < T.x1 && p.z > T.z0 && p.z < T.z1;
+      if (mine.some((r) => onTop(bodies[r].pos)) || (partnerVisible && G.kind !== 'solo' && onTop(G.track.pos))) world.setTowerOccupied(true);
+    }
+
+    // story beats of the current level
+    if (world.story && G.save) {
+      const pos = { sun: null, moon: null };
+      for (const r of mine) pos[r] = bodies[r].pos;
+      if (G.kind !== 'solo' && partnerVisible) pos[other] = G.track.pos;
+      world.story({ roles: mine, pos, holding: G.hold, save: G.save, setSave: (k, v) => G.net.setSave(k, v), caption, finish: onLevelFinished }, G.t);
+    }
 
     // context label on the ability button
     const who = G.kind === 'solo' ? G.active : G.role;
@@ -660,12 +822,18 @@ function frame(nowMs) {
     const visible = !playing || G.kind === 'solo' || r === G.role || partnerVisible;
     c.root.visible = visible;
     if (!visible) continue;
+    let hold = 0;
+    if (playing && G.hold) {
+      const me = c.root.position, pp = chars[otherRole(r)].root.position;
+      const y = c.yaw, side = Math.cos(y) * (pp.x - me.x) - Math.sin(y) * (pp.z - me.z);
+      hold = side >= 0 ? 1 : -1;
+    }
     if (playing && (G.kind === 'solo' || r === G.role)) {
       const b = bodies[r];
-      c.animate(dt, { speed: Math.hypot(b.vel.x, b.vel.z), grounded: b.grounded, vy: b.vel.y, mode: ctls[r].anim });
+      c.animate(dt, { speed: Math.hypot(b.vel.x, b.vel.z), grounded: b.grounded, vy: b.vel.y, mode: ctls[r].anim, hold });
     } else if (playing) {
       const v = G.track.vel;
-      c.animate(dt, { speed: Math.hypot(v.x, v.z), grounded: G.track.grounded, vy: v.y, mode: G.track.mode });
+      c.animate(dt, { speed: Math.hypot(v.x, v.z), grounded: G.track.grounded, vy: v.y, mode: G.track.mode, hold });
     } else c.animate(dt, { speed: 0, grounded: true, vy: 0, mode: MODE.normal });
   }
 
@@ -694,7 +862,7 @@ requestAnimationFrame(frame);
 
 // for automated tests
 window.__eclipse = {
-  G, bodies, chars, world, input, pcols, ctls,
+  G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold,
   /** Deterministic simulation at 60 Hz for tests: moves `role` with a fixed input. */
   sim(n, o = {}) {
     const r = o.role || G.active, dt = 1 / 60, trace = [];

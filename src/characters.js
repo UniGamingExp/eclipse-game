@@ -5,6 +5,8 @@ import { damp } from './util.js';
 
 export const MODE = { normal: 0, hang: 1, wall: 2, carried: 3, carry: 4, glide: 5, climb: 6, dash: 7 };
 export const SIZES = { sun: { r: 0.4, h: 1.45 }, moon: { r: 0.32, h: 1.2 } };
+export const KID_SIZES = { sun: { r: 0.3, h: 1.05 }, moon: { r: 0.28, h: 0.95 } };
+const KID_SCALE = { sun: 0.72, moon: 0.79 };
 
 const sphere = new THREE.SphereGeometry(1, 28, 20);
 const lowSphere = new THREE.SphereGeometry(1, 14, 10);
@@ -78,11 +80,12 @@ function limbs(torso, hipsParent, o) {
   return out;
 }
 
-function buildSun(pivot) {
+function buildSun(pivot, kid = false) {
   const skin = mat(0xf7dccb, { roughness: 0.6 });
-  const hoodie = mat(0xd8433d, { roughness: 0.9, emissive: 0x7a1408, emissiveIntensity: 0.12 });
-  const hoodieDark = mat(0xb5332f, { roughness: 0.9 });
-  const pants = mat(0x34405e, { roughness: 0.9 });
+  // grown-up: red hoodie; as a kid: the yellow sleeveless top and denim shorts from his photo
+  const hoodie = kid ? mat(0xf4d23c, { roughness: 0.85 }) : mat(0xd8433d, { roughness: 0.9, emissive: 0x7a1408, emissiveIntensity: 0.12 });
+  const hoodieDark = kid ? mat(0xe2bd28, { roughness: 0.85 }) : mat(0xb5332f, { roughness: 0.9 });
+  const pants = kid ? mat(0x6f8fc4, { roughness: 0.9 }) : mat(0x34405e, { roughness: 0.9 });
   const shoes = mat(0x2a2a33, { roughness: 0.6 });
   const beard = mat(0x2a1d16, { roughness: 1 });
   const hair = mat(0x4b3a2e, { roughness: 1 });
@@ -92,35 +95,48 @@ function buildSun(pivot) {
   const torso = group(pivot, 0, 0.42, 0);
   // hoodie body
   add(torso, capsule(0.32, 0.12), hoodie, 0, 0.27, 0, 1.0, 0.76, 0.82);
-  add(torso, capsule(0.15, 0.2), hoodieDark, 0, 0.13, 0.2, 1, 0.5, 0.35); // front pocket
-  const hood = add(torso, new THREE.TorusGeometry(0.19, 0.075, 10, 24), hoodieDark, 0, 0.53, -0.06);
-  hood.rotation.x = Math.PI / 2 - 0.25;
-  for (const s of [-1, 1]) add(torso, new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6), mat(0xffffff), s * 0.06, 0.4, 0.25);
+  if (!kid) {
+    add(torso, capsule(0.15, 0.2), hoodieDark, 0, 0.13, 0.2, 1, 0.5, 0.35); // front pocket
+    const hood = add(torso, new THREE.TorusGeometry(0.19, 0.075, 10, 24), hoodieDark, 0, 0.53, -0.06);
+    hood.rotation.x = Math.PI / 2 - 0.25;
+    for (const s of [-1, 1]) add(torso, new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6), mat(0xffffff), s * 0.06, 0.4, 0.25);
+  } else {
+    add(torso, capsule(0.16, 0.06), pants, 0, 0.0, 0, 1.75, 0.55, 1.35); // shorts
+  }
   const emblem = add(torso, new THREE.PlaneGeometry(0.2, 0.2), new THREE.MeshStandardMaterial({ map: sunEmblemTexture(), transparent: true, emissive: 0xffb300, emissiveMap: null, emissiveIntensity: 0.9, roughness: 0.6 }), 0.1, 0.33, 0.265, 1, 1, 1, false);
   emblem.material.emissiveMap = emblem.material.map;
 
   const L = limbs(torso, hips, {
     shoulderX: 0.37, shoulderY: 0.46, armR: 0.095, armLen: 0.22, handR: 0.088,
     hipX: 0.14, hipY: 0.42, legR: 0.115, legLen: 0.2, shoe: [0.21, 0.1, 0.32],
-    skinMat: skin, sleeveMat: hoodie, legMat: pants, shoeMat: shoes,
+    skinMat: skin, sleeveMat: kid ? skin : hoodie, legMat: kid ? skin : pants, shoeMat: kid ? mat(0x8a6a52) : shoes,
   });
 
   // head
   const neck = group(torso, 0, 0.55, 0);
   const head = group(neck, 0, 0.25, 0);
+  if (kid) head.scale.setScalar(1.18);
   add(head, sphere, skin, 0, 0, 0, 0.27, 0.28, 0.27);
-  const cap = add(head, new THREE.SphereGeometry(0.278, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.4), hair, 0, 0.01, -0.02);
-  cap.rotation.x = -0.32;
-  add(head, sphere, beard, 0, -0.09, 0.06, 0.288, 0.2, 0.235); // full beard around the jaw (front half only)
-  add(head, sphere, beard, 0, -0.17, 0.12, 0.17, 0.12, 0.15); // chin
-  const must = add(head, capsule(0.03, 0.11), beard, 0, -0.03, 0.262);
-  must.rotation.z = Math.PI / 2;
+  if (kid) {
+    const kidHair = mat(0x6b4a32, { roughness: 0.9 });
+    const cap = add(head, new THREE.SphereGeometry(0.283, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), kidHair, 0, 0.01, -0.01);
+    cap.rotation.x = -0.12;
+    const fringe = add(head, lowSphere, kidHair, 0.02, 0.17, 0.2, 0.2, 0.07, 0.08);
+    fringe.rotation.x = -0.5;
+  } else {
+    const cap = add(head, new THREE.SphereGeometry(0.278, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.4), hair, 0, 0.01, -0.02);
+    cap.rotation.x = -0.32;
+    add(head, sphere, beard, 0, -0.09, 0.06, 0.288, 0.2, 0.235); // full beard around the jaw (front half only)
+    add(head, sphere, beard, 0, -0.17, 0.12, 0.17, 0.12, 0.15); // chin
+    const must = add(head, capsule(0.03, 0.11), beard, 0, -0.03, 0.262);
+    must.rotation.z = Math.PI / 2;
+  }
   add(head, lowSphere, skin, 0, 0.0, 0.272, 0.042, 0.04, 0.035, false); // nose
-  const smile = add(head, new THREE.TorusGeometry(0.032, 0.009, 6, 14, Math.PI), mat(0xc77068), 0, -0.07, 0.288, 1, 0.8, 1, false);
+  const smile = add(head, new THREE.TorusGeometry(0.032, 0.009, 6, 14, Math.PI), mat(0xc77068), 0, kid ? -0.1 : -0.07, kid ? 0.258 : 0.288, 1, 0.8, 1, false);
   smile.rotation.z = Math.PI;
   for (const s of [-1, 1]) {
     add(head, lowSphere, skin, s * 0.27, 0, 0, 0.045, 0.07, 0.04); // ears
-    const brow = add(head, capsule(0.016, 0.07), beard, s * 0.1, 0.115, 0.25, 1, 1, 1, false);
+    const brow = add(head, capsule(0.016, 0.07), kid ? mat(0x6b4a32) : beard, s * 0.1, 0.115, 0.25, 1, 1, 1, false);
     brow.rotation.z = Math.PI / 2 + s * 0.12;
   }
   const eyes = [];
@@ -138,9 +154,9 @@ function buildSun(pivot) {
   return { hips, torso, neck, head, eyes, ...L, extra: {} };
 }
 
-function buildMoon(pivot) {
+function buildMoon(pivot, kid = false) {
   const skin = mat(0xf2cfb9, { roughness: 0.55 });
-  const dress = new THREE.MeshPhysicalMaterial({ color: 0x4a1f78, roughness: 0.5, sheen: 1, sheenColor: new THREE.Color(0x9b6bd6), sheenRoughness: 0.4 });
+  const dress = new THREE.MeshPhysicalMaterial({ color: kid ? 0xc9a6e8 : 0x4a1f78, roughness: 0.5, sheen: 1, sheenColor: new THREE.Color(0x9b6bd6), sheenRoughness: 0.4 });
   const jacket = new THREE.MeshPhysicalMaterial({ color: 0xb79be0, roughness: 0.35, metalness: 0.15, sheen: 1, sheenColor: new THREE.Color(0xffe0ff), iridescence: 0.4 });
   const hairM = mat(0x1a1216, { roughness: 0.5 });
   const shoes = mat(0x1f1a24, { roughness: 0.35 });
@@ -154,20 +170,26 @@ function buildMoon(pivot) {
   const torso = group(pivot, 0, 0.5, 0);
   add(torso, capsule(0.19, 0.12), dress, 0, 0.17, 0, 1, 0.85, 0.8);
   // lilac jacket: back + sides and lapels
-  const back = add(torso, new THREE.CylinderGeometry(0.205, 0.2, 0.3, 20, 1, true, Math.PI * 0.24, Math.PI * 1.52), jacket, 0, 0.17, 0, 1, 1, 0.84);
-  back.material.side = THREE.DoubleSide;
+  if (!kid) {
+    const back = add(torso, new THREE.CylinderGeometry(0.205, 0.2, 0.3, 20, 1, true, Math.PI * 0.24, Math.PI * 1.52), jacket, 0, 0.17, 0, 1, 1, 0.84);
+    back.material.side = THREE.DoubleSide;
+  } else {
+    for (const s of [-1, 1]) add(torso, lowSphere, dress, s * 0.2, 0.28, 0, 0.09, 0.08, 0.09); // little puff sleeves
+  }
 
   const L = limbs(torso, hips, {
     shoulderX: 0.24, shoulderY: 0.3, armR: 0.062, armLen: 0.2, handR: 0.058,
     hipX: 0.08, hipY: 0.3, legR: 0.07, legLen: 0.14, shoe: [0.11, 0.07, 0.2],
-    skinMat: skin, sleeveMat: jacket, legMat: skin, shoeMat: shoes,
+    skinMat: skin, sleeveMat: kid ? skin : jacket, legMat: skin, shoeMat: kid ? mat(0xffffff, { roughness: 0.5 }) : shoes,
   });
   const bracelet = add(L.rHand.parent, new THREE.TorusGeometry(0.055, 0.012, 8, 20), mat(0xdfe3ea, { metalness: 1, roughness: 0.25 }), 0, -0.235, 0, 1, 1, 1, false);
   bracelet.rotation.x = Math.PI / 2;
+  bracelet.visible = !kid;
 
   const neck = group(torso, 0, 0.33, 0);
   add(neck, capsule(0.05, 0.05), skin, 0, 0.02, 0);
   const head = group(neck, 0, 0.21, 0);
+  if (kid) head.scale.setScalar(1.14);
   add(head, sphere, skin, 0, 0, 0, 0.235, 0.245, 0.235);
   // hair: cap, side-swept bangs, long wavy back, side locks
   const cap = add(head, new THREE.SphereGeometry(0.252, 26, 14, 0, Math.PI * 2, 0, Math.PI * 0.52), hairM, 0, 0.01, -0.012);
@@ -175,10 +197,19 @@ function buildMoon(pivot) {
   const bang = add(head, lowSphere, hairM, -0.05, 0.14, 0.15, 0.2, 0.075, 0.1);
   bang.rotation.z = 0.35; bang.rotation.x = -0.4;
   const backHair = group(head, 0, 0, 0);
-  add(backHair, capsule(0.2, 0.26), hairM, 0, -0.16, -0.1, 1.15, 1, 0.68);
+  if (kid) {
+    // a little bob with straight bangs, under a lilac sun hat
+    add(backHair, sphere, hairM, 0, -0.06, -0.04, 0.27, 0.22, 0.25);
+    add(head, lowSphere, hairM, 0, 0.12, 0.17, 0.2, 0.07, 0.08).rotation.x = -0.35;
+    const hatM = mat(0xc9a6e8, { roughness: 0.8 });
+    add(head, new THREE.CylinderGeometry(0.42, 0.44, 0.03, 32), hatM, 0, 0.2, 0.0);
+    add(head, new THREE.SphereGeometry(0.26, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), hatM, 0, 0.19, -0.01);
+    add(head, new THREE.TorusGeometry(0.255, 0.025, 8, 28), mat(0xf6e8ff), 0, 0.22, -0.01).rotation.x = Math.PI / 2;
+  }
+  if (!kid) add(backHair, capsule(0.2, 0.26), hairM, 0, -0.16, -0.1, 1.15, 1, 0.68);
   const waves = [[-0.16, -0.38, -0.1], [0.16, -0.38, -0.1], [0, -0.43, -0.15]];
-  for (const [x, y, z] of waves) add(backHair, lowSphere, hairM, x, y, z, 0.075, 0.08, 0.065);
-  for (const s of [-1, 1]) {
+  if (!kid) for (const [x, y, z] of waves) add(backHair, lowSphere, hairM, x, y, z, 0.075, 0.08, 0.065);
+  for (const s of (kid ? [] : [-1, 1])) {
     const lock = add(head, capsule(0.05, 0.26), hairM, s * 0.2, -0.16, 0.02, 1, 1, 0.8);
     lock.rotation.z = s * 0.1;
     const curl = add(head, lowSphere, hairM, s * 0.215, -0.33, 0.035, 0.06, 0.055, 0.05);
@@ -196,10 +227,11 @@ function buildMoon(pivot) {
     add(head, lowSphere, mat(0xff8fa3, { transparent: true, opacity: 0.75 }), s * 0.14, -0.05, 0.19, 0.045, 0.028, 0.02, false);
   }
   add(head, lowSphere, skin, 0, -0.025, 0.236, 0.024, 0.026, 0.02, false); // nose
-  const lips = add(head, new THREE.TorusGeometry(0.03, 0.011, 6, 14, Math.PI), mat(0xb0182a, { roughness: 0.35 }), 0, -0.088, 0.226, 1, 0.75, 1, false);
+  const lips = add(head, new THREE.TorusGeometry(0.03, 0.011, 6, 14, Math.PI), mat(kid ? 0xe0727e : 0xb0182a, { roughness: 0.35 }), 0, -0.088, 0.226, 1, 0.75, 1, false);
   lips.rotation.z = Math.PI;
   // jasmine flower and a little golden moon clip
   const jas = group(head, -0.17, 0.14, 0.12);
+  jas.visible = !kid;
   jas.rotation.set(0.3, -0.6, 0);
   const petal = mat(0xffffff, { emissive: 0xfff6e8, emissiveIntensity: 0.35 });
   for (let i = 0; i < 5; i++) {
@@ -209,11 +241,12 @@ function buildMoon(pivot) {
   add(jas, lowSphere, mat(0xffd54a), 0, 0, 0.006, 0.012, 0.012, 0.008, false);
   const clip = add(head, new THREE.TorusGeometry(0.04, 0.011, 8, 18, Math.PI * 1.25), mat(0xffd77a, { emissive: 0xffb300, emissiveIntensity: 1.1, metalness: 0.4 }), 0.19, 0.12, 0.09, 1, 1, 1, false);
   clip.rotation.set(0, 0.7, 0.4);
+  clip.visible = !kid;
 
   return { hips, torso, neck, head, eyes, ...L, extra: { skirt, backHair } };
 }
 
-export function makeCharacter(kind) {
+export function makeCharacter(kind, { kid = false } = {}) {
   const root = new THREE.Group();
   const flip = new THREE.Group(); // double-jump flips/twirls
   root.add(flip);
@@ -221,8 +254,9 @@ export function makeCharacter(kind) {
   const pivot = new THREE.Group(); // squash & stretch around the feet
   flip.add(pivot);
   const isSun = kind === 'sun';
-  const P = isSun ? buildSun(pivot) : buildMoon(pivot);
-  const H = SIZES[kind].h;
+  const P = isSun ? buildSun(pivot, kid) : buildMoon(pivot, kid);
+  if (kid) flip.scale.setScalar(KID_SCALE[kind]);
+  const H = (kid ? KID_SIZES : SIZES)[kind].h;
 
   const glow = new THREE.PointLight(isSun ? 0xff8a5c : 0xb08cff, 0, 7, 2);
   glow.position.set(0, H * 0.6, 0);
@@ -235,7 +269,7 @@ export function makeCharacter(kind) {
   const armSign = 1;
 
   return {
-    root, kind, glow, height: H,
+    root, kind, glow, height: H, kid,
     get yaw() { return yaw; },
     setYaw(y) { yaw = y; root.rotation.y = y; },
     land(impact = 8) { squash = Math.max(squash, Math.min(1, impact / 16)); },
@@ -286,6 +320,9 @@ export function makeCharacter(kind) {
         lean = run * 0.18;
         headX = Math.sin(t * 0.9) * 0.04 * idle;
       }
+      if (st.hold && mode === MODE.normal) { // reach out to hold the partner's hand
+        if (st.hold < 0) { laz = -1.0; lax = -0.35; } else { raz = 1.0; rax = -0.35; }
+      }
       if (throwT > 0) { throwT -= dt; const k = throwT / 0.3; lax = rax = -2.9 * k - 0.6 * (1 - k); laz = -0.3; raz = 0.3; }
 
       const R = 16;
@@ -322,7 +359,7 @@ export function makeCharacter(kind) {
         spinT = Math.max(0, spinT - dt);
         const k = 1 - spinT / 0.42;
         const e = k * k * (3 - 2 * k);
-        if (isSun) { flip.position.y = H * 0.5; pivot.position.y -= H * 0.5; flip.rotation.x = e * Math.PI * 2; }
+        if (isSun) { flip.position.y = H * 0.5; pivot.position.y -= (H * 0.5) / flip.scale.y; flip.rotation.x = e * Math.PI * 2; }
         else flip.rotation.y = e * Math.PI * 2;
       } else {
         flip.rotation.set(0, 0, 0);

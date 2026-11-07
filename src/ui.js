@@ -144,6 +144,7 @@ export function createUI({ onJoin, onSolo, onStart, onRetry, onLeave, onResetSta
       lobby.hidden = true; conn.hidden = false;
       $('#conn-title').textContent = mode === 'menu' ? 'Menu' : 'Connection';
       $('#conn-extras').hidden = mode !== 'menu';
+      $('#level-chips').hidden = mode !== 'menu';
     },
     showHud() { lobby.hidden = true; conn.hidden = true; hud.hidden = false; },
     setStars(n, total) { $('#star-count').textContent = n; $('#star-total').textContent = total; },

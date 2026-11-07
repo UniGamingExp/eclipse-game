@@ -31,6 +31,15 @@ function median(a) {
 
 const newSid = () => Math.random().toString(36).slice(2, 10);
 
+/** Set a nested value: setPath(o, 'prologue/done', true). */
+function setPath(o, path, v) {
+  const keys = path.split('/');
+  let cur = o;
+  for (let i = 0; i < keys.length - 1; i++) cur = cur[keys[i]] = (cur[keys[i]] && typeof cur[keys[i]] === 'object') ? cur[keys[i]] : {};
+  cur[keys[keys.length - 1]] = v;
+  return o;
+}
+
 // ------------------------------------------------------------------------------------------
 export class FirebaseNet extends Emitter {
   constructor() {
@@ -111,6 +120,11 @@ export class FirebaseNet extends Emitter {
 
     onValue(this.starsRef, (s) => this.emit('stars', s.val() || {}), (err) => this._fail(err));
 
+    // shared story progress (which level, story beats)
+    this.saveRef = ref(db, `${base}/save`);
+    this.save = {};
+    onValue(this.saveRef, (s) => { this.save = s.val() || {}; this.saveLoaded = true; this.emit('save', this.save); }, (err) => this._fail(err));
+
     // quiz questions each player writes about themself
     this.quizMineRef = ref(db, `${base}/quiz/${role}`);
     onValue(this.quizMineRef, (s) => { this.quizMine = s.val(); this.quizLoaded = true; this._emitQuiz(); }, (err) => this._fail(err));
@@ -182,6 +196,11 @@ export class FirebaseNet extends Emitter {
 
   collectStar(id) { set(ref(this.db, `${this.base}/stars/${id}`), true).catch(() => {}); }
   _emitQuiz() { this.emit('quiz', this.quizMine || null, this.quizPartner || null); }
+  setSave(path, value) {
+    setPath(this.save, path, value); // optimistic
+    this.emit('save', this.save);
+    update(this.saveRef, { [path]: value }).catch((e) => this._fail(e));
+  }
   saveQuiz(items) { return items.length ? set(this.quizMineRef, { t: serverTimestamp(), items }) : remove(this.quizMineRef); }
   resetStars() { remove(this.starsRef).catch(() => {}); }
 
@@ -216,6 +235,9 @@ export class LocalNet extends Emitter {
       if (this.lag) setTimeout(deliver, this.lag * (0.75 + Math.random() * 0.5)); else deliver();
     };
     this.room = roomId;
+    this.save = store.get(`save.${roomId}`, {});
+    this.saveLoaded = true;
+    setTimeout(() => this.emit('save', this.save), 0);
     this.quizMine = store.get(`quiz.${roomId}.${role}`, null);
     this.quizPartner = store.get(`quiz.${roomId}.${this.other}`, null);
     this.quizLoaded = true;
@@ -235,6 +257,7 @@ export class LocalNet extends Emitter {
     else if (d.k === 'stars') { Object.assign(this.stars, d.stars); if (d.reset) this.stars = {}; this.emit('stars', { ...this.stars }); }
     else if (d.k === 'bye') { this.partnerSeen = 0; this._check(); }
     else if (d.k === 'quiz') { this.quizPartner = d.v; this._emitQuiz(); }
+    else if (d.k === 'save') { setPath(this.save, d.path, d.value); store.set(`save.${this.room}`, this.save); this.emit('save', this.save); }
   }
   _check() {
     const online = Date.now() - this.partnerSeen < 4000;
@@ -246,6 +269,12 @@ export class LocalNet extends Emitter {
   collectStar(id) { this.stars[id] = true; this._send({ k: 'stars', stars: { [id]: true } }); this.emit('stars', { ...this.stars }); }
   resetStars() { this.stars = {}; this._send({ k: 'stars', stars: {}, reset: true }); this.emit('stars', {}); }
   _emitQuiz() { this.emit('quiz', this.quizMine, this.quizPartner); }
+  setSave(path, value) {
+    setPath(this.save, path, value);
+    store.set(`save.${this.room}`, this.save);
+    this._send({ k: 'save', path, value });
+    this.emit('save', this.save);
+  }
   saveQuiz(items) {
     const v = items.length ? { t: Date.now(), items } : null;
     store.set(`quiz.${this.room}.${this.role}`, v);
@@ -269,8 +298,10 @@ export class SoloNet extends Emitter {
   join(roomId, role) {
     this.role = role; this.other = otherRole(role);
     this.quizMine = store.get(`quiz.solo.${role}`, null); this.quizLoaded = true;
-    setTimeout(() => this.emit('quiz', this.quizMine, null), 0);
+    this.save = store.get('save.solo', {}); this.saveLoaded = true;
+    setTimeout(() => { this.emit('quiz', this.quizMine, null); this.emit('save', this.save); }, 0);
   }
+  setSave(path, value) { setPath(this.save, path, value); store.set('save.solo', this.save); this.emit('save', this.save); }
   saveQuiz(items) {
     this.quizMine = items.length ? { t: Date.now(), items } : null;
     store.set(`quiz.solo.${this.role}`, this.quizMine);

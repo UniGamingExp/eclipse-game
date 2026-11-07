@@ -11,7 +11,7 @@
 <title>Eclipse</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="style.css?v=a2faada5e7">
+<link rel="stylesheet" href="style.css?v=1ce307fa7a">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -36,6 +36,7 @@
 
   <div id="partner-arrow" hidden><span id="partner-arrow-icon">🌙</span></div>
   <div id="toasts"></div>
+  <div id="caption"></div>
   <div id="rotate-hint" hidden><span>Turn your phone sideways for the best view</span><button id="rotate-ok">OK</button></div>
   <div id="debug" hidden></div>
 </div>
@@ -73,6 +74,7 @@
       <button id="conn-start" class="primary">Start playing</button>
       <button id="conn-retry" hidden>Try again</button>
     </div>
+    <div class="extras" id="level-chips"></div>
     <div class="extras" id="conn-extras">
       <button id="opt-sound" class="chip">🔊 Sound on</button>
       <button id="opt-full" class="chip" hidden>⛶ Full screen</button>
@@ -122,6 +124,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=a2faada5e7"></script>
+<script type="module" src="build/game.js?v=1ce307fa7a"></script>
 </body>
 </html>

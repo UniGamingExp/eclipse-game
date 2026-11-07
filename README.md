@@ -18,6 +18,9 @@ Moves: jump short of an edge and you **grab it** (push forward or tap Jump to cl
 
 On iPhone, use Share → **Add to Home Screen** for full screen.
 
+## Story
+The game starts with the **Prologue · Two Skies**: little Sun and little Moon each learn to move on their own childhood island. When both reach their telescope, a bridge of stars appears; meet in the middle and tap ♥ next to each other to hold hands. Tap ♥ near your partner anytime to hold hands (jump together!), tap again to let go. Switch between the Prologue and the Playground in the menu (☰).
+
 ## Development
 ```bash
 npm install
@@ -34,7 +37,8 @@ GitHub Pages serves the repo root from `main`, so **commit `build/game.js` after
 | File | What it does |
 |---|---|
 | `src/main.js` | Game loop, player control, camera, wiring |
-| `src/world.js` | The test island, colliders, moving cloud raft, stars |
+| `src/world.js` | Level manager (loads / swaps levels) |
+| `src/levels/` | `common.js` building blocks, `prologue.js`, `playground.js` (test island) |
 | `src/characters.js` | Sun and Moon models and animation |
 | `src/physics.js` | Small character physics (cylinders vs boxes/cylinders) |
 | `src/net.js` | Firebase / two-tab / solo networking |
