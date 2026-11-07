@@ -3,9 +3,11 @@ import * as THREE from 'three';
 import { buildPlayground } from './levels/playground.js';
 import { buildPrologue } from './levels/prologue.js';
 import { clearFrameHooks } from './levels/hooks.js';
+import { buildCh1Square } from './levels/ch1-square.js';
 
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue' },
+  'ch1-square': { build: buildCh1Square, title: 'Chapter 1 · The Town Square', chip: '💬 Ch.1 Town Square' },
   playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground' },
 };
 

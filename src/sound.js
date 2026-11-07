@@ -59,5 +59,9 @@ const FX = {
   tide: (t) => { tone(t, { type: 'sine', f0: 300, f1: 150, dur: 0.5, vol: 0.2 }); tone(t + 0.1, { type: 'sine', f0: 450, f1: 220, dur: 0.5, vol: 0.12 }); },
   dash: (t) => { tone(t, { type: 'sawtooth', f0: 900, f1: 180, dur: 0.16, vol: 0.06 }); tone(t, { type: 'sine', f0: 500, f1: 120, dur: 0.18, vol: 0.14 }); },
   join: (t) => [523, 784].forEach((f, i) => tone(t + i * 0.12, { type: 'triangle', f0: f, dur: 0.25, vol: 0.18 })),
+  shout: (t) => { tone(t, { type: 'square', f0: 220, f1: 330, dur: 0.12, vol: 0.06 }); tone(t + 0.05, { type: 'sawtooth', f0: 330, f1: 520, dur: 0.18, vol: 0.05 }); tone(t, { type: 'sine', f0: 440, f1: 660, dur: 0.22, vol: 0.16 }); },
+  pin: (t) => { tone(t, { type: 'triangle', f0: 1200, f1: 900, dur: 0.06, vol: 0.18 }); tone(t + 0.05, { type: 'sine', f0: 700, dur: 0.12, vol: 0.14 }); },
+  pop: (t) => { tone(t, { type: 'sine', f0: 900, f1: 120, dur: 0.12, vol: 0.3 }); tone(t + 0.02, { type: 'triangle', f0: 400, f1: 1400, dur: 0.3, vol: 0.12 }); },
+  no: (t) => tone(t, { type: 'triangle', f0: 200, f1: 150, dur: 0.12, vol: 0.12 }),
   respawn: (t) => tone(t, { type: 'sine', f0: 900, f1: 300, dur: 0.35, vol: 0.15 }),
 };

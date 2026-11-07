@@ -114,6 +114,30 @@ function placeAtSpawn(r) {
   chars[r].setYaw(facingYaw(r));
 }
 ROLES.forEach(placeAtSpawn);
+
+// what a level's special abilities (world.abilities) may use
+const levelApi = {
+  get kind() { return G.kind; }, get role() { return G.role; }, get active() { return G.active; },
+  bodies, ctls, chars, sizeOf, fx, sound, MODE,
+  mine: () => (G.kind === 'solo' ? ROLES : [G.role]),
+  partnerPos: (r) => partnerPos(r),
+  serverNow: () => serverNow(),
+  send: (type, data) => G.net?.sendEvent(type, data),
+  toast: (m) => ui.toast(m),
+  caption: (m, ms) => caption(m, ms),
+  get save() { return G.save; },
+  setSave: (k, v) => G.net?.setSave(k, v),
+  /** throw one of our own bodies into the air (bubble pops, bouncy things…) */
+  launch(r, vy, vx = 0, vz = 0) {
+    const ctl = ctls[r];
+    if (ctl.state === 'carried') return;
+    if (ctl.state !== 'free') { ctl.state = 'free'; ctl.anim = MODE.normal; }
+    release(ctl, new THREE.Vector3(vx, vy, vz));
+    ctl.jumps = 1; ctl.airDashUsed = false;
+  },
+  finish: () => onLevelFinished(),
+};
+world.attach?.(levelApi);
 const colliders = [];
 function rebuildColliders() {
   colliders.length = 0;
@@ -172,6 +196,7 @@ function switchLevel(id) {
   const wasKid = !!world.kid;
   world.dispose();
   world = loadLevel(scene, id);
+  world.attach?.(levelApi);
   store.set('lastLevel', id);
   if (!!world.kid !== wasKid) makeChars();
   for (const r of ROLES) {
@@ -196,13 +221,17 @@ function switchLevel(id) {
 function chooseLevel(id) {
   if (!G.net) return;
   if (id === 'prologue') G.net.setSave('prologue', null); // replay the story from the start
+  if (id === 'ch1-square') G.net.setSave('ch1', null);
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
 function onLevelFinished() {
   if (world.id === 'prologue') {
-    caption('Chapter 1 · Syria Unfiltered is coming next ✨', 3500);
-    setTimeout(() => G.net?.setSave('level', 'playground'), 1500);
+    caption('Chapter 1 · Syria Unfiltered', 3000);
+    setTimeout(() => G.net?.setSave('level', 'ch1-square'), 1500);
+  } else if (world.id === 'ch1-square') {
+    caption('Part 2 · The Card Tables is coming next ✨', 4000);
+    setTimeout(() => G.net?.setSave('level', 'playground'), 2500);
   }
 }
 const levelChips = $('#level-chips');
@@ -213,7 +242,10 @@ for (const [id, def] of Object.entries(LEVELS)) {
   b.addEventListener('click', () => chooseLevel(id));
   levelChips.appendChild(b);
 }
-const serverNow = () => (G.net ? G.net.serverNow() : Date.now());
+// the shared clock (tests can push it forward with sim())
+let clockSkew = 0;
+const baseNow = () => (G.net ? G.net.serverNow() : Date.now());
+const serverNow = () => baseNow() + clockSkew;
 
 // ---------------------------------------------------------------- UI & input
 const input = createInput({
@@ -314,6 +346,7 @@ if (sessionStorage.getItem('eclipse.autojoin') && store.get('role') && store.get
 function onRemoteEvent(e) {
   const c = chars[e.from];
   if (!c) return;
+  if (world.abilities?.onEvent(e)) return;
   if (e.type === 'heart') {
     fx.hearts(c.root.position, e.from === 'sun' ? 0xffa64d : 0xb48cff);
     ui.toast(`${ROLE_EMOJI[e.from]} ${ROLE_NAME[e.from]} sent you a heart ${e.from === 'sun' ? '🧡' : '💜'}`);
@@ -827,7 +860,7 @@ function frame(nowMs) {
     if (input.consume('ability') && G.cooldown.ability <= 0) {
       G.cooldown.ability = 0.45;
       const who = G.kind === 'solo' ? G.active : G.role;
-      if (!(who === 'sun' && sunAction())) {
+      if (!(who === 'sun' && sunAction()) && !world.abilities?.use(who)) {
         useAbilityFx(who);
         G.net.sendEvent('ability');
       }
@@ -886,9 +919,12 @@ function frame(nowMs) {
       world.story({ roles: mine, pos, holding: G.hold, save: G.save, setSave: (k, v) => G.net.setSave(k, v), caption, finish: onLevelFinished }, G.t);
     }
 
+    world.abilities?.update(dt, sNow, G.t);
+
     // context label on the ability button
     const who = G.kind === 'solo' ? G.active : G.role;
-    const label = who === 'sun' ? (ctls.sun.carrying ? 'Throw' : canLift() ? 'Lift' : 'Shine') : 'Tide';
+    const special = world.abilities?.label(who);
+    const label = who === 'sun' ? (ctls.sun.carrying ? 'Throw' : canLift() ? 'Lift' : special || 'Shine') : special || 'Tide';
     if (label !== G.abilityLabel) { G.abilityLabel = label; $('#ability-label').textContent = label; }
 
     // stars
@@ -965,12 +1001,16 @@ window.__eclipse = {
     let T = o.t0 ?? serverNow();
     for (let i = 0; i < n; i++) {
       T += 1000 / 60;
+      clockSkew = T - baseNow();
+      G.t += dt;
       world.update(T, G.t, dt);
+      world.abilities?.update(dt, T, G.t);
       for (const k of ROLES) syncPlayerCollider(pcols[k], bodies[k].pos, bodies[k].h);
       if (G.kind === 'solo') pcols.moon.disabled = ctls.moon.state === 'carried';
       control(ctls[r], o.move || idleInput, (o.jumpAt || []).includes(i), o.hold ?? true, dt, (o.dashAt || []).includes(i));
       if (G.kind === 'solo') for (const k of ROLES) if (k !== r) control(ctls[k], idleInput, (o.otherJumpAt || []).includes(i), false, dt);
       if (o.actionAt && o.actionAt.includes(i)) sunAction();
+      for (const [who, steps] of Object.entries(o.use || {})) if (steps.includes(i) && !(who === 'sun' && sunAction())) world.abilities?.use(who);
       if (o.every && i % o.every === 0) trace.push([+bodies[r].pos.x.toFixed(2), +bodies[r].pos.y.toFixed(2), +bodies[r].pos.z.toFixed(2), bodies[r].grounded ? 1 : 0, ctls[r].state[0] + ctls[r].anim]);
     }
     return { pos: bodies[r].pos.toArray().map((v) => +v.toFixed(3)), grounded: bodies[r].grounded, state: ctls[r].state, anim: ctls[r].anim, trace };
