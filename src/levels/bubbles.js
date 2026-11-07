@@ -177,3 +177,120 @@ export function createBubbles(parent, colliders, { pool = 14 } = {}) {
   };
   return api;
 }
+
+/**
+ * Chapter 1's two powers on top of a bubble set: Sun shouts, Moon pins / pops.
+ * hooks: update(sNow, dt, t) runs before the bubbles move (spawn crowd chatter there), onPop(id, sNow).
+ */
+export function bubbleAbilities(bub, hooks = {}) {
+  let api = null, shoutCd = 0, warnT = 0;
+  const _t = new THREE.Vector3();
+  const yawOf = (r) => api.chars[r].yaw;
+  const localMoon = () => api && (api.kind === 'solo' ? api.active === 'moon' : api.role === 'moon');
+  // what Moon's Pin/Pop aims at: Sun's bubbles beat the crowd's, a bubble someone stands on beats
+  // everything, and bubbles in front of her beat the ones behind
+  function moonTarget() {
+    const b = api.bodies.moon, y = yawOf('moon'), fx = Math.sin(y), fz = Math.cos(y);
+    const people = [b.pos];
+    const pp = api.partnerPos('moon');
+    if (pp) people.push(pp);
+    let best = null, bs = Infinity;
+    for (const s of bub.slots) {
+      if (!s.active) continue;
+      const dx = s.pos.x - b.pos.x, dy = s.pos.y - (b.pos.y + 0.6), dz = s.pos.z - b.pos.z;
+      const d = Math.hypot(dx, dy, dz);
+      if (d > PIN_RANGE) continue;
+      let score = d;
+      if (s.kind === 'sun') score -= 2.5;
+      if (people.some((p) => Math.hypot(p.x - s.pos.x, p.z - s.pos.z) < 1.1 && Math.abs(p.y - s.pos.y) < 0.4)) score -= 5;
+      const h = Math.hypot(dx, dz);
+      if (h > 0.8 && (dx * fx + dz * fz) / h < -0.2) score += 3;
+      if (score < bs) { bs = score; best = s; }
+    }
+    return best;
+  }
+  function solidUnder(body) {
+    if (!body.grounded || !body.ground) return false;
+    const s = bub.slots.find((x) => x.active && x.col === body.ground);
+    return !s || s.pinned;   // pinned bubbles count as solid ground
+  }
+  function launchRiders(s) {
+    for (const r of api.mine()) {
+      const b = api.bodies[r];
+      if (bub.under(b) === s) { api.launch(r, POP_LAUNCH); api.sound.play('bounce'); }
+    }
+  }
+  const abilities = {
+    label(who) {
+      if (who === 'sun') return 'Shout';
+      const s = moonTarget();
+      return s ? (s.pinned ? 'Pop' : 'Pin') : null;
+    },
+    use(who) {
+      const sNow = api.serverNow();
+      if (who === 'sun') {
+        const b = api.bodies.sun;
+        if (!solidUnder(b) || shoutCd > 0) {
+          api.sound.play('no');
+          if (!solidUnder(b) && performance.now() > warnT) { warnT = performance.now() + 4000; api.toast('Shout from solid ground (or a pinned bubble)'); }
+          return true;
+        }
+        shoutCd = 0.6;
+        const y = yawOf('sun');
+        const p = new THREE.Vector3(b.pos.x + Math.sin(y) * 2.3, b.pos.y + 1.25, b.pos.z + Math.cos(y) * 2.3);
+        const id = 's' + Math.floor(sNow).toString(36) + Math.floor(Math.random() * 1296).toString(36);
+        bub.spawn({ id, kind: 'sun', p, born: sNow });
+        api.chars.sun.throwAnim();
+        api.sound.play('shout');
+        api.fx.sparks(p.clone(), 0xffb36b, 10, 1.5);
+        api.send('bub', { id, p: [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)], b: Math.round(sNow) });
+        return true;
+      }
+      const s = moonTarget();
+      if (!s) return false;   // nothing nearby: the normal Tide sparkle
+      if (s.pinned) {
+        const id = s.id;
+        launchRiders(s);
+        const p = bub.pop(id);
+        hooks.onPop?.(id, sNow);
+        api.fx.sparks(p, 0xc9a6ff, 26, 3.5);
+        api.sound.play('pop');
+        api.send('pop', { id });
+      } else {
+        const p = [+s.pos.x.toFixed(2), +s.pos.y.toFixed(2), +s.pos.z.toFixed(2)];
+        bub.pin(s.id, p, sNow, s.kind);
+        api.fx.sparks(s.pos.clone(), 0xb48cff, 12, 1.5);
+        api.sound.play('pin');
+        api.send('pin', { id: s.id, p, k: s.kind });
+      }
+      return true;
+    },
+    onEvent(e) {
+      const sNow = api.serverNow();
+      if (e.type === 'bub') {
+        const p = new THREE.Vector3(...e.p);
+        bub.spawn({ id: e.id, kind: 'sun', p, born: e.b || sNow });
+        api.fx.sparks(p.clone(), 0xffb36b, 10, 1.5);
+        api.sound.play('shout');
+        return true;
+      }
+      if (e.type === 'pin') { bub.pin(e.id, e.p, sNow, e.k || 'npc'); api.sound.play('pin'); return true; }
+      if (e.type === 'pop') {
+        const s = bub.get(e.id);
+        if (s) { launchRiders(s); api.fx.sparks(s.pos.clone(), 0xc9a6ff, 26, 3.5); }
+        bub.pop(e.id);
+        hooks.onPop?.(e.id, sNow);
+        api.sound.play('pop');
+        return true;
+      }
+      return false;
+    },
+    update(dt, sNow, t) {
+      shoutCd -= dt;
+      hooks.update?.(sNow, dt, t);
+      bub.update(sNow, dt, t);
+      bub.target(localMoon() ? moonTarget() : null);
+    },
+  };
+  return { abilities, attach(a) { api = a; } };
+}

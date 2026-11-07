@@ -4,10 +4,12 @@ import { buildPlayground } from './levels/playground.js';
 import { buildPrologue } from './levels/prologue.js';
 import { clearFrameHooks } from './levels/hooks.js';
 import { buildCh1Square } from './levels/ch1-square.js';
+import { buildCh1Cards } from './levels/ch1-cards.js';
 
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue' },
   'ch1-square': { build: buildCh1Square, title: 'Chapter 1 · The Town Square', chip: '💬 Ch.1 Town Square' },
+  'ch1-cards': { build: buildCh1Cards, title: 'Chapter 1 · The Card Tables', chip: '🃏 Ch.1 Card Tables' },
   playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground' },
 };
 

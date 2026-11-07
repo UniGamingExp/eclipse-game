@@ -136,6 +136,18 @@ const levelApi = {
     ctl.jumps = 1; ctl.airDashUsed = false;
   },
   finish: () => onLevelFinished(),
+  /** give the team one of this level's stars (e.g. for winning a minigame) */
+  collectStar(id) {
+    const st = world.stars.find((x) => x.id === id);
+    if (!st || st.collected) return;
+    st.collected = true;
+    fx.sparks(st.pos.clone().setY(st.pos.y - 0.6), 0xffe27a, 24);
+    sound.play('star');
+    G.net?.collectStar(id);
+    updateStarCount(true);
+  },
+  /** stop / resume the player's controls (while a minigame screen is open) */
+  setInput(on) { input.setEnabled(on); },
 };
 world.attach?.(levelApi);
 const colliders = [];
@@ -222,6 +234,7 @@ function chooseLevel(id) {
   if (!G.net) return;
   if (id === 'prologue') G.net.setSave('prologue', null); // replay the story from the start
   if (id === 'ch1-square') G.net.setSave('ch1', null);
+  if (id === 'ch1-cards') { G.net.setSave('ch1/cards', null); G.net.setSave('ch1/trex', null); }
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
@@ -230,7 +243,9 @@ function onLevelFinished() {
     caption('Chapter 1 · Syria Unfiltered', 3000);
     setTimeout(() => G.net?.setSave('level', 'ch1-square'), 1500);
   } else if (world.id === 'ch1-square') {
-    caption('Part 2 · The Card Tables is coming next ✨', 4000);
+    setTimeout(() => G.net?.setSave('level', 'ch1-cards'), 600);
+  } else if (world.id === 'ch1-cards') {
+    caption('Part 3 · 8 October is coming next ✨', 4000);
     setTimeout(() => G.net?.setSave('level', 'playground'), 2500);
   }
 }
@@ -929,7 +944,7 @@ function frame(nowMs) {
 
     // stars
     for (const s of world.stars) {
-      if (s.collected) continue;
+      if (s.collected || s.prize) continue;   // prize stars are earned (minigames), not touched
       for (const r of mine) {
         const b = bodies[r];
         if (Math.abs(b.pos.x - s.pos.x) < 0.95 && Math.abs(b.pos.z - s.pos.z) < 0.95 && s.pos.y - b.pos.y > -0.6 && s.pos.y - b.pos.y < 1.6) {
