@@ -46,12 +46,19 @@ const QUALITY = [
   { dpr: Math.min(devicePixelRatio, 2), bloom: true, shadow: 2048 },
   { dpr: Math.min(devicePixelRatio, 1.6), bloom: true, shadow: 2048 },
   { dpr: Math.min(devicePixelRatio, 1.25), bloom: true, shadow: 1024 },
-  { dpr: 1, bloom: false, shadow: 1024 },
+  { dpr: 1, bloom: true, shadow: 1024 },
 ];
 let qLevel = clamp(+params.get('q') || 0, 0, 3);
 
+let lastSize = '';
 function resize() {
   const w = window.innerWidth, h = window.innerHeight, q = QUALITY[qLevel];
+  // phones fire lots of resize events (address bar, keyboard): only rebuild when something changed,
+  // and draw straight away so the browser never shows an empty canvas in between
+  const key = `${w}x${h}@${q.dpr}`;
+  if (key === lastSize) return;
+  const first = !lastSize;
+  lastSize = key;
   renderer.setPixelRatio(q.dpr);
   renderer.setSize(w, h, false);
   composer.setPixelRatio(q.dpr);
@@ -62,6 +69,7 @@ function resize() {
   grade.uniforms.aspect.value = w / h;
   camera.updateProjectionMatrix();
   if (w > h) $('#rotate-hint').hidden = true;
+  if (!first) try { composer.render(0); } catch { /* not ready yet */ }
 }
 window.addEventListener('resize', resize);
 window.visualViewport?.addEventListener('resize', resize);
@@ -350,7 +358,8 @@ function enterPlay() {
     G.cam.yaw = world.camYaw ? world.camYaw[G.active] : 0; G.cam.pitch = 0.3;
     G.cam.target.copy(bodies[G.active].pos).add(new THREE.Vector3(0, 1.1, 0));
     if (isTouch && innerHeight > innerWidth && !store.get('rotateOk', false)) $('#rotate-hint').hidden = false;
-    if (G.kind === 'solo') ui.toast('Practice: tap ⇄ to switch characters');
+    if (G.kind === 'solo') ui.toast('Practice: ⇄ switches characters · ☰ → choose a level');
+    if (world.id === 'playground') setTimeout(() => caption('Chapter 1 is waiting: open ☰ and choose a level ✨', 4500), 3000);
     introCaptions();
   }
 }
@@ -737,7 +746,9 @@ function updateCamera(dt) {
   c.target.z = damp(c.target.z, _look.z, 12, dt);
   c.target.y = damp(c.target.y, _look.y, b.grounded ? 8 : 3.5, dt);
   const z = input.takeZoom();
-  if (z !== 1) { c.zoom = clamp(c.zoom * z, 0.55, 1.8); store.set('camZoom', +c.zoom.toFixed(2)); }
+  if (z !== 1 && Number.isFinite(z) && z > 0) { c.zoom = clamp(c.zoom * z, 0.55, 1.8); store.set('camZoom', +c.zoom.toFixed(2)); }
+  if (!Number.isFinite(c.zoom)) c.zoom = 1;
+  if (!Number.isFinite(c.cur)) c.cur = c.dist;
   const want = c.dist * c.zoom * (camera.aspect < 1 ? 1.2 : 1) * (world.kid ? 0.88 : 1);
   const cp = Math.cos(c.pitch);
   _dir.set(Math.sin(c.yaw) * cp, Math.sin(c.pitch), Math.cos(c.yaw) * cp);
@@ -1039,7 +1050,8 @@ function frame(nowMs) {
   if (ftAcc > 2.5) {
     const avg = ftAcc / ftN;
     fpsShown = 1 / avg;
-    if (avg > 1 / 48 && qLevel < QUALITY.length - 1 && G.t > 4 && !params.has('q')) { qLevel++; resize(); }
+    G.slowN = avg > 1 / 45 ? (G.slowN || 0) + 1 : 0;
+    if (G.slowN >= 2 && qLevel < QUALITY.length - 1 && G.t > 6 && !params.has('q')) { G.slowN = 0; qLevel++; resize(); }
     ftAcc = 0; ftN = 0;
   }
   if (DEBUG) {

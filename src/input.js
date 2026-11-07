@@ -80,7 +80,7 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
       // two fingers on the screen: pinch to zoom the camera in or out
       c.x = e.clientX; c.y = e.clientY;
       const d = pinchDist();
-      if (pinchD > 0 && d > 0) st.zoom *= pinchD / d;
+      if (pinchD > 1 && d > 1) st.zoom *= pinchD / d;
       pinchD = d;
       return;
     }

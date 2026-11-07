@@ -11,7 +11,7 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
-  margin: 0; height: 100%; overflow: hidden; background: #2a2350; color: var(--ink);
+  margin: 0; height: 100%; overflow: hidden; background: #8a6bb0 linear-gradient(#2c2f7a, #b98bc0 55%, #f3c2d0); color: var(--ink);
   font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   overscroll-behavior: none; touch-action: none;
@@ -277,3 +277,5 @@ h2 { margin: 0 0 4px; font-size: 22px; }
 .credits-card a { color: #7b4fd0; }
 .credits-card #credits-close { display: block; margin: 16px auto 0; }
 .link.small { font-size: inherit; padding: 0; text-decoration: underline; }
+
+.chips-title { width: 100%; margin: 4px 0 2px; font-weight: 800; font-size: 14px; color: var(--ink); }

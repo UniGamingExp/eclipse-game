@@ -248,10 +248,12 @@ function shootingStars(root, cx, cz) {
       m.position.copy(from).addScaledVector(dir, k * 140);
       // local x along the travel direction, local z facing the camera
       bz.copy(camera.position).sub(m.position).normalize();
-      by.crossVectors(bz, dir).normalize();
+      by.crossVectors(bz, dir);
+      if (by.lengthSq() < 1e-6) { m.visible = false; next = t + 3; return; }   // flying straight at the camera: skip it
+      by.normalize();
       bz.crossVectors(dir, by);
       m.quaternion.setFromRotationMatrix(basis.makeBasis(dir, by, bz));
-      m.scale.set(34 * Math.sin(k * Math.PI), 0.9, 1);
+      m.scale.set(Math.max(0.05, 34 * Math.sin(k * Math.PI)), 0.9, 1);
       mtl.uniforms.a.value = Math.sin(k * Math.PI);
     }
   });
