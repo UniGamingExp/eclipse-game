@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { heartShape } from '../effects.js';
 import { smoother } from '../util.js';
-import { mat, add, rbox, islandMeshes, tree, sign, cloud, sky, makeStar, spinStars, lights, meadow } from './common.js';
+import { mat, add, rbox, islandMeshes, tree, sign, cloud, sky, makeStar, spinStars, lights, meadow, decorate } from './common.js';
+import { nature } from '../nature.js';
 
 export function buildPlayground(root, scene) {
   const colliders = [];
@@ -150,9 +151,13 @@ export function buildPlayground(root, scene) {
   });
   const rockMat = mat(0xc5bcd9, { flatShading: true });
   [[2.6, -2.2, 0.45], [-1.8, -8.0, 0.4], [7.4, 4.4, 0.5], [-7.2, 5.2, 0.35], [1.2, 8.4, 0.3]].forEach(([x, z, s], i) => {
-    const r = add(world, new THREE.DodecahedronGeometry(1, 0), rockMat, x, s * 0.55, z);
-    r.scale.set(s * 1.2, s, s);
-    r.rotation.set(i, i * 2, 0);
+    const name = `Rock_Medium_${(i % 3) + 1}`;
+    if (nature.has(name)) nature.place(world, name, x, 0, z, { s: s * 0.75, rotY: i * 2 });
+    else {
+      const r = add(world, new THREE.DodecahedronGeometry(1, 0), rockMat, x, s * 0.55, z);
+      r.scale.set(s * 1.2, s, s);
+      r.rotation.set(i, i * 2, 0);
+    }
     colliders.push({ type: 'cyl', x, z, r: s * 1.05, top: s * 1.2, bottom: 0 });
   });
 
@@ -210,6 +215,10 @@ export function buildPlayground(root, scene) {
     { x: 0, z: 0, r: 9, flowers: 150, tint: 0x86cc66 },
     { x: 24, z: -3.5, r: 4.2, flowers: 40, tint: 0x8fd16e },
   ], avoid, { tuftColor: 0x86cc66 });
+  const treeSpots = [[-7.0, 3.9, 1], [-2.5, -7.9, 1], [3.4, -7.4, 1], [-7.9, -0.3, 1], [8.0, 2.4, 1], [26.6, -1.5, 1], [2.6, -2.2, 0.9], [-1.8, -8.0, 0.8], [7.4, 4.4, 1], [-7.2, 5.2, 0.8], [1.2, 8.4, 0.7]];
+  decorate(world, [{ x: 0, z: 0, r: 9, n: 0.8 }, { x: 24, z: -3.5, r: 4.2 }], [...avoid.map(([x, z, r]) => [x, z, r + 0.3]), ...treeSpots,
+    [-1.2, 1.2, 2.5, 9.5],   // the path in from the spawn through the heart arch
+  ], { seed: 5 });
 
   // stars to collect
   [['ledge', 0, TOWER + 0.75, -5.25], ['lookout', 5.8, 2.7, -0.8], ['grab', 3.0, GRAB + 0.7, 0.8], ['chimney', -5.0, WALL + 0.3, -4.5], ['cloud', 24.5, 6.15, -7.5]]

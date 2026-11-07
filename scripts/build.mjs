@@ -12,7 +12,7 @@ const opts = {
   entryPoints: ['src/main.js'],
   bundle: true,
   format: 'esm',
-  target: ['es2020', 'safari15', 'chrome100'],
+  target: ['es2022', 'safari15', 'chrome100'],
   minify: !watch,
   sourcemap: watch,
   outfile: 'build/game.js',

@@ -3,7 +3,8 @@
 // they meet in the middle and hold hands for the first time.
 import * as THREE from 'three';
 import { starShape } from '../effects.js';
-import { mat, add, rbox, islandMeshes, tree, sign, cloud, sky, makeStar, spinStars, lights, meadow } from './common.js';
+import { mat, add, rbox, islandMeshes, tree, sign, cloud, sky, makeStar, spinStars, lights, meadow, decorate } from './common.js';
+import { nature } from '../nature.js';
 import { smoother } from '../util.js';
 
 const CX = 30;        // islands sit at x = -30 (Sun) and +30 (Moon)
@@ -17,11 +18,14 @@ function bush(parent, x, z, s, flowerColor) {
   g.position.set(x, 0, z);
   g.scale.setScalar(s);
   parent.add(g);
-  const leaf = new THREE.IcosahedronGeometry(1, 1);
-  [[0, 0.55, 0, 0.6], [0.45, 0.45, 0.2, 0.45], [-0.4, 0.5, -0.1, 0.48], [0.1, 0.95, -0.05, 0.4]].forEach(([x, y, zz, r], i) => {
-    const m = add(g, leaf, mat([0x5fae5a, 0x6cbb63, 0x58a456][i % 3], { flatShading: true }), x, y, zz);
-    m.scale.setScalar(r);
-  });
+  if (nature.has('Bush_Common_Flowers')) nature.place(g, 'Bush_Common_Flowers', 0, 0, 0, { s: 0.8, rotY: x * 0.7 });
+  else {
+    const leaf = new THREE.IcosahedronGeometry(1, 1);
+    [[0, 0.55, 0, 0.6], [0.45, 0.45, 0.2, 0.45], [-0.4, 0.5, -0.1, 0.48], [0.1, 0.95, -0.05, 0.4]].forEach(([x, y, zz, r], i) => {
+      const m = add(g, leaf, mat([0x5fae5a, 0x6cbb63, 0x58a456][i % 3], { flatShading: true }), x, y, zz);
+      m.scale.setScalar(r);
+    });
+  }
   const fl = new THREE.SphereGeometry(0.075, 8, 6);
   for (let i = 0; i < 16; i++) {
     const a = i * 2.39, h = 0.3 + (i % 5) * 0.17, rr = 0.55 + (i % 3) * 0.08;
@@ -164,6 +168,18 @@ export function buildPrologue(root, scene) {
     { x: CX, z: 0, r: R, flowers: 90, tufts: 150 },
   ], [[-CX - 6, 0, 1.4], [CX + 6, 0, 1.4], [-CX + 2, 0, 7.2], [CX - 2, 0, 7.2], [-CX - 2.6, 0, 9], [CX + 2.6, 0, 9]],
   { flowerCols: [0xff8fbf, 0xffffff, 0xffe27a, 0xc6b3ff, 0xff6fa8] });
+  // nature models: flowers, ferns, pebbles, rim grass (kept off the path, the terrace and the gate)
+  const keepClear = [];
+  for (const dir of [1, -1]) {
+    const X = (lx) => -dir * CX + dir * lx;
+    keepClear.push(
+      [X(-7.8), X(0.2), -1.8, 1.8],      // courtyard path
+      [X(-3.1), X(4.8), -9, 9],          // hedge + terrace
+      [X(-5.6), 2.4, 1.3], [X(-5.6), -2.4, 1.3], [X(-4.4), 2.6, 1], [X(-4.4), -2.6, 1], [X(-5), 1.35, 0.6], [X(-5), -1.35, 0.6],
+      [X(-6.5), -4.2, 1.3], [X(-2), -6.6, 1.3], [X(-3.9), 2.3, 0.8], [X(-1.4), 2.7, 0.7],
+    );
+  }
+  decorate(world, [{ x: -CX, z: 0, r: R }, { x: CX, z: 0, r: R }], keepClear, { seed: 3 });
 
   // the bridge of stars and the starlight cloud in the middle (appear later)
   const starTile = new THREE.ExtrudeGeometry(starShape(0.85, 0.45), { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 });

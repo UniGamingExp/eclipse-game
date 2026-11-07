@@ -209,3 +209,12 @@ h2 { margin: 0 0 4px; font-size: 22px; }
   #conn .btns { grid-column: 2; grid-row: 4 / span 2; margin-top: 0; justify-content: center; }
   #conn .extras { margin-top: 6px; }
 }
+
+/* first load: shown until the 3D models are downloaded */
+#boot { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: linear-gradient(160deg, #3b3f8f, #c98bc0 60%, #ffd7b5); color: #fff; transition: opacity .5s; }
+#boot.done { opacity: 0; pointer-events: none; }
+#boot > div { display: grid; gap: 10px; justify-items: center; font-family: inherit; }
+#boot b { font-size: 34px; letter-spacing: .5px; }
+#boot small { font-size: 15px; opacity: .9; }
+#boot i { display: block; width: 180px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.3); overflow: hidden; }
+#boot u { display: block; height: 100%; width: 5%; background: #fff; border-radius: 3px; transition: width .2s; }

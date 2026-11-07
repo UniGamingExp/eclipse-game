@@ -44,6 +44,8 @@ GitHub Pages serves the repo root from `main`, so **commit `build/game.js` after
 | `src/net.js` | Firebase / two-tab / solo networking |
 | `src/remote.js` | Smooth playback of the partner's movement |
 | `src/input.js` | Touch joystick, buttons, camera drag + pinch zoom, keyboard |
+| `src/nature.js` | Loads `assets/nature.glb` (trees, bushes, flowers, rocks… from the Quaternius Stylized Nature MegaKit, CC0) with wind sway; `place` / `scatter` helpers |
+| `scripts/pack-nature.mjs` | Picks and compresses the MegaKit models into `assets/nature.glb` (run in a folder with @gltf-transform, sharp, meshoptimizer) |
 | `src/look.js` | Rim light on all materials, colour grade + vignette, floating sparkles |
 | `src/levels/sky.js` | Sky dome with stars and nebula, planets with rings and moons, shooting stars, cloud sea |
 | `src/levels/hooks.js` | Per-frame callbacks for level pieces + shared shader time |

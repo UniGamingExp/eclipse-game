@@ -5,6 +5,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { starShape } from '../effects.js';
 import { buildSky } from './sky.js';
 import { timeU } from './hooks.js';
+import { nature } from '../nature.js';
 
 const mats = new Map();
 export function mat(color, opts = {}) {
@@ -61,7 +62,10 @@ export function islandMeshes(parent, cx, cz, R, top, depth, grass, dirtTop, dirt
   return g;
 }
 
+const TREES = ['CommonTree_1', 'CommonTree_2', 'CommonTree_5', 'CommonTree_3'];
 export function tree(parent, x, y, z, s = 1, tint = 0) {
+  const name = TREES[tint % TREES.length];
+  if (nature.has(name)) return nature.place(parent, name, x, y, z, { s: s * 0.6, rotY: tint * 1.7 + x * 0.37 });
   const g = new THREE.Group();
   g.position.set(x, y, z);
   g.scale.setScalar(s);
@@ -252,7 +256,8 @@ export function grassMaterial(color) {
 export function meadow(parent, islands, avoid, { flowerCols = [0xff9ec4, 0xffffff, 0xffe27a, 0xc6b3ff, 0xff8a8a], tuftColor = 0x7cc964 } = {}) {
   const okSpot = (x, z) => avoid.every(([ax, az, r]) => (x - ax) ** 2 + (z - az) ** 2 > r * r);
   let maxF = 0, maxT = 0;
-  for (const i of islands) { maxF += i.flowers ?? 100; maxT += i.grass ?? Math.round(i.r * i.r * 9); }
+  const fk = nature.has('Flower_3_Group') ? 0.5 : 1;
+  for (const i of islands) { maxF += Math.round((i.flowers ?? 100) * fk); maxT += i.grass ?? Math.round(i.r * i.r * 9); }
   const petal = new THREE.IcosahedronGeometry(0.09, 1);
   petal.scale(1, 0.75, 1);
   const flowers = new THREE.InstancedMesh(petal, new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.06 }), maxF);
@@ -260,7 +265,8 @@ export function meadow(parent, islands, avoid, { flowerCols = [0xff9ec4, 0xfffff
   const blades = new THREE.InstancedMesh(bladeClump(), grassMaterial(tuftColor), maxT);
   const o = new THREE.Object3D(), col = new THREE.Color();
   let fi = 0, ti = 0;
-  for (const { x: cx, z: cz, r: R, y = 0, flowers: nf = 100, grass, tint } of islands) {
+  for (const { x: cx, z: cz, r: R, y = 0, flowers: nf0 = 100, grass, tint } of islands) {
+    const nf = Math.round(nf0 * fk);
     const nt = grass ?? Math.round(R * R * 9);
     let placed = 0, tries = 0;
     while (placed < nf + nt && tries++ < (nf + nt) * 10) {
@@ -286,4 +292,41 @@ export function meadow(parent, islands, avoid, { flowerCols = [0xff9ec4, 0xfffff
   flowers.count = fi; stems.count = fi; blades.count = ti;
   for (const m of [flowers, stems, blades]) { m.receiveShadow = true; m.castShadow = false; m.userData.noHide = true; }
   parent.add(flowers, stems, blades);
+}
+
+/**
+ * Scatter nature models over round islands: flower patches, ferns, little plants, pebbles, mushrooms and
+ * grass tufts along the rim. islands: [{ x, z, r, y?, n? (density, default 1) }],
+ * avoid: circles [x, z, r] or boxes [x0, x1, z0, z1].
+ */
+export function decorate(parent, islands, avoid, { mushrooms = true, seed = 1 } = {}) {
+  if (!nature.has('Flower_3_Group')) return;
+  let k = seed * 7919;
+  const rnd = () => ((k = (k * 16807) % 2147483647) / 2147483647);
+  const okSpot = (x, z, pad) => avoid.every((a) => (a.length === 4
+    ? x < Math.min(a[0], a[1]) - pad || x > Math.max(a[0], a[1]) + pad || z < Math.min(a[2], a[3]) - pad || z > Math.max(a[2], a[3]) + pad
+    : (x - a[0]) ** 2 + (z - a[1]) ** 2 > (a[2] + pad) ** 2));
+  const lists = {};
+  const put = (name, it) => (lists[name] ||= []).push(it);
+  for (const { x: cx, z: cz, r: R, y = 0, n = 1 } of islands) {
+    const spot = (r0, r1, pad, tries = 30) => {
+      for (let i = 0; i < tries; i++) {
+        const a = rnd() * Math.PI * 2, rr = r0 + (r1 - r0) * Math.sqrt(rnd());
+        const x = cx + Math.cos(a) * rr * R, z = cz + Math.sin(a) * rr * R;
+        if (okSpot(x, z, pad)) return { x, y, z, rotY: rnd() * 6.28 };
+      }
+      return null;
+    };
+    const many = (count, name, r0, r1, pad, s0, s1) => {
+      for (let i = 0; i < Math.round(count * n); i++) { const p = spot(r0, r1, pad); if (p) put(typeof name === 'function' ? name(i) : name, { ...p, s: s0 + rnd() * (s1 - s0) }); }
+    };
+    many(R * 0.9, (i) => (i % 2 ? 'Flower_3_Group' : 'Flower_4_Group'), 0.2, 0.92, 0.5, 0.3, 0.42);
+    many(R * 0.5, (i) => (i % 2 ? 'Flower_3_Single' : 'Flower_4_Single'), 0.2, 0.92, 0.4, 0.32, 0.45);
+    many(R * 2.2, 'Grass_Common_Short', 0.86, 0.98, 0.3, 0.4, 0.75);
+    many(R * 0.35, 'Fern_1', 0.7, 0.95, 0.9, 0.09, 0.12);
+    many(R * 0.3, 'Plant_1', 0.6, 0.95, 0.6, 0.45, 0.6);
+    many(R * 0.9, (i) => ['Pebble_Round_1', 'Pebble_Round_2', 'Pebble_Round_3', 'Pebble_Square_1'][i % 4], 0.3, 0.97, 0.3, 0.7, 1.1);
+    if (mushrooms) many(R * 0.3, 'Mushroom_Common', 0.6, 0.93, 0.5, 0.45, 0.65);
+  }
+  for (const [name, items] of Object.entries(lists)) nature.scatter(parent, name, items);
 }

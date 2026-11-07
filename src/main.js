@@ -5,6 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
+import { loadNature } from './nature.js';
 import { runFrameHooks } from './levels/hooks.js';
 import { loadLevel, LEVELS } from './world.js';
 import { makeCharacter, MODE, SIZES, KID_SIZES } from './characters.js';
@@ -66,6 +67,14 @@ window.addEventListener('resize', resize);
 window.visualViewport?.addEventListener('resize', resize);
 
 // ---------------------------------------------------------------- world & actors
+// download the nature models first (trees, flowers, rocks…); the level falls back to simple shapes if it fails
+try {
+  await loadNature(`assets/nature.glb?v=${__BUILD__}`, (k) => { $('#boot-bar').style.width = `${Math.max(5, k * 100)}%`; });
+} catch (e) {
+  console.warn('nature models failed to load', e);
+}
+$('#boot').classList.add('done');
+setTimeout(() => $('#boot').remove(), 600);
 let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
 const fx = new Effects(scene, camera);
 const motes = makeMotes(scene);
@@ -717,32 +726,32 @@ function camHit(o, d, maxT) {
   return best;
 }
 
-// small decorations (signs, bushes, tree tops…) between the camera and the player are hidden
-const _sph = new THREE.Sphere(), _seg = new THREE.Vector3(), _q = new THREE.Vector3();
+// small props (signs, bushes, trees…) between the camera and the player are hidden as a whole
+const _sph = new THREE.Sphere(), _seg = new THREE.Vector3(), _q = new THREE.Vector3(), _box = new THREE.Box3();
 let occluders = null, occWorld = null;
-function hideOccluders() {
-  if (occWorld !== world) {
-    occWorld = world;
-    occluders = [];
-    world.root.traverse((o) => {
-      if (!o.isMesh || o.isInstancedMesh || o.userData.noHide || !o.frustumCulled) return;
-      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
-      occluders.push(o);
-    });
+function collectOccluders(o, out) {
+  for (const c of o.children) {
+    if (c.userData.noHide || c.isInstancedMesh || c.isPoints || !c.frustumCulled) continue;
+    _box.setFromObject(c);
+    if (_box.isEmpty()) continue;
+    const sph = _box.getBoundingSphere(new THREE.Sphere());
+    if (sph.radius <= 2.4) out.push({ o: c, sph, hid: false });
+    else if (!c.isMesh) collectOccluders(c, out);   // a big group (the level): look at its parts
   }
+}
+function hideOccluders() {
+  if (occWorld !== world) { occWorld = world; occluders = []; collectOccluders(world.root, occluders); }
   _seg.copy(c_target()).sub(camera.position);
   const L = _seg.length();
   _seg.divideScalar(L || 1);
-  for (const o of occluders) {
-    if (o.userData.hidCam) o.visible = true;
-    _sph.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
-    if (_sph.radius > 2.4) continue;
-    // closest point on the camera→player segment (only the part near the camera)
-    _q.copy(_sph.center).sub(camera.position);
+  for (const it of occluders) {
+    if (it.hid) { it.o.visible = true; it.hid = false; }
+    if (!it.o.visible) continue;    // hidden by the level itself (not ours to show)
+    const sp = it.sph;
+    _q.copy(sp.center).sub(camera.position);
     const t = Math.max(0, Math.min(_q.dot(_seg), L - 0.8));
     _q.copy(camera.position).addScaledVector(_seg, t);
-    const hide = _q.distanceToSquared(_sph.center) < (_sph.radius * 0.85) ** 2;
-    if (hide) { o.visible = false; o.userData.hidCam = true; } else if (o.userData.hidCam) { o.userData.hidCam = false; }
+    if (_q.distanceToSquared(sp.center) < (sp.radius * 0.8) ** 2) { it.o.visible = false; it.hid = true; }
   }
 }
 const c_target = () => G.cam.target;
