@@ -8,15 +8,31 @@
             ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32 && ($role === 'sun' || $role === 'moon')",
             "meta": {
               ".validate": "newData.hasChildren(['online'])",
-              "online": { ".validate": "newData.isBoolean()" },
-              "sid": { ".validate": "newData.isString() && newData.val().length < 20" },
-              "seen": { ".validate": "newData.isNumber()" },
-              "ping": { ".validate": "newData.isNumber()" },
-              "v": { ".validate": "newData.isString() && newData.val().length < 40" },
-              "$other": { ".validate": false }
+              "online": {
+                ".validate": "newData.isBoolean()"
+              },
+              "sid": {
+                ".validate": "newData.isString() && newData.val().length < 20"
+              },
+              "seen": {
+                ".validate": "newData.isNumber()"
+              },
+              "ping": {
+                ".validate": "newData.isNumber()"
+              },
+              "v": {
+                ".validate": "newData.isString() && newData.val().length < 40"
+              },
+              "$other": {
+                ".validate": false
+              }
             },
-            "s": { ".validate": "newData.hasChildren(['t', 'p'])" },
-            "$other": { ".validate": false }
+            "s": {
+              ".validate": "newData.hasChildren(['t', 'p'])"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
         "ev": {
@@ -27,7 +43,18 @@
         },
         "stars": {
           ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32",
-          "$id": { ".validate": "newData.isBoolean() && $id.length < 20" }
+          "$id": {
+            ".validate": "newData.isBoolean() && $id.length < 20"
+          }
+        },
+        "quiz": {
+          "$role": {
+            ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32 && ($role === 'sun' || $role === 'moon')",
+            ".validate": "newData.hasChildren(['items', 't']) && newData.child('items').hasChildren()"
+          }
+        },
+        "save": {
+          ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32"
         }
       }
     }
