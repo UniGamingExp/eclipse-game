@@ -1,1 +1,40 @@
-# eclipse-game
+# Eclipse
+
+A cosy co-op 3D game for two phones: the Sun and the Moon, playing together from far apart.
+
+**Play:** https://unigamingexp.github.io/eclipse-game/
+
+## How to play together
+1. Both open the link (Android: Chrome, iPhone: Safari).
+2. One picks ☀️ **Sun**, the other 🌙 **Moon**.
+3. Both type the **same secret word** and tap **Play together**.
+4. The connection screen shows a green tick for the game server, your ping, and whether your partner is here.
+
+Controls: drag on the left to walk, drag anywhere else to look around, **Jump** (tap again in the air for a double jump), **Shine/Tide** (ability), **♥** sends a heart.
+
+On iPhone, use Share → **Add to Home Screen** for full screen.
+
+## Development
+```bash
+npm install
+npm run build      # bundles src/ → build/game.js and stamps a cache-busting version into index.html
+npm run serve      # http://localhost:8080
+```
+- `?net=local` plays across two tabs of the same browser (no Firebase); add `&lag=120` to fake network delay.
+- `?debug=1` shows fps, playback delay, jitter and ping.
+- `?q=0..3` forces a quality level (0 = best).
+
+GitHub Pages serves the repo root from `main`, so **commit `build/game.js` after every build**.
+
+### Files
+| File | What it does |
+|---|---|
+| `src/main.js` | Game loop, player control, camera, wiring |
+| `src/world.js` | The test island, colliders, moving cloud raft, stars |
+| `src/characters.js` | Sun and Moon models and animation |
+| `src/physics.js` | Small character physics (cylinders vs boxes/cylinders) |
+| `src/net.js` | Firebase / two-tab / solo networking |
+| `src/remote.js` | Smooth playback of the partner's movement |
+| `src/input.js` | Touch joystick, buttons, camera drag, keyboard |
+| `src/ui.js` | Lobby, connection screen, HUD |
+| `database.rules.json` | Realtime Database security rules (paste into the Firebase console) |

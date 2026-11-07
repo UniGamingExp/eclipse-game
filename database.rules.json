@@ -1,0 +1,35 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32",
+        "players": {
+          "$role": {
+            ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32 && ($role === 'sun' || $role === 'moon')",
+            "meta": {
+              ".validate": "newData.hasChildren(['online'])",
+              "online": { ".validate": "newData.isBoolean()" },
+              "sid": { ".validate": "newData.isString() && newData.val().length < 20" },
+              "seen": { ".validate": "newData.isNumber()" },
+              "ping": { ".validate": "newData.isNumber()" },
+              "v": { ".validate": "newData.isString() && newData.val().length < 40" },
+              "$other": { ".validate": false }
+            },
+            "s": { ".validate": "newData.hasChildren(['t', 'p'])" },
+            "$other": { ".validate": false }
+          }
+        },
+        "ev": {
+          "$id": {
+            ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32",
+            ".validate": "newData.hasChildren(['type', 'from', 't']) && newData.child('type').isString() && newData.child('type').val().length < 20"
+          }
+        },
+        "stars": {
+          ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32",
+          "$id": { ".validate": "newData.isBoolean() && $id.length < 20" }
+        }
+      }
+    }
+  }
+}

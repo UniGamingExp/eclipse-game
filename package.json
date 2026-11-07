@@ -1,0 +1,25 @@
+{
+  "name": "eclipse-game",
+  "version": "1.0.0",
+  "description": "Eclipse: a co-op 3D game for two phones",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "serve": "python3 -m http.server 8080"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UniGamingExp/eclipse-game.git"
+  },
+  "bugs": {
+    "url": "https://github.com/UniGamingExp/eclipse-game/issues"
+  },
+  "homepage": "https://github.com/UniGamingExp/eclipse-game#readme",
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "firebase": "^13.2.0",
+    "three": "^0.187.0"
+  },
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#2a2350">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Eclipse">
+<title>Eclipse</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="style.css?v=744a0038ff">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" hidden>
+  <button id="status-pill" class="pill"><span class="dot"></span><span id="status-text">…</span></button>
+  <div id="top-right">
+    <div id="stars" class="pill">⭐ <span id="star-count">0</span>/<span id="star-total">3</span></div>
+    <button id="menu-btn" class="round" aria-label="Menu">☰</button>
+  </div>
+
+  <div id="joy-zone">
+    <div id="joy-hint"></div>
+    <div id="joy-base" hidden><div id="joy-knob"></div></div>
+  </div>
+
+  <button id="btn-heart" class="act small" aria-label="Send a heart">♥</button>
+  <button id="btn-swap" class="act small" aria-label="Switch character" hidden>⇄</button>
+  <button id="btn-ability" class="act mid"><span class="ic">✦</span><span class="lbl" id="ability-label">Shine</span></button>
+  <button id="btn-jump" class="act big"><span class="ic">▲</span><span class="lbl">Jump</span></button>
+
+  <div id="partner-arrow" hidden><span id="partner-arrow-icon">🌙</span></div>
+  <div id="toasts"></div>
+  <div id="rotate-hint" hidden><span>Turn your phone sideways for the best view</span><button id="rotate-ok">OK</button></div>
+  <div id="debug" hidden></div>
+</div>
+
+<div id="lobby" class="screen">
+  <div class="card">
+    <h1><span class="sunc">☀︎</span> Eclipse <span class="moonc">☾</span></h1>
+    <p class="sub">a little world for two</p>
+    <div class="roles">
+      <button class="role" data-role="sun"><span class="emoji">☀️</span><b>Sun</b><small>Shine</small></button>
+      <button class="role" data-role="moon"><span class="emoji">🌙</span><b>Moon</b><small>Tide</small></button>
+    </div>
+    <label class="word">
+      <span>Secret word</span>
+      <input id="word" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="the same word for both of you">
+    </label>
+    <button id="join" class="primary">Play together</button>
+    <button id="solo" class="link">Practice alone</button>
+    <p id="lobby-err" class="err"></p>
+    <p class="ver" id="ver"></p>
+  </div>
+</div>
+
+<div id="conn" class="screen" hidden>
+  <div class="card">
+    <h2 id="conn-title">Connection</h2>
+    <p class="who" id="conn-who"></p>
+    <div class="row" id="row-server"><span class="ic"></span><div class="txt"><b>Game server</b><small></small></div><span class="ms"></span></div>
+    <div class="row" id="row-partner"><span class="ic"></span><div class="txt"><b>Partner</b><small></small></div><span class="ms"></span></div>
+    <div class="row" id="row-delay"><span class="ic"></span><div class="txt"><b>Delay between you</b><small></small></div><span class="ms"></span></div>
+    <p id="conn-msg" class="err"></p>
+    <div class="btns">
+      <button id="conn-start" class="primary">Start playing</button>
+      <button id="conn-retry" hidden>Try again</button>
+    </div>
+    <div class="extras" id="conn-extras">
+      <button id="opt-sound" class="chip">🔊 Sound on</button>
+      <button id="opt-full" class="chip" hidden>⛶ Full screen</button>
+      <button id="opt-stars" class="chip">⭐ Reset stars</button>
+    </div>
+    <button id="conn-leave" class="link">Leave</button>
+  </div>
+</div>
+
+<div id="fade"></div>
+<script type="module" src="build/game.js?v=744a0038ff"></script>
+</body>
+</html>
