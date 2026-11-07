@@ -119,7 +119,6 @@ export function createUI({ onJoin, onSolo, onStart, onRetry, onLeave, onResetSta
       const p = st.ping != null ? Math.round(st.ping) : null;
       if (p != null) dc = quality(p)[0];
       txt = `${p != null ? p + ' ms' : '…'} · ${ROLE_EMOJI[other]} ${st.partnerOnline ? 'here' : 'away'}`;
-      if (!st.partnerOnline) dc = dc === 'bad' ? 'bad' : 'ok';
     }
     dot.className = 'dot ' + dc;
     $('#status-text').textContent = txt;
