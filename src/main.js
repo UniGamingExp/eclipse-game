@@ -235,6 +235,7 @@ function chooseLevel(id) {
   if (id === 'prologue') G.net.setSave('prologue', null); // replay the story from the start
   if (id === 'ch1-square') G.net.setSave('ch1', null);
   if (id === 'ch1-cards') { G.net.setSave('ch1/cards', null); G.net.setSave('ch1/trex', null); }
+  if (id === 'ch1-plane') { G.net.setSave('ch1/plane', null); G.net.setSave('ch1/planeDone', null); }
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
@@ -245,8 +246,10 @@ function onLevelFinished() {
   } else if (world.id === 'ch1-square') {
     setTimeout(() => G.net?.setSave('level', 'ch1-cards'), 600);
   } else if (world.id === 'ch1-cards') {
-    caption('Part 3 · 8 October is coming next ✨', 4000);
-    setTimeout(() => G.net?.setSave('level', 'playground'), 2500);
+    setTimeout(() => G.net?.setSave('level', 'ch1-plane'), 600);
+  } else if (world.id === 'ch1-plane') {
+    caption('Chapter 2 · 12 October is coming next 💜', 4000);
+    setTimeout(() => G.net?.setSave('level', 'playground'), 3000);
   }
 }
 const levelChips = $('#level-chips');
