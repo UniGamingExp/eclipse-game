@@ -13,7 +13,7 @@ import {
   getDatabase, ref, set, update, remove, push, onValue, onChildAdded, onDisconnect, serverTimestamp, get, goOffline,
 } from 'firebase/database';
 import { firebaseConfig } from '../firebase-config.js';
-import { otherRole } from './util.js';
+import { otherRole, store } from './util.js';
 
 const FRESH_MS = 12000; // presence older than this counts as gone
 
@@ -111,6 +111,11 @@ export class FirebaseNet extends Emitter {
 
     onValue(this.starsRef, (s) => this.emit('stars', s.val() || {}), (err) => this._fail(err));
 
+    // quiz questions each player writes about themself
+    this.quizMineRef = ref(db, `${base}/quiz/${role}`);
+    onValue(this.quizMineRef, (s) => { this.quizMine = s.val(); this.quizLoaded = true; this._emitQuiz(); }, (err) => this._fail(err));
+    onValue(ref(db, `${base}/quiz/${this.other}`), (s) => { this.quizPartner = s.val(); this._emitQuiz(); }, (err) => this._fail(err));
+
     this.hb = setInterval(() => this._heartbeat(), 1500);
     this.pt = setInterval(() => this._updatePartner(), 1000);
   }
@@ -176,6 +181,8 @@ export class FirebaseNet extends Emitter {
   }
 
   collectStar(id) { set(ref(this.db, `${this.base}/stars/${id}`), true).catch(() => {}); }
+  _emitQuiz() { this.emit('quiz', this.quizMine || null, this.quizPartner || null); }
+  saveQuiz(items) { return items.length ? set(this.quizMineRef, { t: serverTimestamp(), items }) : remove(this.quizMineRef); }
   resetStars() { remove(this.starsRef).catch(() => {}); }
 
   leave() {
@@ -208,6 +215,11 @@ export class LocalNet extends Emitter {
       const deliver = () => this._recv(d);
       if (this.lag) setTimeout(deliver, this.lag * (0.75 + Math.random() * 0.5)); else deliver();
     };
+    this.room = roomId;
+    this.quizMine = store.get(`quiz.${roomId}.${role}`, null);
+    this.quizPartner = store.get(`quiz.${roomId}.${this.other}`, null);
+    this.quizLoaded = true;
+    setTimeout(() => this._emitQuiz(), 0);
     const hello = () => this._send({ k: 'meta', ping: this.lag * 2 });
     hello();
     this._send({ k: 'hello' });
@@ -222,6 +234,7 @@ export class LocalNet extends Emitter {
     else if (d.k === 'ev') this.emit('event', d.e);
     else if (d.k === 'stars') { Object.assign(this.stars, d.stars); if (d.reset) this.stars = {}; this.emit('stars', { ...this.stars }); }
     else if (d.k === 'bye') { this.partnerSeen = 0; this._check(); }
+    else if (d.k === 'quiz') { this.quizPartner = d.v; this._emitQuiz(); }
   }
   _check() {
     const online = Date.now() - this.partnerSeen < 4000;
@@ -232,6 +245,15 @@ export class LocalNet extends Emitter {
   sendEvent(type, data = {}) { this._send({ k: 'ev', e: { ...data, type, from: this.role, t: Date.now() } }); }
   collectStar(id) { this.stars[id] = true; this._send({ k: 'stars', stars: { [id]: true } }); this.emit('stars', { ...this.stars }); }
   resetStars() { this.stars = {}; this._send({ k: 'stars', stars: {}, reset: true }); this.emit('stars', {}); }
+  _emitQuiz() { this.emit('quiz', this.quizMine, this.quizPartner); }
+  saveQuiz(items) {
+    const v = items.length ? { t: Date.now(), items } : null;
+    store.set(`quiz.${this.room}.${this.role}`, v);
+    this.quizMine = v;
+    this._send({ k: 'quiz', v });
+    this._emitQuiz();
+    return Promise.resolve();
+  }
   leave() { this._send({ k: 'bye' }); clearInterval(this.hb); this.bc.close(); return Promise.resolve(); }
 }
 
@@ -244,7 +266,17 @@ export class SoloNet extends Emitter {
     this.stars = {};
   }
   serverNow() { return Date.now(); }
-  join(roomId, role) { this.role = role; this.other = otherRole(role); }
+  join(roomId, role) {
+    this.role = role; this.other = otherRole(role);
+    this.quizMine = store.get(`quiz.solo.${role}`, null); this.quizLoaded = true;
+    setTimeout(() => this.emit('quiz', this.quizMine, null), 0);
+  }
+  saveQuiz(items) {
+    this.quizMine = items.length ? { t: Date.now(), items } : null;
+    store.set(`quiz.solo.${this.role}`, this.quizMine);
+    this.emit('quiz', this.quizMine, null);
+    return Promise.resolve();
+  }
   sendState() {}
   sendEvent() {}
   collectStar(id) { this.stars[id] = true; this.emit('stars', { ...this.stars }); }

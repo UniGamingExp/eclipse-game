@@ -50,7 +50,30 @@
         "quiz": {
           "$role": {
             ".write": "$room.matches(/^r[0-9a-z]+$/) && $room.length < 32 && ($role === 'sun' || $role === 'moon')",
-            ".validate": "newData.hasChildren(['items', 't']) && newData.child('items').hasChildren()"
+            ".validate": "newData.hasChildren(['items', 't'])",
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "items": {
+              "$i": {
+                ".validate": "newData.hasChildren(['q', 'a'])",
+                "q": {
+                  ".validate": "newData.isString() && newData.val().length <= 300"
+                },
+                "a": {
+                  ".validate": "newData.isString() && newData.val().length <= 300"
+                },
+                "w": {
+                  ".validate": "newData.isString() && newData.val().length <= 300"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
         "save": {

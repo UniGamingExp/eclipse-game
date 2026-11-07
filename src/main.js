@@ -14,6 +14,7 @@ import { FirebaseNet, LocalNet, SoloNet } from './net.js';
 import { sound } from './sound.js';
 import { createUI } from './ui.js';
 import { initMemoriesUI } from './memories-ui.js';
+import { initQuizUI } from './quiz-editor.js';
 import { clamp, damp, dampAngle, angleDiff, round3, roomIdFromWord, store, params, isTouch, isIOS, ROLE_EMOJI, ROLE_NAME, otherRole } from './util.js';
 
 const $ = (s) => document.querySelector(s);
@@ -124,6 +125,7 @@ const ui = createUI({
 });
 ui.paintSound(sound.enabled);
 initMemoriesUI();
+const quizUI = initQuizUI({ getNet: () => G.net, getRole: () => G.role });
 ui.setStars(0, world.stars.length);
 $('#menu-btn').addEventListener('click', () => { if (G.mode === 'play') { G.mode = 'menu'; input.setEnabled(false); ui.showConn('menu'); refreshStatus(); } });
 $('#status-pill').addEventListener('click', () => $('#menu-btn').click());
@@ -157,6 +159,7 @@ function startSession(kind, role, word) {
   });
   net.on('event', onRemoteEvent);
   net.on('stars', onStars);
+  net.on('quiz', (mine, partner) => quizUI.update(mine, partner));
   net.join(kind === 'solo' ? 'solo' : roomIdFromWord(word), role);
 
   if (kind === 'solo') { refreshStatus(); enterPlay(); return; }

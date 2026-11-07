@@ -164,6 +164,22 @@ h2 { margin: 0 0 4px; font-size: 22px; }
 #mem-prev { left: calc(var(--sl) + 8px); } #mem-next { right: calc(var(--sr) + 8px); }
 #mem-x { position: absolute; top: calc(var(--st) + 10px); right: calc(var(--sr) + 12px); }
 
+/* ---------- Quiz editor ---------- */
+.quiz-row { width: 100%; border: 0; font: inherit; color: inherit; }
+.quiz-row .ic { background: #fff3c4 !important; color: inherit !important; font-size: 15px; }
+.quiz-row .ms { color: #6b55c8; }
+.quiz-row.todo { box-shadow: 0 0 0 3px #b9a6ff, 0 2px 6px rgba(43, 37, 80, 0.08); }
+.quiz-card { width: min(520px, 100%); }
+.qe-item { background: #fff; border-radius: 16px; padding: 10px 12px; margin-bottom: 10px; text-align: left; box-shadow: 0 2px 6px rgba(43, 37, 80, 0.08); position: relative; }
+.qe-item .num { font-weight: 800; font-size: 13px; opacity: .55; }
+.qe-item input { display: block; width: 100%; margin-top: 4px; padding: 9px 11px; border-radius: 12px; border: 2px solid #ddd6ee; font-size: 16px; color: var(--ink); outline: none; background: #fff; }
+.qe-item input:focus { border-color: var(--moon); }
+.qe-item .ans { border-color: #bfe3a8; }
+.qe-item details { margin-top: 6px; font-size: 13px; }
+.qe-item summary { cursor: pointer; font-weight: 700; opacity: .65; }
+.qe-item .del { position: absolute; top: 6px; right: 8px; border: 0; background: none; font-size: 16px; opacity: .45; padding: 4px; }
+#qe-add { margin: 2px auto 0; display: block; }
+
 /* Short landscape phones: two-column lobby */
 @media (orientation: landscape) and (max-height: 500px) {
   .card { width: min(640px, 100%); padding: 14px 18px; }
@@ -178,7 +194,7 @@ h2 { margin: 0 0 4px; font-size: 22px; }
   #lobby #solo { margin-top: 2px; padding: 4px; }
   .role { padding: 16px 6px; }
   #conn .card { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; }
-  #conn h2, #conn .who, #conn .err, #conn .extras, #conn .link { grid-column: 1 / -1; }
+  #conn h2, #conn .who, #conn .err, #conn .extras, #conn .link, #conn .quiz-row { grid-column: 1 / -1; }
   #conn .row { margin-bottom: 6px; }
   #conn #row-delay { grid-column: 1; }
   #conn .btns { grid-column: 2; grid-row: 4 / span 2; margin-top: 0; justify-content: center; }
