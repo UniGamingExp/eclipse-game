@@ -144,16 +144,18 @@ export function buildPrologue(root, scene) {
 
   // dusk sky: warm horizon, indigo above, first stars
   scene.fog = new THREE.Fog(new THREE.Color('#e9a9c6'), 60, 210);
-  sky(root, { top: '#3b3f8f', mid: '#f4a9c6', low: '#ffd7b5', cloud: 0xf3c2dd, far: false, cx: 0 });
-  const nStars = 700, sp = new Float32Array(nStars * 3);
-  for (let i = 0; i < nStars; i++) {
-    const a = Math.random() * Math.PI * 2, e = 0.12 + Math.random() * 1.3;
-    sp[i * 3] = Math.cos(a) * Math.cos(e) * 320; sp[i * 3 + 1] = Math.sin(e) * 320; sp[i * 3 + 2] = Math.sin(a) * Math.cos(e) * 320;
-  }
-  const sg = new THREE.BufferGeometry();
-  sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-  const skyStars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, color: new THREE.Color(2.2, 2.1, 1.8), transparent: true, opacity: 0.85, fog: false, depthWrite: false }));
-  root.add(skyStars);
+  sky(root, {
+    top: '#2c2f7a', mid: '#f4a9c6', low: '#ffd7b5', neb1: '#9a7bff', neb2: '#ff7fb8', stars: 1, nebula: 0.8, cloud: 0xf3c2dd, far: false, cx: 0,
+    lightDir: [0.2, 0.35, 1],
+    planets: [
+      ['giant', 0.0, 0.17, 300, 0.42],     // straight ahead from the middle cloud, between the two islands
+      ['lilac', 1.45, 0.1, 230, 0.2, 1.5],  // over Moon's side (+x): what Sun sees at the start (her colour)
+      ['ember', -1.45, 0.1, 220, 0.1, 2.2], // …and a red one over Sun's side (-x): what Moon sees
+      ['ocean', 2.6, 0.12, 270, 0.3],
+      ['mint', -2.4, 0.33, 220, 0.3],
+      ['rose', 3.6, 0.2, 250, -0.5],
+    ],
+  });
   lights(root, { sunColor: 0xffd2b0, sunI: 2.3, hemiSky: 0xc9c4ff, hemiGround: 0xffc6a8, hemiI: 1.35, pos: [0, 28, 22], target: [0, 0, 0], extent: 46 });
 
   const islands = { sun: childhoodIsland(world, colliders, stars, 'sun'), moon: childhoodIsland(world, colliders, stars, 'moon') };
@@ -193,7 +195,6 @@ export function buildPrologue(root, scene) {
   let shownBridge = false, promptAt = 0, finaleT = -1, lookedShown = { sun: false, moon: false };
 
   anims.push((t, dt) => {
-    skyStars.rotation.y = t * 0.004;
     if (bridgeT >= 0) {
       bridgeT += dt;
       for (const b of bridge) {

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { heartShape } from '../effects.js';
 import { smoother } from '../util.js';
-import { mat, add, rbox, islandMeshes, tree, sign, cloud, sky, makeStar, spinStars, lights } from './common.js';
+import { mat, add, rbox, islandMeshes, tree, sign, cloud, sky, makeStar, spinStars, lights, meadow } from './common.js';
 
 export function buildPlayground(root, scene) {
   const colliders = [];
@@ -204,37 +204,12 @@ export function buildPlayground(root, scene) {
   cloud(world, 24.5, 5.5, -7.5, 3.4, 3.4, 3);
   colliders.push({ type: 'box', x0: 22.8, x1: 26.2, z0: -9.2, z1: -5.8, top: 5.5, bottom: 5.0, safe: true });
 
-  // flowers and grass tufts (instanced)
+  // flowers and swaying grass (instanced)
   const avoid = [[3.0, 0.8, 1.7], [-5.0, -4.5, 2.4], [2.1, -5.2, 1.0], [4.3, 2.6, 0.4], [-5.0, -2.9, 0.4], [0, 5.5, 1.4], [-1.7, 3, 0.5], [1.7, 3, 0.5], [0, -5.25, 2.3], [5.8, 2.2, 2.6], [5.8, -0.8, 1.5], [-4.5, 1.5, 1.2], [-6.3, -1.2, 1.5], [-4.5, 3.0, 0.8], [-3.0, 1.2, 0.8], [24.5, -2.5, 1.5], [-2.7, -2.5, 0.4]];
-  const okSpot = (x, z) => avoid.every(([ax, az, r]) => (x - ax) ** 2 + (z - az) ** 2 > r * r);
-  const scatter = (cx, cz, R, count, fn) => {
-    let placed = 0, tries = 0;
-    while (placed < count && tries++ < count * 10) {
-      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * (R - 0.6);
-      const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
-      if (okSpot(x, z)) fn(x, z, placed++);
-    }
-  };
-  const flowerCols = [0xff9ec4, 0xffffff, 0xffe27a, 0xc6b3ff, 0xff8a8a];
-  const flowers = new THREE.InstancedMesh(new THREE.SphereGeometry(0.085, 8, 6), new THREE.MeshStandardMaterial({ roughness: 0.7 }), 190);
-  const tufts = new THREE.InstancedMesh(new THREE.ConeGeometry(0.07, 0.3, 4), new THREE.MeshStandardMaterial({ color: 0x7cc964, roughness: 0.9, flatShading: true }), 360);
-  const o = new THREE.Object3D(), col = new THREE.Color();
-  let fi = 0, ti = 0;
-  const putFlower = (x, z) => {
-    if (fi >= 190) return;
-    o.position.set(x, 0.09, z); o.scale.setScalar(0.8 + Math.random() * 0.6); o.rotation.set(0, 0, 0); o.updateMatrix();
-    flowers.setMatrixAt(fi, o.matrix); flowers.setColorAt(fi, col.setHex(flowerCols[fi % flowerCols.length])); fi++;
-  };
-  const putTuft = (x, z) => {
-    if (ti >= 360) return;
-    o.position.set(x, 0.12, z); o.scale.set(1, 0.7 + Math.random() * 0.8, 1); o.rotation.set((Math.random() - 0.5) * 0.4, 0, (Math.random() - 0.5) * 0.4); o.updateMatrix();
-    tufts.setMatrixAt(ti++, o.matrix);
-  };
-  scatter(0, 0, 9, 150, putFlower); scatter(24, -3.5, 4.2, 40, putFlower);
-  scatter(0, 0, 9, 220, putTuft); scatter(24, -3.5, 4.2, 70, putTuft);
-  flowers.count = fi; tufts.count = ti;
-  flowers.castShadow = false; flowers.receiveShadow = true; tufts.receiveShadow = true;
-  world.add(flowers, tufts);
+  meadow(world, [
+    { x: 0, z: 0, r: 9, flowers: 150, tint: 0x86cc66 },
+    { x: 24, z: -3.5, r: 4.2, flowers: 40, tint: 0x8fd16e },
+  ], avoid, { tuftColor: 0x86cc66 });
 
   // stars to collect
   [['ledge', 0, TOWER + 0.75, -5.25], ['lookout', 5.8, 2.7, -0.8], ['grab', 3.0, GRAB + 0.7, 0.8], ['chimney', -5.0, WALL + 0.3, -4.5], ['cloud', 24.5, 6.15, -7.5]]

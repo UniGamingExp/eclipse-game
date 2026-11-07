@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { buildPlayground } from './levels/playground.js';
 import { buildPrologue } from './levels/prologue.js';
+import { clearFrameHooks } from './levels/hooks.js';
 
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue' },
@@ -10,6 +11,7 @@ export const LEVELS = {
 
 export function loadLevel(scene, id) {
   const def = LEVELS[id] || LEVELS.playground;
+  clearFrameHooks();
   const root = new THREE.Group();
   scene.add(root);
   const w = def.build(root, scene);

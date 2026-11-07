@@ -10,7 +10,7 @@ A cosy co-op 3D game for two phones: the Sun and the Moon, playing together from
 3. Both type the **same secret word** and tap **Play together**.
 4. The connection screen shows a green tick for the game server, your ping, and whether your partner is here.
 
-Controls: drag on the left to walk, drag anywhere else to look around, **Jump** (tap again in the air for a double jump), **♥** sends a heart. The action button changes with the situation: Sun can **Lift** Moon when she's close and **Throw** her; otherwise it's Shine/Tide.
+Controls: drag on the left to walk, drag anywhere else to look around, pinch with two fingers (or use the mouse wheel) to zoom the camera in or out, **Jump** (tap again in the air for a double jump), **♥** sends a heart. The action button changes with the situation: Sun can **Lift** Moon when she's close and **Throw** her; otherwise it's Shine/Tide.
 
 **Dash** (») gives a quick burst forward, once per jump in the air. Keyboard: Shift.
 
@@ -43,6 +43,9 @@ GitHub Pages serves the repo root from `main`, so **commit `build/game.js` after
 | `src/physics.js` | Small character physics (cylinders vs boxes/cylinders) |
 | `src/net.js` | Firebase / two-tab / solo networking |
 | `src/remote.js` | Smooth playback of the partner's movement |
-| `src/input.js` | Touch joystick, buttons, camera drag, keyboard |
+| `src/input.js` | Touch joystick, buttons, camera drag + pinch zoom, keyboard |
+| `src/look.js` | Rim light on all materials, colour grade + vignette, floating sparkles |
+| `src/levels/sky.js` | Sky dome with stars and nebula, planets with rings and moons, shooting stars, cloud sea |
+| `src/levels/hooks.js` | Per-frame callbacks for level pieces + shared shader time |
 | `src/ui.js` | Lobby, connection screen, HUD |
 | `database.rules.json` | Realtime Database security rules (paste into the Firebase console) |

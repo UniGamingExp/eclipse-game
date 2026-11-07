@@ -4,6 +4,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { gradePass, makeMotes } from './look.js';
+import { runFrameHooks } from './levels/hooks.js';
 import { loadLevel, LEVELS } from './world.js';
 import { makeCharacter, MODE, SIZES, KID_SIZES } from './characters.js';
 import { Body, moveBody, findLedge, playerCollider, syncPlayerCollider } from './physics.js';
@@ -36,6 +38,8 @@ composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.5, 1.3);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+const grade = gradePass();
+composer.addPass(grade);
 
 const QUALITY = [
   { dpr: Math.min(devicePixelRatio, 2), bloom: true, shadow: 2048 },
@@ -53,7 +57,8 @@ function resize() {
   composer.setSize(w, h);
   bloom.enabled = q.bloom;
   camera.aspect = w / h;
-  camera.fov = w < h ? 70 : 55;
+  camera.fov = w < h ? 74 : 62;
+  grade.uniforms.aspect.value = w / h;
   camera.updateProjectionMatrix();
   if (w > h) $('#rotate-hint').hidden = true;
 }
@@ -63,6 +68,7 @@ window.visualViewport?.addEventListener('resize', resize);
 // ---------------------------------------------------------------- world & actors
 let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
 const fx = new Effects(scene, camera);
+const motes = makeMotes(scene);
 const ROLES = ['sun', 'moon'];
 const chars = {}, bodies = {}, pcols = {}, ctls = {};
 const sizeOf = (r) => (world.kid ? KID_SIZES : SIZES)[r];
@@ -115,7 +121,7 @@ const G = {
   net: null,
   track: new RemoteTrack(),
   partnerK: null,
-  cam: { yaw: 0, pitch: 0.3, dist: 7.2, target: new THREE.Vector3(0, 1, 5), lastDrag: -10 },
+  cam: { yaw: 0, pitch: 0.3, dist: 8.6, zoom: clamp(+store.get('camZoom', 1) || 1, 0.55, 1.8), cur: 8.6, target: new THREE.Vector3(0, 1, 5), lastDrag: -10 },
   lastSend: 0,
   stars: {},
   cooldown: { ability: 0, heart: 0 },
@@ -655,12 +661,91 @@ function updateCamera(dt) {
   c.target.x = damp(c.target.x, _look.x, 12, dt);
   c.target.z = damp(c.target.z, _look.z, 12, dt);
   c.target.y = damp(c.target.y, _look.y, b.grounded ? 8 : 3.5, dt);
-  const dist = c.dist * (camera.aspect < 1 ? 1.25 : 1) * (world.kid ? 0.85 : 1);
+  const z = input.takeZoom();
+  if (z !== 1) { c.zoom = clamp(c.zoom * z, 0.55, 1.8); store.set('camZoom', +c.zoom.toFixed(2)); }
+  const want = c.dist * c.zoom * (camera.aspect < 1 ? 1.2 : 1) * (world.kid ? 0.88 : 1);
   const cp = Math.cos(c.pitch);
-  camera.position.set(c.target.x + Math.sin(c.yaw) * cp * dist, c.target.y + Math.sin(c.pitch) * dist, c.target.z + Math.cos(c.yaw) * cp * dist);
+  _dir.set(Math.sin(c.yaw) * cp, Math.sin(c.pitch), Math.cos(c.yaw) * cp);
+  // don't let walls and blocks get between the camera and the player: pull in fast, ease back out
+  const hit = camHit(c.target, _dir, want);
+  const dist = Math.min(want, Math.max(1.4, hit - 0.35));
+  c.cur = dist < c.cur ? dist : damp(c.cur, dist, 2.5, dt);
+  camera.position.copy(c.target).addScaledVector(_dir, c.cur);
   if (camera.position.y < c.target.y - 1.0) camera.position.y = c.target.y - 1.0;
   camera.lookAt(c.target);
+  hideOccluders();
 }
+
+// distance along the ray (origin o, unit direction d) to the first world collider, or Infinity
+const _dir = new THREE.Vector3();
+function camHit(o, d, maxT) {
+  let best = Infinity;
+  const pad = 0.25;
+  for (const k of world.colliders) {
+    if (k.disabled || k.noCam) continue;
+    // thin things (posts, trunks, railings) don't push the camera; they get hidden instead
+    if (k.type === 'box' ? Math.min(k.x1 - k.x0, k.z1 - k.z0) < 0.5 : k.r < 0.45) continue;
+    let t0 = 0, t1 = maxT;
+    // vertical slab (little padding on top, so the camera can look over low hedges)
+    const y0 = k.bottom - pad, y1 = k.top + 0.08;
+    if (Math.abs(d.y) < 1e-6) { if (o.y < y0 || o.y > y1) continue; } else {
+      let a = (y0 - o.y) / d.y, b = (y1 - o.y) / d.y;
+      if (a > b) [a, b] = [b, a];
+      t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+      if (t0 > t1) continue;
+    }
+    if (k.type === 'box') {
+      for (const [p, dd, lo, hi] of [[o.x, d.x, k.x0 - pad, k.x1 + pad], [o.z, d.z, k.z0 - pad, k.z1 + pad]]) {
+        if (Math.abs(dd) < 1e-6) { if (p < lo || p > hi) { t0 = 1; t1 = 0; } continue; }
+        let a = (lo - p) / dd, b = (hi - p) / dd;
+        if (a > b) [a, b] = [b, a];
+        t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+      }
+    } else {
+      const ox = o.x - k.x, oz = o.z - k.z, R = k.r + pad;
+      const A = d.x * d.x + d.z * d.z, B = 2 * (ox * d.x + oz * d.z), C = ox * ox + oz * oz - R * R;
+      if (A < 1e-8) { if (C > 0) continue; } else {
+        const disc = B * B - 4 * A * C;
+        if (disc < 0) continue;
+        const sq = Math.sqrt(disc);
+        t0 = Math.max(t0, (-B - sq) / (2 * A)); t1 = Math.min(t1, (-B + sq) / (2 * A));
+      }
+    }
+    // starting inside a collider (e.g. standing in a doorway's padding) doesn't count as a hit
+    if (t0 <= t1 && t0 > 0.05 && t0 < best) best = t0;
+  }
+  return best;
+}
+
+// small decorations (signs, bushes, tree tops…) between the camera and the player are hidden
+const _sph = new THREE.Sphere(), _seg = new THREE.Vector3(), _q = new THREE.Vector3();
+let occluders = null, occWorld = null;
+function hideOccluders() {
+  if (occWorld !== world) {
+    occWorld = world;
+    occluders = [];
+    world.root.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || o.userData.noHide || !o.frustumCulled) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      occluders.push(o);
+    });
+  }
+  _seg.copy(c_target()).sub(camera.position);
+  const L = _seg.length();
+  _seg.divideScalar(L || 1);
+  for (const o of occluders) {
+    if (o.userData.hidCam) o.visible = true;
+    _sph.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
+    if (_sph.radius > 2.4) continue;
+    // closest point on the camera→player segment (only the part near the camera)
+    _q.copy(_sph.center).sub(camera.position);
+    const t = Math.max(0, Math.min(_q.dot(_seg), L - 0.8));
+    _q.copy(camera.position).addScaledVector(_seg, t);
+    const hide = _q.distanceToSquared(_sph.center) < (_sph.radius * 0.85) ** 2;
+    if (hide) { o.visible = false; o.userData.hidCam = true; } else if (o.userData.hidCam) { o.userData.hidCam = false; }
+  }
+}
+const c_target = () => G.cam.target;
 
 // partner indicator at the screen edge
 const arrow = $('#partner-arrow');
@@ -838,6 +923,8 @@ function frame(nowMs) {
   }
 
   updateCamera(dt);
+  runFrameHooks(G.t, dt, camera);
+  motes.update(G.cam.target, G.t, dt);
   updateArrow(partnerVisible);
   fx.update(dt, G.t);
   composer.render(dt);

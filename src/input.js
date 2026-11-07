@@ -8,6 +8,7 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
     jumpHeld: false,
     pressed: new Set(),     // one-shot presses: jump, ability, heart, swap
     camDX: 0, camDY: 0,
+    zoom: 1,                // multiplied into the camera distance (pinch / mouse wheel)
     enabled: false,
     lastUse: 0,
   };
@@ -70,14 +71,25 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
     cams.set(e.pointerId, { x: e.clientX, y: e.clientY });
     try { e.target.setPointerCapture(e.pointerId); } catch { /* ok */ }
   }
+  let pinchD = 0;
+  const pinchDist = () => { const [a, b] = [...cams.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
   function camMove(e) {
     const c = cams.get(e.pointerId);
     if (!c) return;
+    if (cams.size >= 2) {
+      // two fingers on the screen: pinch to zoom the camera in or out
+      c.x = e.clientX; c.y = e.clientY;
+      const d = pinchDist();
+      if (pinchD > 0 && d > 0) st.zoom *= pinchD / d;
+      pinchD = d;
+      return;
+    }
     st.camDX += e.clientX - c.x;
     st.camDY += e.clientY - c.y;
     c.x = e.clientX; c.y = e.clientY;
   }
-  function camEnd(e) { cams.delete(e.pointerId); }
+  function camEnd(e) { cams.delete(e.pointerId); pinchD = 0; }
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); st.zoom *= Math.exp(e.deltaY * 0.001); }, { passive: false });
   canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); camStart(e); });
   canvas.addEventListener('pointermove', camMove);
   canvas.addEventListener('pointerup', camEnd);
@@ -132,6 +144,7 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
   return {
     state: st,
     consume(name) { const had = st.pressed.has(name); st.pressed.delete(name); return had; },
+    takeZoom() { const z = st.zoom; st.zoom = 1; return z; },
     takeCam() { const d = { x: st.camDX, y: st.camDY }; st.camDX = 0; st.camDY = 0; return d; },
     setEnabled(v) { st.enabled = v; if (!v) { st.pressed.clear(); st.move.x = st.move.y = 0; st.jumpHeld = false; } },
   };

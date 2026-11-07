@@ -3,6 +3,8 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { starShape } from '../effects.js';
+import { buildSky } from './sky.js';
+import { timeU } from './hooks.js';
 
 const mats = new Map();
 export function mat(color, opts = {}) {
@@ -29,7 +31,7 @@ export function islandMeshes(parent, cx, cz, R, top, depth, grass, dirtTop, dirt
   const capPts = [
     [R * 0.985, -0.62], [R * 1.005, -0.36], [R * 0.99, -0.13], [R * 0.955, -0.02], [R * 0.9, 0], [0.001, 0],
   ].map(([x, y]) => new THREE.Vector2(x, y));
-  const cap = add(g, new THREE.LatheGeometry(capPts, 64), mat(grass), 0, 0, 0, { cast: false });
+  const cap = add(g, new THREE.LatheGeometry(capPts, 64), grassMat(grass), 0, 0, 0, { cast: false });
   cap.receiveShadow = true;
   // rocky underside, jagged and low-poly
   const n = 9, pts = [];
@@ -124,42 +126,10 @@ export function cloud(parent, x, y, z, w, d, seed = 1) {
 }
 
 // ---------- sky & backdrop ----------
+/** Sky dome, planets, shooting stars and the cloud sea (see sky.js), plus a few distant islands. */
 export function sky(scene, opts = {}) {
-  const pal = { top: '#7d8fe6', mid: '#ffc9dc', low: '#ffe7cf', cloud: 0xffd9e8, far: true, cx: 8, ...opts };
-  const geo = new THREE.SphereGeometry(400, 32, 16);
-  const m = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: {
-      top: { value: new THREE.Color(pal.top) },
-      mid: { value: new THREE.Color(pal.mid) },
-      low: { value: new THREE.Color(pal.low) },
-    },
-    vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 low; varying vec3 vP;
-      void main(){ float h = vP.y; vec3 c = h > 0.0 ? mix(mid, top, smoothstep(0.02, 0.55, h)) : mix(mid, low, smoothstep(0.0, -0.35, h));
-      gl_FragColor = vec4(c, 1.0);
-      #include <colorspace_fragment>
-      }`,
-  }));
-  m.renderOrder = -10;
-  m.frustumCulled = false;
-  scene.add(m);
-
-  // sea of clouds far below
-  const puff = new THREE.SphereGeometry(1, 14, 10);
-  const n = 150;
-  const im = new THREE.InstancedMesh(puff, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: pal.cloud, emissiveIntensity: 0.35, roughness: 1 }), n);
-  const o = new THREE.Object3D();
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2, r = 10 + Math.pow(Math.random(), 0.7) * 150;
-    o.position.set(Math.cos(a) * r + pal.cx, -13 - Math.random() * 4, Math.sin(a) * r);
-    const s = 4 + Math.random() * 7;
-    o.scale.set(s * 1.4, s * 0.5, s);
-    o.updateMatrix();
-    im.setMatrixAt(i, o.matrix);
-  }
-  scene.add(im);
-
+  const pal = { far: true, cx: 8, ...opts };
+  const m = buildSky(scene, pal);
   if (!pal.far) return m;
   // distant little islands
   const far = [[-38, 4, -40, 3], [52, -2, -55, 4], [-60, 7, 10, 3.5], [45, 9, 40, 2.6], [-20, -5, 60, 4.5], [85, 3, -10, 3]];
@@ -176,6 +146,7 @@ starGeo.center();
 const starMat = new THREE.MeshStandardMaterial({ color: 0xffd34d, emissive: 0xffb300, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0.1 });
 export function makeStar(parent, id, x, y, z, i = 0) {
   const m = add(parent, starGeo, starMat, x, y, z, { receive: false });
+  m.userData.noHide = true;
   return { id, mesh: m, pos: new THREE.Vector3(x, y, z), collected: false, phase: i * 2 };
 }
 export function spinStars(stars, t) {
@@ -204,31 +175,115 @@ export function lights(parent, { sunColor = 0xfff1df, sunI = 2.6, hemiSky = 0xdf
   return { hemi, sun };
 }
 
-/** Scatter instanced flowers and grass tufts on round islands, avoiding [x, z, r] spots. */
+/** Grass ground: soft light/dark patches and a hint of yellow, from world-space noise (no texture). */
+const grassMats = new Map();
+export function grassMat(color) {
+  if (grassMats.has(color)) return grassMats.get(color);
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.95 });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      varying vec3 vGW;
+      float gh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float gn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(gh(i), gh(i + vec2(1, 0)), f.x), mix(gh(i + vec2(0, 1)), gh(i + vec2(1, 1)), f.x), f.y); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      { float n = gn(vGW.xz * 0.35) * 0.6 + gn(vGW.xz * 1.3) * 0.3 + gn(vGW.xz * 5.0) * 0.1;
+        diffuseColor.rgb *= mix(0.84, 1.13, n);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.12, 1.08, 0.78), smoothstep(0.62, 0.8, gn(vGW.xz * 0.18 + 3.0)) * 0.6); }`);
+  };
+  grassMats.set(color, m);
+  return m;
+}
+
+/** One clump of three bent grass blades; normals point up so the clump is lit like the ground. */
+function bladeClump() {
+  const pos = [], col = [], idx = [];
+  const H = 0.34, W = 0.05;
+  for (let b = 0; b < 3; b++) {
+    const a = b * 2.1 + 0.3, ca = Math.cos(a), sa = Math.sin(a);
+    const lean = 0.06 + b * 0.025, h = H * (0.8 + b * 0.15), base = pos.length / 3;
+    const ox = ca * 0.04, oz = sa * 0.04;
+    // 5 vertices: two pairs and the tip
+    const rows = [[0, W], [0.5, W * 0.7], [1, 0]];
+    for (const [k, w] of rows) {
+      const bend = lean * k * k;
+      const cx = ox + ca * bend, cz = oz + sa * bend, y = h * k;
+      if (w > 0) { pos.push(cx - sa * w, y, cz + ca * w, cx + sa * w, y, cz - ca * w); col.push(k, k, k, k, k, k); } else { pos.push(cx, y, cz); col.push(1, 1, 1); }
+    }
+    idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2, base + 2, base + 3, base + 4);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+  g.setAttribute('shade', new THREE.Float32BufferAttribute(col.filter((_, i) => i % 3 === 0), 1));
+  g.setIndex(idx);
+  return g;
+}
+
+/** Swaying grass: instanced clumps, darker at the root, light at the tip, waving in a soft wind. */
+export function grassMaterial(color) {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.time = timeU;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float time; attribute float shade; varying float vShade;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vShade = shade;
+        #ifdef USE_INSTANCING
+          vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+        #else
+          vec3 ip = vec3(0.0);
+        #endif
+        vec3 wp0 = (modelMatrix * vec4(ip, 1.0)).xyz;
+        float k = position.y / 0.34; k *= k;
+        float w = sin(time * 1.9 + wp0.x * 0.55 + wp0.z * 0.35) + 0.5 * sin(time * 3.1 + wp0.x * 1.7 - wp0.z * 1.1);
+        transformed.x += w * 0.05 * k;
+        transformed.z += cos(time * 1.4 + wp0.z * 0.6 - wp0.x * 0.3) * 0.035 * k;`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vShade;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.55, 1.18, vShade);')
+      // both sides of a blade use the same (upward) normal, so the back side isn't dark
+      .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize(vNormal);');
+  };
+  return m;
+}
+
+/** Scatter instanced flowers and swaying grass on round islands, avoiding [x, z, r] spots. */
 export function meadow(parent, islands, avoid, { flowerCols = [0xff9ec4, 0xffffff, 0xffe27a, 0xc6b3ff, 0xff8a8a], tuftColor = 0x7cc964 } = {}) {
   const okSpot = (x, z) => avoid.every(([ax, az, r]) => (x - ax) ** 2 + (z - az) ** 2 > r * r);
-  const maxF = 260, maxT = 420;
-  const flowers = new THREE.InstancedMesh(new THREE.SphereGeometry(0.085, 8, 6), new THREE.MeshStandardMaterial({ roughness: 0.7 }), maxF);
-  const tufts = new THREE.InstancedMesh(new THREE.ConeGeometry(0.07, 0.3, 4), new THREE.MeshStandardMaterial({ color: tuftColor, roughness: 0.9, flatShading: true }), maxT);
+  let maxF = 0, maxT = 0;
+  for (const i of islands) { maxF += i.flowers ?? 100; maxT += i.grass ?? Math.round(i.r * i.r * 9); }
+  const petal = new THREE.IcosahedronGeometry(0.09, 1);
+  petal.scale(1, 0.75, 1);
+  const flowers = new THREE.InstancedMesh(petal, new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.06 }), maxF);
+  const stems = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.012, 0.016, 0.2, 4).translate(0, 0.1, 0), new THREE.MeshStandardMaterial({ color: 0x5fae55, roughness: 0.9 }), maxF);
+  const blades = new THREE.InstancedMesh(bladeClump(), grassMaterial(tuftColor), maxT);
   const o = new THREE.Object3D(), col = new THREE.Color();
   let fi = 0, ti = 0;
-  for (const { x: cx, z: cz, r: R, y = 0, flowers: nf = 100, tufts: nt = 160 } of islands) {
+  for (const { x: cx, z: cz, r: R, y = 0, flowers: nf = 100, grass, tint } of islands) {
+    const nt = grass ?? Math.round(R * R * 9);
     let placed = 0, tries = 0;
     while (placed < nf + nt && tries++ < (nf + nt) * 10) {
-      const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * (R - 0.6);
+      const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * (R - 0.45);
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
       if (!okSpot(x, z)) continue;
-      if (placed < nf && fi < maxF) {
-        o.position.set(x, y + 0.09, z); o.scale.setScalar(0.8 + Math.random() * 0.6); o.rotation.set(0, 0, 0); o.updateMatrix();
+      if (placed < nf) {
+        const s = 0.8 + Math.random() * 0.6, hgt = 0.12 + Math.random() * 0.12;
+        o.position.set(x, y, z); o.rotation.set(0, 0, 0); o.scale.set(1, hgt / 0.2, 1); o.updateMatrix();
+        stems.setMatrixAt(fi, o.matrix);
+        o.position.set(x, y + hgt, z); o.scale.setScalar(s); o.rotation.set(0, Math.random() * 3, 0); o.updateMatrix();
         flowers.setMatrixAt(fi, o.matrix); flowers.setColorAt(fi, col.setHex(flowerCols[fi % flowerCols.length])); fi++;
-      } else if (ti < maxT) {
-        o.position.set(x, y + 0.12, z); o.scale.set(1, 0.7 + Math.random() * 0.8, 1); o.rotation.set((Math.random() - 0.5) * 0.4, 0, (Math.random() - 0.5) * 0.4); o.updateMatrix();
-        tufts.setMatrixAt(ti++, o.matrix);
+      } else {
+        o.position.set(x, y, z); o.rotation.set(0, Math.random() * Math.PI * 2, 0);
+        const s = 0.7 + Math.random() * 0.7; o.scale.set(s, s * (0.8 + Math.random() * 0.5), s); o.updateMatrix();
+        blades.setMatrixAt(ti, o.matrix);
+        col.setHex(tint ?? tuftColor).offsetHSL((Math.random() - 0.5) * 0.04, 0, (Math.random() - 0.5) * 0.08);
+        blades.setColorAt(ti++, col);
       }
       placed++;
     }
   }
-  flowers.count = fi; tufts.count = ti;
-  flowers.receiveShadow = true; tufts.receiveShadow = true;
-  parent.add(flowers, tufts);
+  flowers.count = fi; stems.count = fi; blades.count = ti;
+  for (const m of [flowers, stems, blades]) { m.receiveShadow = true; m.castShadow = false; m.userData.noHide = true; }
+  parent.add(flowers, stems, blades);
 }
