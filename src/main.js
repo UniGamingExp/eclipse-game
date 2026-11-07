@@ -362,8 +362,36 @@ function enterPlay() {
     if (isTouch && innerHeight > innerWidth && !store.get('rotateOk', false)) $('#rotate-hint').hidden = false;
     if (G.kind === 'solo') ui.toast('Practice: ⇄ switches characters · ☰ → choose a level');
     if (world.id === 'playground') setTimeout(() => caption('Chapter 1 is waiting: open ☰ and choose a level ✨', 4500), 3000);
-    introCaptions();
+    if (!store.get('introSeen', false)) playIntro(() => introCaptions());   // the intro film, once per phone
+    else introCaptions();
   }
+}
+
+// ---------------------------------------------------------------- intro film
+function playIntro(then) {
+  const box = $('#intro'), v = box.querySelector('video');
+  if (G.intro) return;
+  G.intro = true;
+  input.setEnabled(false);
+  box.hidden = false;
+  v.muted = false;
+  v.src = `assets/intro.mp4?v=${__BUILD__}`;
+  const done = () => {
+    if (!G.intro) return;
+    G.intro = false;
+    v.pause();
+    box.hidden = true;
+    v.removeAttribute('src'); v.load();
+    store.set('introSeen', true);
+    if (G.mode === 'play') input.setEnabled(true);
+    then?.();
+  };
+  v.onended = done;
+  v.onerror = done;
+  $('#intro-skip').onclick = done;
+  // started from a tap, so sound is allowed; if the browser still refuses, play muted
+  const p = v.play();
+  if (p) p.catch(() => { v.muted = true; v.play().catch(done); });
 }
 
 // a soft click for menu buttons (not the game buttons, they make their own sounds)
@@ -377,6 +405,7 @@ const openCredits = (from) => { creditsFrom = from; from.hidden = true; $('#cred
 $('#credits-close').addEventListener('click', () => { $('#credits').hidden = true; if (creditsFrom) creditsFrom.hidden = false; });
 $('#lobby-credits').addEventListener('click', () => openCredits($('#lobby')));
 $('#opt-credits').addEventListener('click', () => openCredits($('#conn')));
+$('#opt-intro').addEventListener('click', () => { if (G.mode === 'menu') enterPlay(); playIntro(); });
 
 // auto-rejoin after "Try again"
 if (sessionStorage.getItem('eclipse.autojoin') && store.get('role') && store.get('word')) {
@@ -1001,7 +1030,7 @@ function frame(nowMs) {
   }
 
   // music: the title track in the lobby, otherwise the level's (or a minigame's) track
-  music.play(G.mode === 'lobby' || G.mode === 'connecting' ? 'fun' : G.musicOverride || world.music);
+  music.play(G.intro ? null : G.mode === 'lobby' || G.mode === 'connecting' ? 'fun' : G.musicOverride || world.music);
 
   // footsteps (yours, and your partner's a little softer)
   if (playing) {

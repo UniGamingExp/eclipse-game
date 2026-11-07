@@ -11,7 +11,7 @@
 <title>Eclipse</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="style.css?v=072d6e7107">
+<link rel="stylesheet" href="style.css?v=dcb306e4f5">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -84,10 +84,16 @@
       <button id="opt-stars" class="chip">⭐ Reset stars</button>
       <button id="opt-mem" class="chip">📷 Memories</button>
       <button id="opt-quiz" class="chip">✍️ My quiz</button>
+      <button id="opt-intro" class="chip">🎬 Intro</button>
       <button id="opt-credits" class="chip">ℹ️ Credits</button>
     </div>
     <button id="conn-leave" class="link">Leave</button>
   </div>
+</div>
+
+<div id="intro" hidden>
+  <video playsinline webkit-playsinline preload="none" poster="assets/intro-poster.jpg"></video>
+  <button id="intro-skip">Skip ›</button>
 </div>
 
 <div id="credits" class="screen" hidden>
@@ -98,6 +104,8 @@
     <p><b>"It's Always Fun with You", "Riding an Animal with Large Paws", "Our Hideout Behind the Waterfall"</b> by <a href="https://vividglo.itch.io/playfulwhimsical-orchestral-soundtrack" target="_blank" rel="noopener">VividGlo</a>, licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>. Converted to MP3, volume adjusted and a short crossfade added at the loop point; the changed files are shared under CC BY-SA 4.0 too.</p>
     <p><b>"Enchanted Woods", "Mystic Forest", "Winter Ruins", "Tiefsee", "Fight The Devil", "Sneaky", "Suspense"</b>: Music by <a href="https://farbeyond-studio.itch.io/" target="_blank" rel="noopener">FarBeyond Studio</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Converted to MP3, volume adjusted and a short crossfade added at the loop point.</p>
     <p><b>"the town where i got the magic bottle", "it is dangerous to be lonely without a sword"</b> by <a href="https://ragnarrandom.itch.io/orchestral-and-world-music-for-games" target="_blank" rel="noopener">Ragnar Random</a> (CC0).</p>
+    <h3>Intro video</h3>
+    <p>Video clips generated with Grok Imagine (xAI) from frames of the game. Narration voice "Roger" generated with <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a>. Music in the intro: "Enchanted Woods" by FarBeyond Studio (CC BY 4.0, see above).</p>
     <h3>Sound effects</h3>
     <p>Casino Audio, Impact Sounds and Interface Sounds by <a href="https://kenney.nl" target="_blank" rel="noopener">Kenney</a> (CC0).</p>
     <h3>3D models</h3>
@@ -146,6 +154,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=072d6e7107"></script>
+<script type="module" src="build/game.js?v=dcb306e4f5"></script>
 </body>
 </html>

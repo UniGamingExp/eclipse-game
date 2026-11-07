@@ -19,6 +19,12 @@ Eclipse is a gift made for two people. It uses these free works. Thank you to th
   by **Ragnar Random**, from *Orchestral and World Music for Games*
   (https://ragnarrandom.itch.io/orchestral-and-world-music-for-games). **CC0** (public domain).
 
+## Intro video (`assets/intro.mp4`)
+
+- Video clips generated with **Grok Imagine** (xAI), starting from frames rendered from this game.
+- Narration: the voice **"Roger"** generated with **ElevenLabs** (https://elevenlabs.io).
+- Music: "Enchanted Woods" by FarBeyond Studio (CC BY 4.0, see above). Edited, titled and mixed for this game.
+
 ## Sound effects
 
 - **Casino Audio**, **Impact Sounds** and **Interface Sounds** by **Kenney** (https://kenney.nl). **CC0**.
