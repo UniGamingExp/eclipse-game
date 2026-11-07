@@ -339,7 +339,9 @@ function startSession(kind, role, word) {
   net.on('quiz', (mine, partner) => quizUI.update(mine, partner));
   net.on('save', (sv) => {
     G.save = sv;
-    if (sv.level && sv.level !== world.id) switchLevel(sv.level);
+    // both phones always follow the shared level; a new room starts at the Prologue
+    const lvl = sv.level || 'prologue';
+    if (lvl !== world.id) switchLevel(lvl);
   });
   net.join(kind === 'solo' ? 'solo' : roomIdFromWord(word), role);
 
@@ -697,7 +699,7 @@ function sendState(now) {
   const interval = now - ctl.lastMoving < 600 ? 66 : 500;
   if (now - G.lastSend < interval) return;
   G.lastSend = now;
-  const s = { t: Math.round(serverNow()), v: [round3(b.vel.x), round3(b.vel.y), round3(b.vel.z)], r: round3(chars[G.role].yaw), g: b.grounded ? 1 : 0, k: ctl.k, m: ctl.anim };
+  const s = { t: Math.round(serverNow()), v: [round3(b.vel.x), round3(b.vel.y), round3(b.vel.z)], r: round3(chars[G.role].yaw), g: b.grounded ? 1 : 0, k: ctl.k, m: ctl.anim, l: world.id };
   let base = null;
   if (ctl.state === 'carried' && G.track.has) { base = G.track.pos; s.b = otherRole(G.role); }
   else if (b.grounded && b.ground) {
@@ -877,7 +879,8 @@ function frame(nowMs) {
   if (playing) {
     // partner (remote) first, so we collide with where we see them
     if (G.kind !== 'solo') {
-      const ok = G.net.status.partnerOnline && G.track.sample(Date.now(), dt, resolveBase);
+      // only show the partner when they're in the same level (e.g. one phone still loading it)
+      const ok = G.net.status.partnerOnline && (!G.track.level || G.track.level === world.id) && G.track.sample(Date.now(), dt, resolveBase);
       partnerVisible = !!ok;
       if (ok) {
         chars[other].root.position.copy(G.track.pos);

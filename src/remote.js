@@ -26,6 +26,7 @@ export class RemoteTrack {
     if (last && s.t <= last.t) return;
     if (last && s.t - last.t > 2500) this.buf.length = 0; // long silence: don't slide across the gap
     this.buf.push(s);
+    if (s.l) this.level = s.l;
     if (this.buf.length > 60) this.buf.shift();
     this.lat.push(localNow - s.t);
     if (this.lat.length > 40) this.lat.shift();
