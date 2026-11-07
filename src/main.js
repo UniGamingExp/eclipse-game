@@ -720,6 +720,13 @@ function resolveBase(id, out) {
 const _look = new THREE.Vector3();
 function updateCamera(dt) {
   const c = G.cam;
+  // photo mode (for making stills): a fixed camera set from the console / tests
+  if (G.photo) {
+    camera.position.set(...G.photo.pos);
+    if (G.photo.fov && camera.fov !== G.photo.fov) { camera.fov = G.photo.fov; camera.updateProjectionMatrix(); }
+    camera.lookAt(...G.photo.look);
+    return;
+  }
   if (G.mode === 'lobby' || G.mode === 'connecting') {
     const a = G.t * 0.06;
     const L = world.lobbyCam || { cx: 6, cz: -2, r: 24, h: 10 };
@@ -1070,6 +1077,8 @@ requestAnimationFrame(frame);
 // for automated tests
 window.__eclipse = {
   G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
+  /** photo mode: photo({ pos: [x,y,z], look: [x,y,z], fov }) or photo(null); hides the HUD */
+  photo(o) { G.photo = o; document.body.classList.toggle('photo', !!o); if (!o) resize(); },
   /** Deterministic simulation at 60 Hz for tests: moves `role` with a fixed input. */
   sim(n, o = {}) {
     const r = o.role || G.active, dt = 1 / 60, trace = [];
