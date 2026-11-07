@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
 import { loadNature } from './nature.js';
+import { makeBata } from './bata.js';
 import { runFrameHooks } from './levels/hooks.js';
 import { loadLevel, LEVELS } from './world.js';
 import { makeCharacter, MODE, SIZES, KID_SIZES } from './characters.js';
@@ -1079,6 +1080,7 @@ function frame(nowMs) {
 
   updateCamera(dt);
   runFrameHooks(G.t, dt, camera);
+  if (G.bata?.root.visible) G.bata.animate(G.t, G.bata.talking);
   motes.update(G.cam.target, G.t, dt);
   updateArrow(partnerVisible);
   fx.update(dt, G.t);
@@ -1106,6 +1108,13 @@ requestAnimationFrame(frame);
 // for automated tests
 window.__eclipse = {
   G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
+  THREE,
+  /** Dr. Bata for stills / cutscenes: bata([x,y,z], yaw, scale, talking) or bata(null) to remove */
+  bata(pos, yaw = 0, scale = 1, talking = false) {
+    if (!G.bata) { G.bata = makeBata(); scene.add(G.bata.root); }
+    G.bata.root.visible = !!pos;
+    if (pos) { G.bata.root.position.set(...pos); G.bata.root.rotation.y = yaw; G.bata.root.scale.setScalar(scale); G.bata.talking = talking; }
+  },
   /** photo mode: photo({ pos: [x,y,z], look: [x,y,z], fov }) or photo(null); hides the HUD */
   photo(o) { G.photo = o; document.body.classList.toggle('photo', !!o); if (!o) resize(); },
   /** Deterministic simulation at 60 Hz for tests: moves `role` with a fixed input. */
