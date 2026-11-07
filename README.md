@@ -10,7 +10,9 @@ A cosy co-op 3D game for two phones: the Sun and the Moon, playing together from
 3. Both type the **same secret word** and tap **Play together**.
 4. The connection screen shows a green tick for the game server, your ping, and whether your partner is here.
 
-Controls: drag on the left to walk, drag anywhere else to look around, **Jump** (tap again in the air for a double jump), **Shine/Tide** (ability), **♥** sends a heart.
+Controls: drag on the left to walk, drag anywhere else to look around, **Jump** (tap again in the air for a double jump), **♥** sends a heart. The action button changes with the situation: Sun can **Lift** Moon when she's close and **Throw** her; otherwise it's Shine/Tide.
+
+Moves: jump short of an edge and you **grab it** (push forward or tap Jump to climb up). Between two walls marked with white arrows you can **wall jump**. Moon **floats** down slowly while you hold Jump.
 
 On iPhone, use Share → **Add to Home Screen** for full screen.
 

@@ -1,5 +1,5 @@
-// The test island ("Playground Isle"): a toy-diorama floating island with a teamwork ledge,
-// toy-block stairs, a cloud raft to a mushroom isle, and three stars.
+// The test island ("Playground Isle"): a toy-diorama floating island with a teamwork tower,
+// toy-block stairs, a ledge-grab block, a wall-jump chimney, a cloud raft to a mushroom isle, and stars.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { heartShape, starShape } from './effects.js';
@@ -210,15 +210,59 @@ export function buildWorld(scene) {
   const heart = add(world, new THREE.ExtrudeGeometry(heartShape(1.1), { depth: 0.22, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 3 }), pink, 0, 4.0, 2.89);
   anims.push((t) => { heart.rotation.y = Math.sin(t * 1.2) * 0.25; heart.position.y = 4.0 + Math.sin(t * 2) * 0.06; });
 
-  // teamwork ledge: a stack of toy blocks, too tall for one player
-  const layers = [0xf6b8c8, 0xffd59a, 0xbfe3a8, 0xa9c8f5];
+  // teamwork tower: a stack of toy blocks, too tall for one player (even with a ledge grab)
+  const TOWER = 5.2;
+  const layers = [0xf6b8c8, 0xffd59a, 0xbfe3a8, 0xa9c8f5, 0xd7c2f7];
   layers.forEach((col, i) => {
-    const m = add(world, rbox(3.2, 1.0, 2.7, 0.14), mat(col), 0, 0.5 + i, -5.25);
+    const m = add(world, rbox(3.2, 1.04, 2.7, 0.14), mat(col), 0, 0.52 + i * 1.04, -5.25);
     m.rotation.y = (i % 2 ? 1 : -1) * 0.035;
   });
-  add(world, rbox(3.3, 0.18, 2.8, 0.08), mat(0x8fd16e), 0, 4.0, -5.25);
-  colliders.push({ type: 'box', x0: -1.6, x1: 1.6, z0: -6.6, z1: -3.9, top: 4.08, bottom: 0, safe: true });
-  sign(world, -2.7, -2.5, 0.15, ['Too high?', 'Stand on your partner!']);
+  add(world, rbox(3.3, 0.18, 2.8, 0.08), mat(0x8fd16e), 0, TOWER, -5.25);
+  const towerCol = { type: 'box', x0: -1.6, x1: 1.6, z0: -6.6, z1: -3.9, top: TOWER + 0.08, bottom: 0, safe: true };
+  colliders.push(towerCol);
+  sign(world, -2.7, -2.5, 0.15, ['Too high?', 'Stack up, or Sun throws Moon!']);
+  // once someone is on top, toy-block steps slide out so the other one can follow
+  const popSteps = [];
+  [[1.3, -6.1], [2.6, -5.2], [3.9, -4.3]].forEach(([h, z], i) => {
+    const m = add(world, rbox(1.0, h, 0.86, 0.1), mat([0xffb3c7, 0xffd38c, 0x9fd0f5][i]), 1.1, h / 2, z);
+    const col = { type: 'box', x0: 0, x1: 0, z0: z - 0.43, z1: z + 0.43, top: h, bottom: 0, safe: true, disabled: true };
+    colliders.push(col);
+    popSteps.push({ m, col, out: 0 });
+  });
+  let towerOccupied = false;
+  anims.push((t, dt) => {
+    for (const st of popSteps) {
+      st.out = Math.min(1, st.out + (towerOccupied ? dt * 1.2 : 0));
+      const x = 1.1 + smoother(st.out) * 1.0;
+      st.m.position.x = x;
+      st.col.x0 = x - 0.5; st.col.x1 = x + 0.5;
+      st.col.disabled = st.out < 0.98;
+    }
+  });
+
+  // ledge-grab block: too high to jump onto, but you can grab the edge and pull yourself up
+  const GRAB = 3.3;
+  [[0, 0xa9e0d2], [1, 0xf7c9a5], [2, 0xc7b3f5]].forEach(([i, col]) => add(world, rbox(2.2, 1.1, 2.2, 0.12), mat(col), 3.0, 0.55 + i * 1.1, 0.8));
+  add(world, rbox(2.28, 0.14, 2.28, 0.06), mat(0x8fd16e), 3.0, GRAB, 0.8);
+  colliders.push({ type: 'box', x0: 1.9, x1: 4.1, z0: -0.3, z1: 1.9, top: GRAB + 0.07, bottom: 0, safe: true });
+  sign(world, 4.3, 2.6, -0.3, ['Jump, then', 'grab the edge!']);
+
+  // wall-jump chimney: two tall walls, bounce between them to the top
+  const WALL = 5.4;
+  for (const [x0, x1] of [[-7.0, -6.0], [-4.0, -3.0]]) {
+    for (let i = 0; i < 5; i++) {
+      add(world, rbox(1.0, WALL / 5, 1.8, 0.1), mat([0x9fd0f5, 0xc7b3f5, 0xffb3c7, 0xffd38c, 0xb9e4a0][(i + (x0 < -5 ? 0 : 2)) % 5]), (x0 + x1) / 2, (i + 0.5) * (WALL / 5), -4.5);
+    }
+    add(world, rbox(1.06, 0.14, 1.86, 0.06), mat(0x8fd16e), (x0 + x1) / 2, WALL, -4.5);
+    colliders.push({ type: 'box', x0, x1, z0: -5.4, z1: -3.6, top: WALL + 0.07, bottom: 0, safe: true, wallJump: true });
+    // little white chevrons mark wall-jump walls
+    for (let k = 0; k < 4; k++) {
+      const face = x0 < -5 ? x1 + 0.01 : x0 - 0.01;
+      const ch = add(world, new THREE.ConeGeometry(0.16, 0.3, 3), mat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.25 }), face, 1.0 + k * 1.15, -4.5, { cast: false });
+      ch.rotation.z = 0; ch.scale.set(1, 1, 0.25); ch.rotation.y = Math.PI / 2;
+    }
+  }
+  sign(world, -5.0, -2.9, 0.1, ['Wall jump!', 'Jump from wall to wall']);
 
   // toy-block stairs up to a lookout
   const blockCols = [0xffb3c7, 0xffd38c, 0xb9e4a0, 0x9fd0f5, 0xc7b3f5];
@@ -277,7 +321,7 @@ export function buildWorld(scene) {
   colliders.push({ type: 'cyl', x: -6.3, z: -1.2, r: 1.0, top: 1.8, bottom: 0, noStep: true });
 
   // trees and rocks
-  [[-7.0, 3.9, 1.0, 0], [-3.6, -6.9, 1.15, 1], [3.4, -7.4, 0.95, 2], [-7.9, -0.3, 0.8, 2], [8.0, 2.4, 0.75, 3]].forEach(([x, z, s, t]) => {
+  [[-7.0, 3.9, 1.0, 0], [-2.5, -7.9, 1.05, 1], [3.4, -7.4, 0.95, 2], [-7.9, -0.3, 0.8, 2], [8.0, 2.4, 0.75, 3]].forEach(([x, z, s, t]) => {
     tree(world, x, 0, z, s, t);
     colliders.push({ type: 'cyl', x, z, r: 0.3 * s, top: 3.2 * s, bottom: 0, noStep: true });
   });
@@ -338,7 +382,7 @@ export function buildWorld(scene) {
   colliders.push({ type: 'box', x0: 22.8, x1: 26.2, z0: -9.2, z1: -5.8, top: 5.5, bottom: 5.0, safe: true });
 
   // flowers and grass tufts (instanced)
-  const avoid = [[0, 5.5, 1.4], [-1.7, 3, 0.5], [1.7, 3, 0.5], [0, -5.25, 2.3], [5.8, 2.2, 2.6], [5.8, -0.8, 1.5], [-4.5, 1.5, 1.2], [-6.3, -1.2, 1.5], [-4.5, 3.0, 0.8], [-3.0, 1.2, 0.8], [24.5, -2.5, 1.5], [-2.7, -2.5, 0.4]];
+  const avoid = [[3.0, 0.8, 1.7], [-5.0, -4.5, 2.4], [2.1, -5.2, 1.0], [4.3, 2.6, 0.4], [-5.0, -2.9, 0.4], [0, 5.5, 1.4], [-1.7, 3, 0.5], [1.7, 3, 0.5], [0, -5.25, 2.3], [5.8, 2.2, 2.6], [5.8, -0.8, 1.5], [-4.5, 1.5, 1.2], [-6.3, -1.2, 1.5], [-4.5, 3.0, 0.8], [-3.0, 1.2, 0.8], [24.5, -2.5, 1.5], [-2.7, -2.5, 0.4]];
   const okSpot = (x, z) => avoid.every(([ax, az, r]) => (x - ax) ** 2 + (z - az) ** 2 > r * r);
   const scatter = (cx, cz, R, count, fn) => {
     let placed = 0, tries = 0;
@@ -373,7 +417,7 @@ export function buildWorld(scene) {
   const starGeo = new THREE.ExtrudeGeometry(starShape(0.34, 0.15), { depth: 0.1, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 2 });
   starGeo.center();
   const starMat = new THREE.MeshStandardMaterial({ color: 0xffd34d, emissive: 0xffb300, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0.1 });
-  [['ledge', 0, 4.7, -5.25], ['lookout', 5.8, 2.7, -0.8], ['cloud', 24.5, 6.15, -7.5]].forEach(([id, x, y, z], i) => {
+  [['ledge', 0, TOWER + 0.75, -5.25], ['lookout', 5.8, 2.7, -0.8], ['grab', 3.0, GRAB + 0.7, 0.8], ['chimney', -5.0, WALL + 0.3, -4.5], ['cloud', 24.5, 6.15, -7.5]].forEach(([id, x, y, z], i) => {
     const m = add(world, starGeo, starMat, x, y, z, { receive: false });
     stars.push({ id, mesh: m, pos: new THREE.Vector3(x, y, z), collected: false, phase: i * 2 });
   });
@@ -386,6 +430,8 @@ export function buildWorld(scene) {
     killY: -14,
     sunLight: sun,
     bounce(col) { if (col.isMushroom) mushSquash = 1; },
+    towerTop: { x0: -1.6, x1: 1.6, z0: -6.6, z1: -3.9, y: TOWER },
+    setTowerOccupied(v) { if (v) towerOccupied = true; },
     /** serverMs: shared clock (ms). t: local seconds. */
     update(serverMs, t, dt) {
       const x = raftX(serverMs);

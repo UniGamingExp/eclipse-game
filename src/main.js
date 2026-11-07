@@ -1,12 +1,12 @@
-// Eclipse 3D, step 1: foundation.
+// Eclipse 3D: the two dolls, their moves, and the test island.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildWorld } from './world.js';
-import { makeCharacter } from './characters.js';
-import { Body, moveBody, playerCollider, syncPlayerCollider } from './physics.js';
+import { makeCharacter, MODE, SIZES } from './characters.js';
+import { Body, moveBody, findLedge, playerCollider, syncPlayerCollider } from './physics.js';
 import { createInput } from './input.js';
 import { Effects } from './effects.js';
 import { RemoteTrack } from './remote.js';
@@ -15,7 +15,7 @@ import { sound } from './sound.js';
 import { createUI } from './ui.js';
 import { initMemoriesUI } from './memories-ui.js';
 import { initQuizUI } from './quiz-editor.js';
-import { clamp, damp, dampAngle, angleDiff, round3, roomIdFromWord, store, params, isTouch, isIOS, ROLE_EMOJI, ROLE_NAME, otherRole } from './util.js';
+import { clamp, damp, dampAngle, angleDiff, round3, smoother, roomIdFromWord, store, params, isTouch, isIOS, ROLE_EMOJI, ROLE_NAME, otherRole } from './util.js';
 
 const $ = (s) => document.querySelector(s);
 const DEBUG = params.has('debug');
@@ -33,7 +33,7 @@ const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 700);
 const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
 const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.55, 1.0);
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.5, 1.3);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
@@ -68,10 +68,17 @@ const chars = {}, bodies = {}, pcols = {}, ctls = {};
 for (const r of ROLES) {
   chars[r] = makeCharacter(r);
   scene.add(chars[r].root);
-  bodies[r] = new Body();
+  bodies[r] = new Body(SIZES[r].r, SIZES[r].h);
   pcols[r] = playerCollider(bodies[r]);
   pcols[r].disabled = true;
-  ctls[r] = { role: r, body: bodies[r], coyote: 0, buffer: 0, jumps: 0, cut: true, safe: world.spawn[r].clone(), safeT: 0, k: 0, lastMoving: 0, airT: 0 };
+  ctls[r] = {
+    role: r, body: bodies[r], coyote: 0, buffer: 0, jumps: 0, cut: true, safe: world.spawn[r].clone(), safeT: 0, k: 0, lastMoving: 0, airT: 0,
+    state: 'free',          // free | hang | climb | carried
+    anim: MODE.normal,      // what the doll shows (and what we send to the partner)
+    wallT: 0, wallNX: 0, wallNZ: 0, wjLock: 0, regrab: 0,
+    ledge: null, hangT: 0, climbT: 0, from: new THREE.Vector3(), to: new THREE.Vector3(),
+    carrying: false, liftT: 0, liftSeen: false, notCarriedT: 0,
+  };
 }
 function placeAtSpawn(r) {
   bodies[r].pos.copy(world.spawn[r]);
@@ -199,6 +206,13 @@ function onRemoteEvent(e) {
     sound.play('heart');
   } else if (e.type === 'ability') {
     useAbilityFx(e.from);
+  } else if (e.type === 'lift' && G.role === 'moon') {
+    const mc = ctls.moon, b = bodies.moon;
+    if (mc.state === 'free' && G.track.has && b.pos.distanceTo(G.track.pos) < 2.6) { mc.state = 'carried'; sound.play('jump2'); }
+  } else if (e.type === 'throw' && G.role === 'moon') {
+    if (ctls.moon.state === 'carried' && Array.isArray(e.v)) release(ctls.moon, new THREE.Vector3(e.v[0], e.v[1], e.v[2]));
+  } else if (e.type === 'drop' && G.role === 'sun') {
+    ctls.sun.carrying = false;
   }
 }
 function useAbilityFx(role) {
@@ -222,49 +236,86 @@ function updateStarCount(byMe) {
 }
 
 // ---------------------------------------------------------------- player control
-const SPEED = 5.6, JUMP = 11, JUMP2 = 9.5;
+const SPEED = 5.6, JUMP = 11, JUMP2 = 9.5, WALL_UP = 10.5, WALL_OUT = 6.2;
 const _v = new THREE.Vector3();
 const fade = $('#fade');
 
 function control(ctl, mv, wantJump, jumpHeld, dt) {
-  const b = ctl.body;
+  const b = ctl.body, role = ctl.role;
+  // camera-relative input direction
   const yaw = G.cam.yaw;
-  // camera-relative movement
   const fx_ = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
   const mag = Math.min(1, Math.hypot(mv.x, mv.y));
-  let dx = rx * mv.x + fx_ * mv.y, dz = rz * mv.x + fz * mv.y;
-  const dl = Math.hypot(dx, dz);
-  if (dl > 1e-4) { dx = (dx / dl) * SPEED * mag; dz = (dz / dl) * SPEED * mag; } else { dx = 0; dz = 0; }
-  const accel = (b.grounded ? 48 : 24) * dt;
+  let ix = rx * mv.x + fx_ * mv.y, iz = rz * mv.x + fz * mv.y;
+  const il = Math.hypot(ix, iz);
+  if (il > 1e-4) { ix /= il; iz /= il; } else { ix = 0; iz = 0; }
+  ctl.regrab = Math.max(0, ctl.regrab - dt);
+  ctl.wjLock = Math.max(0, ctl.wjLock - dt);
+
+  if (ctl.state === 'carried') return carriedUpdate(ctl, wantJump);
+  if (ctl.state === 'hang') return hangUpdate(ctl, ix, iz, mag, wantJump, dt);
+  if (ctl.state === 'climb') return climbUpdate(ctl, dt);
+
+  const speed = SPEED * (ctl.carrying ? 0.82 : 1);
+  const dx = ix * speed * mag, dz = iz * speed * mag;
+  const accel = (b.grounded ? 48 : ctl.wjLock > 0 ? 5 : 24) * dt;
   let ex = dx - b.vel.x, ez = dz - b.vel.z;
   const el = Math.hypot(ex, ez);
   if (el > accel) { ex *= accel / el; ez *= accel / el; }
   b.vel.x += ex; b.vel.z += ez;
 
-  // forgiving jumps: coyote time, jump buffer, one air jump
-  if (b.grounded) { ctl.coyote = 0.13; ctl.jumps = 0; ctl.airT = 0; } else { ctl.coyote -= dt; ctl.airT += dt; }
+  // forgiving jumps: coyote time, jump buffer, one air jump, wall jumps
+  if (b.grounded) { ctl.coyote = 0.13; ctl.jumps = 0; ctl.airT = 0; ctl.wallT = 0; } else { ctl.coyote -= dt; ctl.airT += dt; }
   ctl.buffer = wantJump ? 0.16 : ctl.buffer - dt;
   if (ctl.buffer > 0) {
     if (b.grounded || ctl.coyote > 0) {
-      b.vel.y = JUMP; ctl.jumps = 1; ctl.coyote = 0; ctl.buffer = 0; ctl.cut = false;
+      b.vel.y = ctl.carrying ? JUMP * 0.88 : JUMP; ctl.jumps = 1; ctl.coyote = 0; ctl.buffer = 0; ctl.cut = false;
       b.grounded = false; b.ground = null;
       sound.play('jump'); fx.dust(b.pos, 4);
-    } else if (ctl.jumps < 2) {
+    } else if (ctl.wallT > 0 && !ctl.carrying) {
+      b.vel.set(ctl.wallNX * WALL_OUT, WALL_UP, ctl.wallNZ * WALL_OUT);
+      ctl.jumps = 1; ctl.buffer = 0; ctl.cut = true; ctl.wallT = 0; ctl.wjLock = 0.2;
+      chars[role].setYaw(Math.atan2(ctl.wallNX, ctl.wallNZ));
+      sound.play('jump'); fx.dust(_v.copy(b.pos).add(new THREE.Vector3(-ctl.wallNX * b.r, b.h * 0.5, -ctl.wallNZ * b.r)), 3);
+    } else if (ctl.jumps < 2 && !ctl.carrying) {
       b.vel.y = JUMP2; ctl.jumps = 2; ctl.buffer = 0; ctl.cut = true;
-      sound.play('jump2'); fx.sparks(b.pos.clone().setY(b.pos.y - 0.5), ctl.role === 'sun' ? 0xffd060 : 0xaab8ff, 8, 1.5);
+      chars[role].spin();
+      sound.play('jump2'); fx.sparks(b.pos.clone().setY(b.pos.y - 0.5), role === 'sun' ? 0xffb080 : 0xc9a8ff, 8, 1.5);
     }
   }
   if (!jumpHeld && !ctl.cut && b.vel.y > 6) { b.vel.y = 6; ctl.cut = true; } // short hop when released early
+
+  // Moon floats down gently while jump is held; wall slides are slow
+  const gliding = role === 'moon' && !b.grounded && jumpHeld && b.vel.y < 0 && ctl.airT > 0.15 && ctl.wallT <= 0;
+  b.maxFall = gliding ? 2.2 : ctl.wallT > 0 ? 3.2 : 28;
 
   const landed = moveBody(b, colliders, dt);
   if (landed) {
     if (landed.collider.bounce) {
       sound.play('bounce'); world.bounce(landed.collider); ctl.jumps = 1; ctl.cut = true;
-      chars[ctl.role].land(10);
+      chars[role].land(10);
     } else if (landed.impact > 7) {
-      sound.play('land'); fx.dust(b.pos, 6); chars[ctl.role].land(landed.impact);
-    } else chars[ctl.role].land(landed.impact);
+      sound.play('land'); fx.dust(b.pos, 6); chars[role].land(landed.impact);
+    } else chars[role].land(landed.impact);
   }
+
+  // touching a wall in the air → wall slide (a jump now bounces off it)
+  // (only on walls made for it, so single walls can't be climbed alone)
+  if (!b.grounded && b.wallC && b.wallC.wallJump && b.vel.y < 2.5) { ctl.wallT = 0.18; ctl.wallNX = b.wallNX; ctl.wallNZ = b.wallNZ; }
+  else ctl.wallT -= dt;
+  if (b.grounded) ctl.wallT = 0;
+
+  // grab a ledge when you just miss it
+  if (!b.grounded && !ctl.carrying && ctl.regrab <= 0 && b.vel.y < 3.5) {
+    const L = findLedge(b, colliders);
+    if (L) {
+      const toward = -(ix * L.nx + iz * L.nz) * mag;
+      const vToward = -(b.vel.x * L.nx + b.vel.z * L.nz);
+      if (toward > 0.2 || vToward > 0.8 || ctl.wallT > 0) startHang(ctl, L);
+    }
+  }
+
+  if (ctl.state === 'free') ctl.anim = gliding ? MODE.glide : (ctl.wallT > 0 && !b.grounded) ? MODE.wall : ctl.carrying ? MODE.carry : MODE.normal;
 
   // remember a safe spot to respawn
   if (b.grounded && b.ground && b.ground.safe) {
@@ -275,8 +326,103 @@ function control(ctl, mv, wantJump, jumpHeld, dt) {
   if (b.pos.y < world.killY) respawn(ctl);
 }
 
+function startHang(ctl, L) {
+  const b = ctl.body;
+  ctl.state = 'hang'; ctl.ledge = L; ctl.hangT = 0; ctl.anim = MODE.hang;
+  b.vel.set(0, 0, 0); b.grounded = false; b.ground = null;
+  b.pos.y = L.top - b.h * 0.92;
+  chars[ctl.role].setYaw(Math.atan2(-L.nx, -L.nz));
+  sound.play('land');
+}
+function hangUpdate(ctl, ix, iz, mag, wantJump, dt) {
+  const b = ctl.body, L = ctl.ledge;
+  b.vel.set(0, 0, 0); b.grounded = false;
+  ctl.hangT += dt; ctl.anim = MODE.hang;
+  const toward = -(ix * L.nx + iz * L.nz) * mag;
+  if (L.c.disabled) { ctl.state = 'free'; ctl.regrab = 0.4; return; }
+  if (wantJump || (toward > 0.5 && ctl.hangT > 0.12)) {
+    ctl.state = 'climb'; ctl.climbT = 0; ctl.anim = MODE.climb;
+    ctl.from.copy(b.pos); ctl.to.set(L.lx, L.top, L.lz);
+    sound.play('jump');
+  } else if (toward < -0.6 && ctl.hangT > 0.15) {
+    ctl.state = 'free'; ctl.regrab = 0.45;
+    b.vel.set(L.nx * 1.5, 0, L.nz * 1.5);
+  }
+}
+function climbUpdate(ctl, dt) {
+  const b = ctl.body;
+  ctl.climbT += dt / 0.34;
+  const k = Math.min(1, ctl.climbT);
+  b.pos.y = ctl.from.y + (ctl.to.y - ctl.from.y) * Math.min(1, k * 1.7);
+  const h = smoother(clamp((k - 0.35) / 0.65, 0, 1));
+  b.pos.x = ctl.from.x + (ctl.to.x - ctl.from.x) * h;
+  b.pos.z = ctl.from.z + (ctl.to.z - ctl.from.z) * h;
+  ctl.anim = MODE.climb;
+  if (k >= 1) {
+    ctl.state = 'free'; ctl.anim = MODE.normal;
+    b.pos.copy(ctl.to); b.vel.set(0, 0, 0);
+    b.grounded = true; b.ground = ctl.ledge.c; ctl.jumps = 0;
+  }
+}
+
+// ---- Sun lifts and throws Moon
+function partnerPos(role) {
+  const other = otherRole(role);
+  if (G.kind === 'solo') return bodies[other].pos;
+  return G.track.has && G.net?.status.partnerOnline ? G.track.pos : null;
+}
+function canLift() {
+  const sb = bodies.sun, mp = partnerPos('sun');
+  if (!mp || !sb.grounded || ctls.sun.state !== 'free') return false;
+  if (G.kind === 'solo' && ctls.moon.state !== 'free') return false;
+  return Math.hypot(mp.x - sb.pos.x, mp.z - sb.pos.z) < 1.5 && Math.abs(mp.y - sb.pos.y) < 1.2;
+}
+function sunAction() {
+  const sc = ctls.sun;
+  if (sc.carrying) {
+    const y = chars.sun.yaw, b = bodies.sun;
+    const v = new THREE.Vector3(Math.sin(y) * 6.5 + b.vel.x * 0.5, 12.5, Math.cos(y) * 6.5 + b.vel.z * 0.5);
+    sc.carrying = false;
+    chars.sun.throwAnim();
+    sound.play('bounce');
+    if (G.kind === 'solo') release(ctls.moon, v);
+    else G.net.sendEvent('throw', { v: [round3(v.x), round3(v.y), round3(v.z)] });
+    return true;
+  }
+  if (canLift()) {
+    sc.carrying = true; sc.liftT = performance.now(); sc.liftSeen = false; sc.notCarriedT = 0;
+    sound.play('jump2');
+    if (G.kind === 'solo') ctls.moon.state = 'carried';
+    else G.net.sendEvent('lift');
+    return true;
+  }
+  return false;
+}
+function carriedUpdate(ctl, wantJump) {
+  const b = ctl.body;
+  const carrier = G.kind === 'solo' ? bodies.sun.pos : (G.track.has && G.net.status.partnerOnline ? G.track.pos : null);
+  if (!carrier) { release(ctl, new THREE.Vector3(0, 4, 0)); return; }
+  b.pos.set(carrier.x, carrier.y + SIZES.sun.h + 0.02, carrier.z);
+  b.vel.set(0, 0, 0); b.grounded = true; b.ground = null;
+  ctl.anim = MODE.carried;
+  chars[ctl.role].setYaw(chars.sun.yaw);
+  if (wantJump) {
+    release(ctl, new THREE.Vector3(0, 9.5, 0));
+    if (G.kind === 'solo') ctls.sun.carrying = false; else G.net.sendEvent('drop');
+  }
+}
+function release(ctl, v) {
+  const b = ctl.body;
+  ctl.state = 'free'; ctl.anim = MODE.normal;
+  b.vel.copy(v); b.grounded = false; b.ground = null;
+  ctl.jumps = 1; ctl.cut = true; ctl.regrab = 0.25; ctl.airT = 0.2; ctl.coyote = 0;
+  if (Math.hypot(v.x, v.z) > 2) ctl.wjLock = 0.5; // a throw carries you for a moment
+}
+
 function respawn(ctl) {
   const b = ctl.body;
+  ctl.state = 'free'; ctl.anim = MODE.normal; ctl.wallT = 0;
+  if (ctl.role === 'sun' && ctl.carrying) { ctl.carrying = false; if (G.kind === 'solo') release(ctls.moon, new THREE.Vector3(0, 2, 0)); }
   b.pos.copy(ctl.safe).add(_v.set(0, 0.3, 0));
   b.vel.set(0, 0, 0);
   b.ground = null; b.grounded = false;
@@ -298,9 +444,10 @@ function sendState(now) {
   const interval = now - ctl.lastMoving < 600 ? 66 : 500;
   if (now - G.lastSend < interval) return;
   G.lastSend = now;
-  const s = { t: Math.round(serverNow()), v: [round3(b.vel.x), round3(b.vel.y), round3(b.vel.z)], r: round3(chars[G.role].yaw), g: b.grounded ? 1 : 0, k: ctl.k };
+  const s = { t: Math.round(serverNow()), v: [round3(b.vel.x), round3(b.vel.y), round3(b.vel.z)], r: round3(chars[G.role].yaw), g: b.grounded ? 1 : 0, k: ctl.k, m: ctl.anim };
   let base = null;
-  if (b.grounded && b.ground) {
+  if (ctl.state === 'carried' && G.track.has) { base = G.track.pos; s.b = otherRole(G.role); }
+  else if (b.grounded && b.ground) {
     if (b.ground.id === 'raft') base = world.movers.raft.pos(serverNow(), new THREE.Vector3());
     else if (b.ground === pcols[otherRole(G.role)] && G.track.has) base = G.track.pos;
     if (base) s.b = b.ground.id === 'raft' ? 'raft' : otherRole(G.role);
@@ -340,7 +487,7 @@ function updateCamera(dt) {
     if (Math.abs(diff) < 1.75) c.yaw += clamp(diff, -1, 1) * Math.min(1, sp / SPEED) * 0.9 * dt;
   }
   _look.copy(b.pos);
-  _look.y += 1.1;
+  _look.y += b.h * 0.8;
   c.target.x = damp(c.target.x, _look.x, 12, dt);
   c.target.z = damp(c.target.z, _look.z, 12, dt);
   c.target.y = damp(c.target.y, _look.y, b.grounded ? 8 : 3.5, dt);
@@ -402,16 +549,29 @@ function frame(nowMs) {
         chars[other].setYaw(dampAngle(chars[other].yaw, G.track.yaw, 18, dt));
         syncPlayerCollider(pcols[other], G.track.pos, bodies[other].h);
       }
-      pcols[other].disabled = !ok;
-    } else partnerVisible = true;
+      pcols[other].disabled = !ok || G.track.mode === MODE.carried;
+      // keep Sun's "carrying" in step with what Moon's phone reports
+      const sc = ctls.sun;
+      if (G.role === 'sun' && sc.carrying) {
+        if (G.track.mode === MODE.carried) { sc.liftSeen = true; sc.notCarriedT = 0; }
+        else if (!sc.liftSeen && performance.now() - sc.liftT > 4000) sc.carrying = false;
+        else if (sc.liftSeen && (sc.notCarriedT += dt) > 0.6) sc.carrying = false;
+      }
+    } else {
+      partnerVisible = true;
+      pcols.moon.disabled = ctls.moon.state === 'carried';
+    }
 
     // cooldowns & one-shot buttons
     G.cooldown.ability -= dt; G.cooldown.heart -= dt;
     const wantJump = input.consume('jump');
     if (input.consume('ability') && G.cooldown.ability <= 0) {
-      G.cooldown.ability = 0.6;
-      useAbilityFx(G.kind === 'solo' ? G.active : G.role);
-      G.net.sendEvent('ability');
+      G.cooldown.ability = 0.45;
+      const who = G.kind === 'solo' ? G.active : G.role;
+      if (!(who === 'sun' && sunAction())) {
+        useAbilityFx(who);
+        G.net.sendEvent('ability');
+      }
     }
     if (input.consume('heart') && G.cooldown.heart <= 0) {
       G.cooldown.heart = 0.8;
@@ -422,7 +582,6 @@ function frame(nowMs) {
     }
     if (input.consume('swap') && G.kind === 'solo') {
       G.active = otherRole(G.active);
-      $('#ability-label').textContent = G.active === 'sun' ? 'Shine' : 'Tide';
       document.body.classList.remove('sun', 'moon'); document.body.classList.add(G.active);
       ui.toast(`Now playing ${ROLE_EMOJI[G.active]} ${ROLE_NAME[G.active]}`);
     }
@@ -437,9 +596,21 @@ function frame(nowMs) {
       syncPlayerCollider(pcols[r], bodies[r].pos, bodies[r].h);
       const b = bodies[r], c = chars[r];
       c.root.position.copy(b.pos);
+      const ctl = ctls[r];
       const sp = Math.hypot(b.vel.x, b.vel.z);
-      if (sp > 0.4) c.setYaw(dampAngle(c.yaw, Math.atan2(b.vel.x, b.vel.z), 14, dt));
+      if (ctl.state === 'free' && ctl.anim === MODE.wall) c.setYaw(dampAngle(c.yaw, Math.atan2(-ctl.wallNX, -ctl.wallNZ), 14, dt));
+      else if (ctl.state === 'free' && sp > 0.4) c.setYaw(dampAngle(c.yaw, Math.atan2(b.vel.x, b.vel.z), 14, dt));
     }
+
+    // someone on top of the tower → the toy steps slide out
+    const T = world.towerTop;
+    const onTop = (p) => p && p.y > T.y - 0.15 && p.x > T.x0 && p.x < T.x1 && p.z > T.z0 && p.z < T.z1;
+    if (mine.some((r) => onTop(bodies[r].pos)) || (partnerVisible && G.kind !== 'solo' && onTop(G.track.pos))) world.setTowerOccupied(true);
+
+    // context label on the ability button
+    const who = G.kind === 'solo' ? G.active : G.role;
+    const label = who === 'sun' ? (ctls.sun.carrying ? 'Throw' : canLift() ? 'Lift' : 'Shine') : 'Tide';
+    if (label !== G.abilityLabel) { G.abilityLabel = label; $('#ability-label').textContent = label; }
 
     // stars
     for (const s of world.stars) {
@@ -468,11 +639,11 @@ function frame(nowMs) {
     if (!visible) continue;
     if (playing && (G.kind === 'solo' || r === G.role)) {
       const b = bodies[r];
-      c.animate(dt, Math.hypot(b.vel.x, b.vel.z), b.grounded, b.vel.y);
+      c.animate(dt, { speed: Math.hypot(b.vel.x, b.vel.z), grounded: b.grounded, vy: b.vel.y, mode: ctls[r].anim });
     } else if (playing) {
       const v = G.track.vel;
-      c.animate(dt, Math.hypot(v.x, v.z), G.track.grounded, v.y);
-    } else c.animate(dt, 0, true, 0);
+      c.animate(dt, { speed: Math.hypot(v.x, v.z), grounded: G.track.grounded, vy: v.y, mode: G.track.mode });
+    } else c.animate(dt, { speed: 0, grounded: true, vy: 0, mode: MODE.normal });
   }
 
   updateCamera(dt);
@@ -509,9 +680,12 @@ window.__eclipse = {
       T += 1000 / 60;
       world.update(T, G.t, dt);
       for (const k of ROLES) syncPlayerCollider(pcols[k], bodies[k].pos, bodies[k].h);
+      if (G.kind === 'solo') pcols.moon.disabled = ctls.moon.state === 'carried';
       control(ctls[r], o.move || idleInput, (o.jumpAt || []).includes(i), o.hold ?? true, dt);
-      if (o.every && i % o.every === 0) trace.push([+bodies[r].pos.x.toFixed(2), +bodies[r].pos.y.toFixed(2), +bodies[r].pos.z.toFixed(2), bodies[r].grounded ? 1 : 0, world.movers.raft.pos(T).x.toFixed(2)]);
+      if (G.kind === 'solo') for (const k of ROLES) if (k !== r) control(ctls[k], idleInput, (o.otherJumpAt || []).includes(i), false, dt);
+      if (o.actionAt && o.actionAt.includes(i)) sunAction();
+      if (o.every && i % o.every === 0) trace.push([+bodies[r].pos.x.toFixed(2), +bodies[r].pos.y.toFixed(2), +bodies[r].pos.z.toFixed(2), bodies[r].grounded ? 1 : 0, ctls[r].state[0] + ctls[r].anim]);
     }
-    return { pos: bodies[r].pos.toArray().map((v) => +v.toFixed(3)), grounded: bodies[r].grounded, trace };
+    return { pos: bodies[r].pos.toArray().map((v) => +v.toFixed(3)), grounded: bodies[r].grounded, state: ctls[r].state, anim: ctls[r].anim, trace };
   },
 };

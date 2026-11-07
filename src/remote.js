@@ -16,6 +16,7 @@ export class RemoteTrack {
     this.vel = new Vector3();
     this.yaw = 0;
     this.grounded = true;
+    this.mode = 0;
     this.has = false;
     this.lastRecv = 0;
   }
@@ -94,6 +95,7 @@ export class RemoteTrack {
         this.vel.set(a.v[0] + (b.v[0] - a.v[0]) * u, a.v[1] + (b.v[1] - a.v[1]) * u, a.v[2] + (b.v[2] - a.v[2]) * u);
         this.yaw = a.r + angleDiff(a.r, b.r) * u;
         this.grounded = u < 0.5 ? !!a.g : !!b.g;
+        this.mode = (u < 0.5 ? a.m : b.m) || 0;
         this.has = true;
         return true;
       }
@@ -109,6 +111,7 @@ export class RemoteTrack {
     this.vel.set(last.v[0], last.v[1], last.v[2]);
     this.yaw = last.r;
     this.grounded = !!last.g;
+    this.mode = last.m || 0;
     this.has = true;
     return true;
   }

@@ -18,6 +18,10 @@ export class Body {
     this.h = h;
     this.grounded = false;
     this.ground = null;
+    this.maxFall = MAX_FALL;
+    this.wallC = null;   // wall touched this frame (for wall slide / wall jump)
+    this.wallNX = 0;
+    this.wallNZ = 0;
   }
 }
 
@@ -83,6 +87,7 @@ function step(b, colliders, dt) {
     const l = Math.hypot(push.x, push.z);
     if (l > 1e-6) {
       const nx = push.x / l, nz = push.z / l;
+      if (!c.isPlayer && c.top > feet + 0.7 && c.bottom < feet + 0.3) { b.wallC = c; b.wallNX = nx; b.wallNZ = nz; }
       const vn = b.vel.x * nx + b.vel.z * nz;
       if (vn < 0) { b.vel.x -= vn * nx; b.vel.z -= vn * nz; }
     }
@@ -90,7 +95,7 @@ function step(b, colliders, dt) {
 
   // --- vertical ---
   const prevY = b.pos.y;
-  b.vel.y = Math.max(b.vel.y - GRAVITY * dt, -MAX_FALL);
+  b.vel.y = Math.max(b.vel.y - GRAVITY * dt, -b.maxFall);
   b.pos.y += b.vel.y * dt;
   b.grounded = false;
   b.ground = null;
@@ -118,6 +123,7 @@ function step(b, colliders, dt) {
 
 /** Move a body for one frame: carries it with whatever it stands on, then sub-steps physics. */
 export function moveBody(b, colliders, dt) {
+  b.wallC = null;
   const g = b.ground;
   if (g && g.dx !== undefined) {
     const d2 = g.dx * g.dx + g.dy * g.dy + g.dz * g.dz;
@@ -140,9 +146,37 @@ export function moveBody(b, colliders, dt) {
   return landed;
 }
 
+/**
+ * Looks for a ledge the body can grab: an edge whose top is near the hands, right in front of the
+ * body, with room on top to climb onto. Returns { c, nx, nz, top, lx, lz } (n points from the ledge
+ * towards the body; lx/lz is where the body ends up after climbing) or null.
+ */
+export function findLedge(b, colliders) {
+  const feet = b.pos.y, hands = feet + b.h * 0.9;
+  for (const c of colliders) {
+    if (c.isPlayer || c.noGrab || c.disabled || c.owner === b) continue;
+    if (c.top <= feet + b.h * 0.45 || c.top > hands + 0.35 || c.top < hands - 0.5) continue;
+    if (c.bottom > feet + b.h * 0.5) continue; // floating thin things: ignore
+    if (!overlap(b.pos.x, b.pos.z, b.r + 0.16, c)) continue;
+    const l = Math.hypot(push.x, push.z);
+    if (l < 1e-5) continue;
+    const nx = push.x / l, nz = push.z / l;
+    const lx = b.pos.x - nx * (b.r + 0.32), lz = b.pos.z - nz * (b.r + 0.32);
+    if (!overlap(lx, lz, 0.02, c)) continue; // the top isn't deep enough to stand on
+    let blocked = false;
+    for (const o of colliders) {
+      if (o === c || o.isPlayer || o.disabled || o.owner === b) continue;
+      if (o.bottom < c.top + b.h && o.top > c.top + 0.05 && overlap(lx, lz, b.r * 0.8, o)) { blocked = true; break; }
+    }
+    if (blocked) continue;
+    return { c, nx, nz, top: c.top, lx, lz };
+  }
+  return null;
+}
+
 /** A cylinder collider that follows a player so the other one can bump into / stand on them. */
 export function playerCollider(owner) {
-  return { type: 'cyl', x: 0, z: 0, r: 0.34, top: 1, bottom: 0, dx: 0, dy: 0, dz: 0, isPlayer: true, owner, ready: false, px: 0, py: 0, pz: 0 };
+  return { type: 'cyl', x: 0, z: 0, r: owner.r * 0.92, top: 1, bottom: 0, dx: 0, dy: 0, dz: 0, isPlayer: true, owner, ready: false, px: 0, py: 0, pz: 0 };
 }
 export function syncPlayerCollider(c, pos, h) {
   if (c.ready) { c.dx = pos.x - c.px; c.dy = pos.y - c.py; c.dz = pos.z - c.pz; } else { c.dx = c.dy = c.dz = 0; }
