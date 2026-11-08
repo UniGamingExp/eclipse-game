@@ -11,7 +11,7 @@
 <title>Eclipse</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="style.css?v=83be071303">
+<link rel="stylesheet" href="style.css?v=521b7dc0e8">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -76,7 +76,7 @@
       <button id="conn-start" class="primary">Start playing</button>
       <button id="conn-retry" hidden>Try again</button>
     </div>
-    <div class="extras" id="level-chips"><p class="chips-title">🗺️ Choose a level</p></div>
+    <div class="extras" id="level-chips"><button id="open-story" class="primary story-btn">📖 Our storybook · choose a chapter</button></div>
     <div class="extras" id="conn-extras">
       <button id="opt-sound" class="chip">🔊 Sound on</button>
       <button id="opt-music" class="chip">🎵 Music on</button>
@@ -90,6 +90,20 @@
     </div>
     <button id="conn-leave" class="link">Leave</button>
   </div>
+</div>
+
+<div id="story" class="screen" hidden>
+  <div class="sb">
+    <button class="sb-nav prev" id="sb-prev" aria-label="Previous chapter">‹</button>
+    <div class="sb-book">
+      <div class="sb-spread" id="sb-spread">
+        <div class="sb-page left" id="sb-left"></div>
+        <div class="sb-page right" id="sb-right"></div>
+      </div>
+    </div>
+    <button class="sb-nav next" id="sb-next" aria-label="Next chapter">›</button>
+  </div>
+  <div class="sb-foot"><span id="sb-tabs"></span><button id="sb-close">Close</button></div>
 </div>
 
 <div id="book" hidden>
@@ -180,6 +194,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=83be071303"></script>
+<script type="module" src="build/game.js?v=521b7dc0e8"></script>
 </body>
 </html>

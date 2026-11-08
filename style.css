@@ -317,3 +317,39 @@ body.photo #hud, body.photo #caption, body.photo #toasts, body.photo #partner-ar
 #book.ready #book-go { opacity: 1; pointer-events: auto; }
 @keyframes bookBob { 50% { transform: translateY(-6px) rotate(-4deg); } }
 @media (max-height: 420px) { #book h1 { font-size: 28px; } #book .pb-icon { font-size: 36px; } }
+
+/* ---------- storybook chapter menu ---------- */
+#story { z-index: 40; background: radial-gradient(ellipse at 50% 35%, #4b3a8a 0%, #24184f 70%, #140c30 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+.story-btn { width: 100%; }
+.sb { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
+.sb-book { perspective: 1800px; width: min(760px, 82vw); height: min(380px, 72vh); }
+.sb-spread { position: relative; width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.5); transform-style: preserve-3d; transition: transform .38s cubic-bezier(.5,0,.5,1), opacity .38s; }
+.sb-spread.out-next { transform: rotateY(-70deg) translateX(-8%); opacity: 0; }
+.sb-spread.out-prev { transform: rotateY(70deg) translateX(8%); opacity: 0; }
+.sb-spread.in-next { transform: rotateY(70deg) translateX(8%); opacity: 0; transition: none; }
+.sb-spread.in-prev { transform: rotateY(-70deg) translateX(-8%); opacity: 0; transition: none; }
+.sb-page { background: #fff8ec; color: #3b2a63; padding: 18px 20px; overflow: auto; font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; }
+.sb-page.left { border-radius: 16px 0 0 16px; box-shadow: inset -18px 0 26px -18px rgba(90,60,40,.35), inset 0 0 0 3px #e8d6b8; display: grid; place-content: center; justify-items: center; text-align: center; gap: 4px; }
+.sb-page.right { border-radius: 0 16px 16px 0; box-shadow: inset 18px 0 26px -18px rgba(90,60,40,.35), inset 0 0 0 3px #e8d6b8; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.sb-icon { font-size: 54px; line-height: 1; }
+.sb-kicker { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #b06bff; }
+.sb-title { margin: 0; font-size: 28px; line-height: 1.1; }
+.sb-total { margin: 6px 0 0; font-size: 15px; font-weight: 800; color: #8a6a20; }
+.sb-blurb { margin: 2px 0 0; font-size: 13px; opacity: .7; max-width: 240px; }
+.sb-part { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 14px; padding: 10px 12px; box-shadow: 0 2px 0 #eadcc4, 0 0 0 2px #f1e4cc; }
+.sb-part .num { width: 28px; height: 28px; border-radius: 50%; background: #b06bff; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 14px; flex: none; }
+.sb-part .nm { flex: 1; font-weight: 800; font-size: 15px; line-height: 1.2; }
+.sb-part .st { font-size: 13px; white-space: nowrap; }
+.sb-part button { border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 900; font-size: 14px; color: #fff; background: linear-gradient(90deg, #f7a23b, #e8608d); flex: none; }
+.sb-part.here { box-shadow: 0 2px 0 #eadcc4, 0 0 0 3px #ff8fbf; }
+.sb-soon { text-align: center; opacity: .6; font-weight: 700; }
+.sb-nav { width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.18); color: #fff; font-size: 30px; line-height: 1; flex: none; }
+.sb-nav:disabled { opacity: .25; }
+.sb-foot { display: flex; gap: 12px; align-items: center; color: #fff; }
+#sb-tabs { display: flex; gap: 7px; }
+#sb-tabs i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.3); cursor: pointer; }
+#sb-tabs i.on { background: #fff; }
+#sb-tabs i.open { background: rgba(255,200,240,.7); }
+#sb-tabs i.open.on { background: #fff; }
+#sb-close { border: 0; border-radius: 999px; padding: 8px 18px; font-weight: 800; background: rgba(255,255,255,.2); color: #fff; }
+@media (max-width: 640px) { .sb-spread { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .sb-page.left { border-radius: 16px 16px 0 0; padding: 10px; } .sb-page.right { border-radius: 0 0 16px 16px; justify-content: flex-start; padding-top: 18px; } .sb-icon { font-size: 36px; } .sb-title { font-size: 22px; } .sb-book { height: min(560px, 78vh); } .sb-nav { position: fixed; top: 50%; } .sb-nav.prev { left: 4px; } .sb-nav.next { right: 4px; } }

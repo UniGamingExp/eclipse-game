@@ -344,14 +344,81 @@ function closeBook() {
 }
 $('#book-go').addEventListener('click', closeBook);
 
-const levelChips = $('#level-chips');
-for (const [id, def] of Object.entries(LEVELS)) {
-  const b = document.createElement('button');
-  b.className = 'chip';
-  b.textContent = def.chip;
-  b.addEventListener('click', () => chooseLevel(id));
-  levelChips.appendChild(b);
+// ---------------------------------------------------------------- the storybook (chapter menu)
+const BLURBS = {
+  0: 'Two kids under two skies.', 1: 'A noisy Syrian server… and two people who noticed each other.', 2: 'The four-hour call. The night it became official.',
+  3: 'Stone bridges, moving boxes and the last train of the year.', 4: 'Towers, prefab blocks and a balcony view.', 5: 'Old streets, jasmine and sujuk in Al-Midan.',
+  6: 'Series, songs and falling asleep together.', 7: 'Coffee, cooking and laughing too loud.', 8: 'Roads, seas and waiting.', 9: 'When the sun and the moon finally meet.',
+};
+let sbPage = 0, sbBusy = false;
+const chapterIds = Object.keys(CHAPTERS).map(Number).sort((a, b) => a - b);
+function sbFill() {
+  const ch = chapterIds[sbPage], C = CHAPTERS[ch], parts = partsOf(ch);
+  const got = (id) => (LEVELS[id].stars || []).filter((x) => G.starsMap[x]).length;
+  const all = parts.reduce((n, id) => n + (LEVELS[id].stars || []).length, 0), have = parts.reduce((n, id) => n + got(id), 0);
+  $('#sb-left').innerHTML = `<div class="sb-icon">${C.icon}</div><p class="sb-kicker">${C.title}</p><h2 class="sb-title">${C.name}</h2>`
+    + (parts.length ? `<p class="sb-total">⭐ ${have} / ${all}</p>` : '') + `<p class="sb-blurb">${BLURBS[ch] || ''}</p>`;
+  const right = $('#sb-right');
+  right.innerHTML = '';
+  if (!parts.length) right.innerHTML = '<p class="sb-soon">✍️ This page is still being written…<br>Coming soon</p>';
+  for (const id of parts) {
+    const L = LEVELS[id], row = document.createElement('div');
+    row.className = 'sb-part' + (id === world.id ? ' here' : '');
+    row.innerHTML = `<span class="num">${ch === 0 ? '✦' : L.n}</span><span class="nm">${L.name}</span><span class="st">${'⭐'.repeat(got(id))}${'☆'.repeat((L.stars || []).length - got(id))}</span>`;
+    const go = document.createElement('button');
+    go.textContent = id === world.id ? 'Restart' : 'Play';
+    go.addEventListener('click', () => { $('#story').hidden = true; chooseLevel(id); });
+    row.appendChild(go);
+    right.appendChild(row);
+  }
+  if (ch === chapterIds[chapterIds.length - 1] || !partsOf(ch + 1).length) {
+    const pg = document.createElement('div');
+    pg.className = 'sb-part';
+    pg.innerHTML = '<span class="num">🏝️</span><span class="nm">The Playground</span><span class="st"></span>';
+    const go = document.createElement('button');
+    go.textContent = 'Visit';
+    go.addEventListener('click', () => { $('#story').hidden = true; chooseLevel('playground'); });
+    pg.appendChild(go);
+    if (!parts.length) right.appendChild(pg);
+  }
+  $('#sb-prev').disabled = sbPage === 0;
+  $('#sb-next').disabled = sbPage === chapterIds.length - 1;
+  $('#sb-tabs').innerHTML = chapterIds.map((c, i) => `<i class="${i === sbPage ? 'on' : ''} ${partsOf(c).length ? 'open' : ''}" data-i="${i}"></i>`).join('');
 }
+function sbFlip(to) {
+  if (sbBusy || to < 0 || to >= chapterIds.length || to === sbPage) return;
+  sbBusy = true;
+  const sp = $('#sb-spread'), dir = to > sbPage ? 'next' : 'prev';
+  sound.play('card');
+  sp.classList.add('out-' + dir);
+  setTimeout(() => {
+    sbPage = to; sbFill();
+    sp.classList.remove('out-' + dir);
+    sp.classList.add('in-' + dir);
+    void sp.offsetWidth;
+    sp.classList.remove('in-' + dir);
+    setTimeout(() => { sbBusy = false; }, 380);
+  }, 380);
+}
+function openStory() {
+  sbPage = Math.max(0, chapterIds.indexOf(LEVELS[world.id]?.ch ?? 0));
+  sbFill();
+  $('#conn').hidden = true;
+  $('#story').hidden = false;
+}
+$('#open-story').addEventListener('click', openStory);
+$('#sb-prev').addEventListener('click', () => sbFlip(sbPage - 1));
+$('#sb-next').addEventListener('click', () => sbFlip(sbPage + 1));
+$('#sb-tabs').addEventListener('click', (e) => { const i = e.target.dataset?.i; if (i != null) sbFlip(+i); });
+$('#sb-close').addEventListener('click', () => { $('#story').hidden = true; $('#conn').hidden = false; });
+// swipe to turn pages
+{
+  let x0 = null;
+  const el = $('#story');
+  el.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', (e) => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) sbFlip(sbPage + (dx < 0 ? 1 : -1)); });
+}
+
 // the shared clock (tests can push it forward with sim())
 let clockSkew = 0;
 const baseNow = () => (G.net ? G.net.serverNow() : Date.now());
