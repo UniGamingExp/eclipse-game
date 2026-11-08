@@ -125,6 +125,8 @@ export function createUI({ onJoin, onSolo, onStart, onRetry, onLeave, onResetSta
   }
 
   function toast(m) {
+    // a new "Now playing …" replaces the last one instead of stacking (quick switching in practice)
+    if (m.startsWith('Now playing')) for (const o of [...$('#toasts').children]) if (o.textContent.startsWith('Now playing')) o.remove();
     const el = document.createElement('div');
     el.className = 'toast';
     el.textContent = m;
