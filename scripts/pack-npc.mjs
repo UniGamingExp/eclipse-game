@@ -73,7 +73,7 @@ function adopt(doc, scene, fromRoots, skin, armature, filter) {
   for (const r of fromRoots) { scene.removeChild(r); r.traverse((n) => n.dispose()); }
 }
 
-let lib = null;
+let lib = null, heroLib = null;
 for (const [name, V] of Object.entries(VARIANTS)) {
   const doc = await io.read(path.join(OUTF, V.outfit + '.gltf'));
   const root = doc.getRoot(), scene = root.listScenes()[0];
@@ -115,24 +115,26 @@ for (const [name, V] of Object.entries(VARIANTS)) {
   }
   // remember original node names (the loader renames duplicates)
   armature.traverse((n) => n.setExtras({ ...(n.getExtras() || {}), n: n.getName() }));
-  if (!lib) lib = doc; else mergeDocuments(lib, doc);
+  if (V.recolor) { if (!heroLib) heroLib = doc; else mergeDocuments(heroLib, doc); }
+  else if (!lib) lib = doc; else mergeDocuments(lib, doc);
 }
-{
-  const root = lib.getRoot(), scenes = root.listScenes();
+async function finish(L, file, ratio) {
+  const root = L.getRoot(), scenes = root.listScenes();
   for (const s of scenes.slice(1)) { for (const n of s.listChildren()) scenes[0].addChild(n); s.dispose(); }
   for (const m of root.listMaterials()) { m.setNormalTexture(null); m.setOcclusionTexture(null); m.setMetallicRoughnessTexture(null); m.setMetallicFactor(0); m.setRoughnessFactor(0.85); }
-  await lib.transform(
+  await L.transform(
     unpartition(), dedup(), prune(),
-    weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.5, error: 0.002, lockBorder: false }),
-    textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 82, resize: [512, 512] }),
+    weld(), simplify({ simplifier: MeshoptSimplifier, ratio, error: 0.002, lockBorder: false }),
+    textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 82, resize: [file === 'heroes.glb' ? 1024 : 512, file === 'heroes.glb' ? 1024 : 512] }),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
-  await io.write(path.join(OUT, 'npc.glb'), lib);
+  await io.write(path.join(OUT, file), L);
   let tris = 0;
   for (const m of root.listMeshes()) for (const p of m.listPrimitives()) tris += (p.getIndices()?.getCount() || 0) / 3;
-  console.log('npc.glb', fs.statSync(path.join(OUT, 'npc.glb')).size, 'bytes, tris', tris, 'meshes', root.listMeshes().length, 'materials', root.listMaterials().map((m) => m.getName()).join(','));
-  for (const n of scenes[0].listChildren()) console.log(' ', n.getName());
+  console.log(file, fs.statSync(path.join(OUT, file)).size, 'bytes, tris', tris, scenes[0].listChildren().map((n) => n.getName()).join(','));
 }
+await finish(lib, 'npc.glb', 0.5);
+await finish(heroLib, 'heroes.glb', 0.8);
 
 // ---------- animations ----------
 const KEEP = ['Idle_Rail_Loop', 'Idle_TalkingPhone_Loop', 'Walk_Carry_Loop', 'Idle_FoldArms_Loop', 'Idle_Lantern_Loop', 'Consume', 'Yes',

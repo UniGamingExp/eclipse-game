@@ -9,13 +9,25 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { registerKit } from './nature.js';
 
 const templates = new Map(), clips = new Map();
-let p = null;
+let p = null, pAnim = null;
+
+/** the shared animation clips (both Universal Animation Libraries, see scripts/pack-npc.mjs) */
+export function loadAnims(version = '') {
+  if (!pAnim) {
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    pAnim = loader.loadAsync(`assets/npc/npc-anim.glb?v=${version}`).then((anim) => { for (const a of anim.animations) clips.set(a.name, a); })
+      .catch((e) => { pAnim = null; throw e; });
+  }
+  return pAnim;
+}
+export const getClip = (name) => clips.get(name);
 
 function load(version = '') {
   if (!p) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    p = Promise.all([loader.loadAsync(`assets/npc/npc.glb?v=${version}`), loader.loadAsync(`assets/npc/npc-anim.glb?v=${version}`)]).then(([lib, anim]) => {
+    p = Promise.all([loader.loadAsync(`assets/npc/npc.glb?v=${version}`), loadAnims(version)]).then(([lib]) => {
       // the loader renames repeated bone names (pelvis_1 …); the packer stored the real ones in extras.n
       lib.scene.traverse((o) => { if (o.userData?.n) o.name = o.userData.n; });
       const seen = new Set();
@@ -36,7 +48,6 @@ function load(version = '') {
         if (m.map) m.map.anisotropy = 4;
       });
       for (const c of [...lib.scene.children]) templates.set(c.name.replace(/^NPC_/, ''), c);
-      for (const a of anim.animations) clips.set(a.name, a);
     }).catch((e) => { p = null; throw e; });
   }
   return p;
@@ -44,7 +55,7 @@ function load(version = '') {
 registerKit('npc', { load, ready: () => templates.size > 0 });
 
 /** rectangular tortoiseshell glasses (Sun wears them), sized to the eyes and fixed to the head bone */
-function addGlasses(o) {
+export function addGlasses(o) {
   const head = o.getObjectByName('Head');
   let eyes = null;
   o.traverse((m) => { if (m.isMesh && m.material?.name === 'MI_Eyes') eyes = m; });
@@ -80,7 +91,7 @@ function addGlasses(o) {
 }
 
 /** Sun and Moon: their own (fairer) skin, dark hair; Moon gets a long flowing dress over the trousers */
-function heroLook(o, who) {
+export function heroLook(o, who) {
   const swap = new Map();
   o.traverse((m) => {
     if (!m.isMesh) return;
@@ -103,17 +114,35 @@ function heroLook(o, who) {
     }
     m.material = swap.get(mat);
   });
-  if (who !== 'MoonHero') return;
+  if (who !== 'MoonHero') return null;
   const pelvis = o.getObjectByName('pelvis');
-  if (!pelvis) return;
+  if (!pelvis) return null;
   o.updateMatrixWorld(true);
   const p = pelvis.getWorldPosition(new THREE.Vector3());
   const k = o.scale.x;
-  const pts = [[0.17, 0.12], [0.19, 0.0], [0.27, -0.35], [0.36, -0.7], [0.4, -0.86]].map(([r, y]) => new THREE.Vector2(r / k * 0.74, y / k * 0.74 * 1.05));
-  const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), new THREE.MeshStandardMaterial({ color: 0x5a2a8a, roughness: 0.75, side: THREE.DoubleSide }));
+  void k;
+  // a softly flared skirt with gentle folds
+  const prof = [];
+  for (let i = 0; i <= 14; i++) {
+    const u = i / 14, y = 0.12 - u * 0.98;
+    const r = 0.165 + 0.03 * Math.min(1, u * 6) + Math.pow(u, 1.6) * 0.25;
+    prof.push(new THREE.Vector2(r * 1.06, y * 1.1));
+  }
+  const geo = new THREE.LatheGeometry(prof, 64);
+  const pa = geo.attributes.position;
+  for (let i = 0; i < pa.count; i++) {
+    const x = pa.getX(i), z = pa.getZ(i), y = pa.getY(i);
+    const a = Math.atan2(z, x), depth = Math.max(0, -y) / 1.08;
+    const k = 1 + Math.sin(a * 9) * 0.045 * depth + Math.sin(a * 4 + 1.3) * 0.02 * depth;
+    pa.setX(i, x * k); pa.setZ(i, z * k);
+  }
+  geo.computeVertexNormals();
+  const dress = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x6b2fa6, roughness: 0.55, side: THREE.DoubleSide, emissive: 0x1a0830 }));
   dress.castShadow = true;
+  dress.name = 'dress';
   dress.position.copy(o.worldToLocal(p.clone()));
   o.add(dress);
+  return dress;
 }
 
 /** a heavy-ish moving box in the arms (for the carry walk) */

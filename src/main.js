@@ -7,6 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
 import { loadNature, loadKit, kitReady } from './nature.js';
 import { townspeople } from './npc.js';
+import { loadHeroes, heroesReady, makeHero } from './hero.js';
 import { makeBata } from './bata.js';
 import { makePortal } from './portal.js';
 import { runFrameHooks } from './levels/hooks.js';
@@ -79,6 +80,9 @@ window.visualViewport?.addEventListener('resize', resize);
 
 // ---------------------------------------------------------------- world & actors
 // download the nature models first (trees, flowers, rocks…); the level falls back to simple shapes if it fails
+const useDolls = new URLSearchParams(location.search).has('dolls');
+const heroesP = useDolls ? null : loadHeroes(__BUILD__);
+heroesP?.catch(() => {});
 try {
   await loadNature(`assets/nature.glb?v=${__BUILD__}`, (k) => { $('#boot-bar').style.width = `${Math.max(5, k * 100)}%`; });
 } catch (e) {
@@ -86,6 +90,8 @@ try {
 }
 $('#boot').classList.add('done');
 setTimeout(() => $('#boot').remove(), 600);
+// Sun & Moon (rigged characters, loaded alongside the nature models); the dolls stay as a fallback and with ?dolls=1
+if (!useDolls) { try { await heroesP; } catch (e) { console.warn('heroes failed to load, using the dolls', e); } }
 // building kits for the first level (Chapter 3+ need the medieval town pieces)
 {
   const first = LEVELS[store.get('lastLevel', 'prologue')];
@@ -103,7 +109,7 @@ function makeChars() {
   for (const r of ROLES) {
     const old = chars[r];
     if (old) scene.remove(old.root);
-    chars[r] = makeCharacter(r, { kid: !!world.kid });
+    chars[r] = !useDolls && heroesReady() ? makeHero(r, { kid: !!world.kid }) : makeCharacter(r, { kid: !!world.kid });
     if (old) { chars[r].root.position.copy(old.root.position); chars[r].setYaw(old.yaw); }
     scene.add(chars[r].root);
   }
