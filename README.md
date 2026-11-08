@@ -51,6 +51,9 @@ GitHub Pages serves the repo root from `main`, so **commit `build/game.js` after
 | `src/trex.js`, `src/trex-ui.js` | Trex (King of Hearts + Diamonds) as partners vs two bots: deterministic rules + the card table screen; plays stored in `save.ch1.trex` |
 | `src/sound.js` | Sound effects (Kenney samples + synth fallbacks), music per level with seamless loops / crossfades, ducking, sound + music switches |
 | `assets/music/`, `assets/sfx/` | Music and sound effects (MP3). Licenses and attribution: `CREDITS.md` (also in the game: ☰ → Credits) |
+| `src/levels/ch2-day.js`, `ch2-call.js`, `ch2-shy.js` | Chapter 2 · 12 October: Night & Day, The Four-Hour Call, the Shyness boss ("Kann ich mit dir flirten?") |
+| `src/levels/light.js` | Chapter 2 powers: Daylight / Nightfall glows, day / night / twilight light platforms, flares (event `flare`) |
+| `src/bata.js` | Dr. Bata, the narrator duck |
 | `src/look.js` | Rim light on all materials, colour grade + vignette, floating sparkles |
 | `src/levels/sky.js` | Sky dome with stars and nebula, planets with rings and moons, shooting stars, cloud sea |
 | `src/levels/hooks.js` | Per-frame callbacks for level pieces + shared shader time |

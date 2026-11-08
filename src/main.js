@@ -145,6 +145,8 @@ const levelApi = {
     ctl.jumps = 1; ctl.airDashUsed = false;
   },
   finish: () => onLevelFinished(),
+  /** true while Sun and Moon hold hands */
+  get holding() { return !!G.hold; },
   /** give the team one of this level's stars (e.g. for winning a minigame) */
   collectStar(id) {
     const st = world.stars.find((x) => x.id === id);
@@ -251,6 +253,7 @@ function chooseLevel(id) {
   if (id === 'ch1-plane') { G.net.setSave('ch1/plane', null); G.net.setSave('ch1/planeDone', null); }
   if (id === 'ch2-day') G.net.setSave('ch2/day', null);
   if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); }
+  if (id === 'ch2-shy') { G.net.setSave('ch2/shy', null); G.net.setSave('ch2/shyOpen', null); }
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
@@ -269,7 +272,9 @@ function onLevelFinished() {
   } else if (world.id === 'ch2-day') {
     setTimeout(() => G.net?.setSave('level', 'ch2-call'), 800);
   } else if (world.id === 'ch2-call') {
-    caption('Part 3 · "Kann ich mit dir flirten?" is coming next 💜', 4000);
+    setTimeout(() => G.net?.setSave('level', 'ch2-shy'), 800);
+  } else if (world.id === 'ch2-shy') {
+    caption('Chapter 3 · Regensburg is coming next 🌉', 4000);
     setTimeout(() => G.net?.setSave('level', 'playground'), 3000);
   }
 }
