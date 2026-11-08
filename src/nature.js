@@ -55,8 +55,53 @@ export async function loadNature(url, onProgress) {
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
 
-export const nature = {
+export const nature = placer(models);
+
+// ---------------------------------------------------------------- building kits (loaded when a chapter needs them)
+// medieval: Quaternius Medieval Village MegaKit (CC0), packed by scripts/pack-kit.mjs into assets/medieval.glb
+const KITS = { medieval: { url: 'assets/medieval.glb', models: new Map(), p: null } };
+/** start loading a kit (safe to call many times); resolves when ready */
+export function loadKit(id, version = '') {
+  const k = KITS[id];
+  if (!k) return Promise.resolve();
+  if (!k.p) {
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    k.p = loader.loadAsync(`${k.url}?v=${version}`).then((gltf) => {
+      const seen = new Set();
+      gltf.scene.traverse((o) => {
+        if (!o.isMesh) return;
+        const m = o.material;
+        if (seen.has(m)) return;
+        seen.add(m);
+        m.vertexColors = false;
+        m.metalness = 0;
+        if (m.map) m.map.anisotropy = 4;
+        // pastel toy look: lift the colours a little
+        if (/Plaster/.test(m.name)) m.color.setRGB(1.12, 1.06, 1.08);
+        else if (/RoundTiles/.test(m.name)) m.color.setRGB(1.2, 1.0, 1.05);
+        else if (/UnevenBrick|RockTrim|Brick/.test(m.name)) m.color.setRGB(1.25, 1.18, 1.3);
+        else if (/WoodTrim/.test(m.name)) m.color.setRGB(1.1, 0.98, 0.95);
+        if (/Vine/.test(m.name)) { m.alphaTest = 0.45; m.side = THREE.DoubleSide; addWind(m, 0.02); }
+        if (/Glass/.test(m.name)) { m.color.setRGB(1.0, 0.85, 0.6); m.emissive = new THREE.Color(0.55, 0.38, 0.2); m.roughness = 0.2; }
+      });
+      gltf.scene.updateMatrixWorld(true);
+      for (const c of [...gltf.scene.children]) k.models.set(c.name, c);
+    }).catch((e) => { k.p = null; throw e; });
+  }
+  return k.p;
+}
+export const kitReady = (id) => !KITS[id] || KITS[id].models.size > 0;
+export const kit = (id) => placer(KITS[id].models);
+
+function placer(models) { return {
   has: (name) => models.has(name),
+  /** a material of the kit by name (e.g. 'MI_UnevenBrick'), or null */
+  material(name) {
+    let found = null;
+    for (const m of models.values()) m.traverse((o) => { if (!found && o.isMesh && o.material?.name === name) found = o.material; });
+    return found;
+  },
   names: () => [...models.keys()],
 
   /** One copy of a model (shares geometry and materials). */
@@ -99,4 +144,5 @@ export const nature = {
     }
     return out;
   },
-};
+}; }
+

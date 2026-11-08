@@ -34,11 +34,27 @@ Eclipse is a gift made for two people. It uses these free works. Thank you to th
 ## Sound effects
 
 - **Casino Audio**, **Impact Sounds** and **Interface Sounds** by **Kenney** (https://kenney.nl). **CC0**.
+- `assets/sfx/page.mp3` (page turn) was synthesized for this game.
+
+## Ambience
+
+- **"Sea Waves", "Rain", "Dark Forest"**: *Atmos* by **FarBeyond Studio** (https://farbeyond-studio.itch.io/).
+  Licensed under **CC BY 4.0** (https://creativecommons.org/licenses/by/4.0/).
+  Changes: a 50-second section of each was cut into a seamless loop (crossfaded), made mono, normalized and converted to MP3
+  (`assets/amb/waves.mp3`, `rain.mp3`, `forest.mp3`).
 
 ## 3D models
 
 - **Stylized Nature MegaKit** (Standard) by **Quaternius** (https://quaternius.com). **CC0**.
   Selected models, simplified and compressed into `assets/nature.glb`.
+- **Medieval Village MegaKit** (Standard) by **Quaternius** (https://quaternius.com). **CC0**.
+  Selected wall, roof, window and prop pieces, simplified and compressed into `assets/medieval.glb`; the houses and the bridge tower in
+  Chapter 3 are assembled from them.
+
+## Fonts
+
+- **Fredoka** and **Nunito** (Google Fonts, via Fontsource), licensed under the **SIL Open Font License 1.1**
+  (`assets/fonts/OFL-fredoka.txt`, `assets/fonts/OFL-nunito.txt`).
 
 ## Code libraries
 

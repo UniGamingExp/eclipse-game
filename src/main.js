@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
-import { loadNature } from './nature.js';
+import { loadNature, loadKit, kitReady } from './nature.js';
 import { makeBata } from './bata.js';
 import { makePortal } from './portal.js';
 import { runFrameHooks } from './levels/hooks.js';
@@ -16,7 +16,7 @@ import { createInput } from './input.js';
 import { Effects } from './effects.js';
 import { RemoteTrack } from './remote.js';
 import { FirebaseNet, LocalNet, SoloNet } from './net.js';
-import { sound, music } from './sound.js';
+import { sound, music, ambience } from './sound.js';
 import { createUI } from './ui.js';
 import { initMemoriesUI } from './memories-ui.js';
 import { initQuizUI } from './quiz-editor.js';
@@ -85,7 +85,14 @@ try {
 }
 $('#boot').classList.add('done');
 setTimeout(() => $('#boot').remove(), 600);
+// building kits for the first level (Chapter 3+ need the medieval town pieces)
+{
+  const first = LEVELS[store.get('lastLevel', 'prologue')];
+  for (const k of first?.kits || []) { try { await loadKit(k, __BUILD__); } catch (e) { console.warn('kit failed', k, e); } }
+}
 let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
+// fetch the medieval kit in the background a little later, so Chapter 3 opens instantly
+setTimeout(() => { loadKit('medieval', __BUILD__).catch(() => {}); }, 9000);
 const fx = new Effects(scene, camera);
 const motes = makeMotes(scene);
 const ROLES = ['sun', 'moon'];
@@ -101,6 +108,18 @@ function makeChars() {
   }
 }
 makeChars();
+/** compile every shader of the current level (plus the end portal) up front, so nothing stutters the first time it appears */
+function warmShaders() {
+  try {
+    const p = makePortal();
+    p.g.position.set(0, -400, 0);
+    scene.add(p.g);
+    const done = () => scene.remove(p.g);
+    if (renderer.compileAsync) renderer.compileAsync(scene, camera).then(done, done);
+    else { renderer.compile(scene, camera); done(); }
+  } catch (e) { console.warn('warm-up failed', e); }
+}
+setTimeout(warmShaders, 50);
 for (const r of ROLES) {
   bodies[r] = new Body(sizeOf(r).r, sizeOf(r).h);
   pcols[r] = playerCollider(bodies[r]);
@@ -220,6 +239,11 @@ function introCaptions() {
 // ---------------------------------------------------------------- levels
 function switchLevel(id) {
   if (world.id === id || !LEVELS[id]) return;
+  const need = (LEVELS[id].kits || []).filter((k) => !kitReady(k));
+  if (need.length) {
+    Promise.all(need.map((k) => loadKit(k, __BUILD__))).then(() => switchLevel(id)).catch(() => ui.toast('Could not load the town models. Check the connection and try again.'));
+    return;
+  }
   const wasKid = !!world.kid;
   world.dispose();
   capQ.length = 0;   // drop the old level's waiting captions
@@ -231,7 +255,7 @@ function switchLevel(id) {
   for (const r of ROLES) {
     const sz = sizeOf(r), b = bodies[r], c = ctls[r];
     b.r = sz.r; b.h = sz.h; pcols[r].r = sz.r * 0.92; pcols[r].ready = false;
-    c.state = 'free'; c.anim = MODE.normal; c.carrying = false; c.wallT = 0; c.dashT = 0; c.k++;
+    c.state = 'free'; c.anim = MODE.normal; c.carrying = false; c.boxCarry = false; c.wallT = 0; c.dashT = 0; c.k++;
     c.safe.copy(world.spawn[r]);
     placeAtSpawn(r);
   }
@@ -240,6 +264,7 @@ function switchLevel(id) {
   rebuildColliders();
   shownAll = false;
   onStars(G.starsMap);
+  setTimeout(warmShaders, 30);
   if (G.mode === 'play' || G.mode === 'menu') {
     G.cam.yaw = world.camYaw ? world.camYaw[G.active] : 0; G.cam.pitch = 0.3;
     G.cam.target.copy(bodies[G.active].pos);
@@ -256,6 +281,7 @@ function chooseLevel(id) {
   if (id === 'ch2-day') G.net.setSave('ch2/day', null);
   if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); }
   if (id === 'ch2-shy') { G.net.setSave('ch2/shy', null); G.net.setSave('ch2/shyOpen', null); }
+  if (id === 'ch3-bridge') G.net.setSave('ch3', null);
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
@@ -327,7 +353,7 @@ function showBook(from, to, starsGot, starsAll, then) {
   sound.play(chapterDone ? 'win' : 'star');
   [...stars.children].forEach((sp, i) => { if (i < starsGot) bookTimers.push(setTimeout(() => { sp.classList.add('on'); sound.play('pin'); }, 700 + i * 380)); });
   bookTimers.push(setTimeout(() => then?.(), 500));                       // switch the level behind the page
-  bookTimers.push(setTimeout(() => { book.classList.add('turn'); sound.play('card'); }, 3200));
+  bookTimers.push(setTimeout(() => { book.classList.add('turn'); sound.play('page'); }, 3200));
   bookTimers.push(setTimeout(() => book.classList.add('ready'), 4300));
   bookTimers.push(setTimeout(closeBook, 9000));
 }
@@ -389,7 +415,7 @@ function sbFlip(to) {
   if (sbBusy || to < 0 || to >= chapterIds.length || to === sbPage) return;
   sbBusy = true;
   const sp = $('#sb-spread'), dir = to > sbPage ? 'next' : 'prev';
-  sound.play('card');
+  sound.play('page');
   sp.classList.add('out-' + dir);
   setTimeout(() => {
     sbPage = to; sbFill();
@@ -405,12 +431,13 @@ function openStory() {
   sbFill();
   $('#conn').hidden = true;
   $('#story').hidden = false;
+  sound.play('open');
 }
 $('#open-story').addEventListener('click', openStory);
 $('#sb-prev').addEventListener('click', () => sbFlip(sbPage - 1));
 $('#sb-next').addEventListener('click', () => sbFlip(sbPage + 1));
 $('#sb-tabs').addEventListener('click', (e) => { const i = e.target.dataset?.i; if (i != null) sbFlip(+i); });
-$('#sb-close').addEventListener('click', () => { $('#story').hidden = true; $('#conn').hidden = false; });
+$('#sb-close').addEventListener('click', () => { $('#story').hidden = true; $('#conn').hidden = false; sound.play('close'); });
 // swipe to turn pages
 {
   let x0 = null;
@@ -668,11 +695,12 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   if (ctl.state === 'carried') return carriedUpdate(ctl, wantJump);
   if (ctl.state === 'hang') return hangUpdate(ctl, ix, iz, mag, wantJump, dt);
   if (ctl.state === 'climb') return climbUpdate(ctl, dt);
+  if (ctl.state === 'ride') { if (world.abilities?.ride) world.abilities.ride(ctl, dt, wantJump); else ctl.state = 'free'; return; }
 
   // dash: a quick burst in the stick direction (or where you face); one dash per jump in the air
   ctl.dashCd -= dt;
   if (b.grounded) ctl.airDashUsed = false;
-  if (wantDash && ctl.dashCd <= 0 && !ctl.carrying && (b.grounded || !ctl.airDashUsed)) {
+  if (wantDash && ctl.dashCd <= 0 && !ctl.carrying && !ctl.boxCarry && (b.grounded || !ctl.airDashUsed)) {
     let ddx = ix, ddz = iz;
     if (mag < 0.2) { const y = chars[role].yaw; ddx = Math.sin(y); ddz = Math.cos(y); }
     ctl.dashX = ddx; ctl.dashZ = ddz; ctl.dashT = DASH_TIME; ctl.dashCd = 0.45;
@@ -763,7 +791,7 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   }
 
   if (ctl.wallT > 0 || ctl.state === 'hang') ctl.airDashUsed = false;
-  if (ctl.state === 'free') ctl.anim = ctl.dashT > 0 ? MODE.dash : gliding ? MODE.glide : (ctl.wallT > 0 && !b.grounded) ? MODE.wall : ctl.carrying ? MODE.carry : MODE.normal;
+  if (ctl.state === 'free') ctl.anim = ctl.dashT > 0 ? MODE.dash : gliding ? MODE.glide : (ctl.wallT > 0 && !b.grounded) ? MODE.wall : (ctl.carrying || ctl.boxCarry) ? MODE.carry : MODE.normal;
 
   // remember a safe spot to respawn
   if (b.grounded && b.ground && b.ground.safe) {
@@ -1134,7 +1162,8 @@ function frame(nowMs) {
     if (input.consume('ability') && G.cooldown.ability <= 0) {
       G.cooldown.ability = 0.45;
       const who = G.kind === 'solo' ? G.active : G.role;
-      if (!(who === 'sun' && sunAction()) && !world.abilities?.use(who)) {
+      if (world.abilities?.first?.(who) && world.abilities.use(who)) { /* the level's power took it */ }
+      else if (!(who === 'sun' && sunAction()) && !world.abilities?.use(who)) {
         useAbilityFx(who);
         G.net.sendEvent('ability');
       }
@@ -1198,7 +1227,8 @@ function frame(nowMs) {
     // context label on the ability button
     const who = G.kind === 'solo' ? G.active : G.role;
     const special = world.abilities?.label(who);
-    const label = who === 'sun' ? (ctls.sun.carrying ? 'Throw' : canLift() ? 'Lift' : special || 'Shine') : special || 'Tide';
+    const first = world.abilities?.first?.(who);
+    const label = who === 'sun' ? (ctls.sun.carrying ? 'Throw' : first ? special : canLift() ? 'Lift' : special || 'Shine') : special || 'Tide';
     if (label !== G.abilityLabel) { G.abilityLabel = label; $('#ability-label').textContent = label; }
 
     // stars
@@ -1222,6 +1252,8 @@ function frame(nowMs) {
 
   // music: the title track in the lobby, otherwise the level's (or a minigame's) track
   music.play(G.intro ? null : G.mode === 'lobby' || G.mode === 'connecting' ? 'fun' : G.musicOverride || world.music);
+  const ambOn = !G.intro && (G.mode === 'play' || G.mode === 'menu') && world.amb;
+  ambience.play(ambOn ? world.amb : null, (world.ambVol ?? 0.3) * (G.musicOverride ? 0.4 : 1));
 
   // footsteps (yours, and your partner's a little softer)
   if (playing) {
@@ -1323,7 +1355,7 @@ window.__eclipse = {
       control(ctls[r], o.move || idleInput, (o.jumpAt || []).includes(i), o.hold ?? true, dt, (o.dashAt || []).includes(i));
       if (G.kind === 'solo') for (const k of ROLES) if (k !== r) control(ctls[k], idleInput, (o.otherJumpAt || []).includes(i), false, dt);
       if (o.actionAt && o.actionAt.includes(i)) sunAction();
-      for (const [who, steps] of Object.entries(o.use || {})) if (steps.includes(i) && !(who === 'sun' && sunAction())) world.abilities?.use(who);
+      for (const [who, steps] of Object.entries(o.use || {})) if (steps.includes(i)) { if (world.abilities?.first?.(who) && world.abilities.use(who)) continue; if (!(who === 'sun' && sunAction())) world.abilities?.use(who); }
       if (o.every && i % o.every === 0) trace.push([+bodies[r].pos.x.toFixed(2), +bodies[r].pos.y.toFixed(2), +bodies[r].pos.z.toFixed(2), bodies[r].grounded ? 1 : 0, ctls[r].state[0] + ctls[r].anim]);
     }
     return { pos: bodies[r].pos.toArray().map((v) => +v.toFixed(3)), grounded: bodies[r].grounded, state: ctls[r].state, anim: ctls[r].anim, trace };

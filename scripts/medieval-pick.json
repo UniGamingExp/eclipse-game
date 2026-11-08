@@ -1,0 +1,12 @@
+{
+ "Wall_Plaster_Straight": 1, "Wall_Plaster_Window_Wide_Round": 1, "Wall_Plaster_Window_Thin_Round": 1, "Wall_Plaster_Door_Round": 1, "Wall_Plaster_WoodGrid": 1,
+ "Wall_UnevenBrick_Straight": 1, "Wall_UnevenBrick_Window_Wide_Round": 1, "Wall_UnevenBrick_Door_Round": 1, "Wall_Arch": 1,
+ "Corner_Exterior_Wood": 1, "Corner_Exterior_Brick": 0.25,
+ "Roof_RoundTiles_4x4": 0.45, "Roof_RoundTiles_4x6": 0.45, "Roof_RoundTiles_6x6": 0.4, "Roof_RoundTiles_6x8": 0.4,
+ "Roof_Front_Brick4": 1, "Roof_Front_Brick6": 1, "Roof_Tower_RoundTiles": 0.4,
+ "Window_Wide_Round1": 0.6, "Window_Thin_Round1": 0.6, "WindowShutters_Wide_Round_Open": 1, "WindowShutters_Thin_Round_Open": 1,
+ "Door_1_Round": 0.6,
+ "Floor_UnevenBrick": 1, "Floor_Brick": 1,
+ "Prop_Crate": 1, "Prop_Wagon": 0.5, "Prop_Chimney": 0.6, "Prop_Vine1": 1, "Prop_Vine2": 1, "Prop_WoodenFence_Single": 1,
+ "Prop_ExteriorBorder_Straight1": 1, "Balcony_Simple_Straight": 0.5, "Overhang_Plaster_Long": 1, "Stairs_Exterior_Straight": 1
+}

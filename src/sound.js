@@ -29,6 +29,9 @@ const SAMPLES = {
   toggle: { files: ['toggle'], vol: 0.5 },
   pluck: { files: ['pluck'], vol: 0.6 },
   drop: { files: ['drop'], vol: 0.5 },
+  open: { files: ['open'], vol: 0.5 },
+  close: { files: ['close'], vol: 0.45 },
+  page: { files: ['page'], vol: 0.5 },
 };
 // game sound name → which sample (if loaded) and whether the synth plays too
 const USE = {
@@ -41,6 +44,9 @@ const USE = {
   chips: { s: 'chips' },
   click: { s: 'click' },
   win: { s: 'confirm', synth: 'star' },
+  open: { s: 'open' },
+  close: { s: 'close' },
+  page: { s: 'page' },
 };
 const buffers = new Map();    // file → AudioBuffer
 let samplesRequested = false;
@@ -97,6 +103,7 @@ export function unlockAudio() {
     s.buffer = b; s.connect(master); s.start(0);
     loadSamples();
     music._kick();
+    ambience._kick();
   } catch { /* no audio */ }
 }
 
@@ -218,6 +225,42 @@ export const music = {
       musicLoading.set(id, loadBuffer(`${BASE}music/${id}.mp3?v=${V}`)
         .then((b) => { musicBuf.set(id, b); music._kick(); })
         .catch(() => musicLoading.delete(id)));
+    }
+  },
+};
+
+// ---------------------------------------------------------------- ambience (a quiet looping bed under the music: river, rain, forest…)
+const ambBuf = new Map(), ambLoading = new Map();
+let ambWant = null, ambCur = null;
+export const ambience = {
+  /** play an ambience loop from assets/amb/<id>.mp3 (null = none). vol 0..1 relative to the sound effects */
+  play(id, vol = 0.35) {
+    ambWant = id ? { id, vol } : null;
+    ambience._kick();
+  },
+  _kick() {
+    if (!ctx || ctx.state !== 'running') return;
+    const w = ambWant;
+    if ((ambCur?.id || null) === (w?.id || null)) { if (ambCur && w && ambCur.vol !== w.vol) { ambCur.vol = w.vol; ambCur.gain.gain.setTargetAtTime(w.vol, ctx.currentTime, 0.5); } return; }
+    if (!w) { stopTrack(ambCur, 2); ambCur = null; return; }
+    if (ambBuf.has(w.id)) {
+      stopTrack(ambCur, 2);
+      const buf = ambBuf.get(w.id), lp = loopPoints(buf);
+      const node = { id: w.id, vol: w.vol, gain: ctx.createGain(), sources: [], timer: null, stopped: false };
+      node.gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      node.gain.gain.exponentialRampToValueAtTime(w.vol, ctx.currentTime + 2.5);
+      node.gain.connect(sfxBus);
+      const s = ctx.createBufferSource();
+      s.buffer = buf; s.loop = true; s.loopStart = lp.start; s.loopEnd = lp.end;
+      s.connect(node.gain); s.start(ctx.currentTime, lp.start);
+      node.sources.push(s);
+      ambCur = node;
+      return;
+    }
+    if (!ambLoading.has(w.id)) {
+      ambLoading.set(w.id, loadBuffer(`${BASE}amb/${w.id}.mp3?v=${V}`)
+        .then((b) => { ambBuf.set(w.id, b); ambience._kick(); })
+        .catch(() => ambLoading.delete(w.id)));
     }
   },
 };

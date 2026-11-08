@@ -9,6 +9,7 @@ import { buildCh1Plane } from './levels/ch1-plane.js';
 import { buildCh2Day } from './levels/ch2-day.js';
 import { buildCh2Call } from './levels/ch2-call.js';
 import { buildCh2Shy } from './levels/ch2-shy.js';
+import { buildCh3Bridge } from './levels/ch3-bridge.js';
 
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue', music: 'woods', ch: 0, n: 1, name: 'Two Skies', stars: ['pro-sun', 'pro-moon'] },
@@ -18,11 +19,12 @@ export const LEVELS = {
   'ch2-day': { build: buildCh2Day, title: 'Chapter 2 · Night & Day', chip: '🌗 Ch.2 Night & Day', music: 'mystic', ch: 2, n: 1, name: 'Night & Day', stars: ['c2-sun', 'c2-moon', 'c2-flare'] },
   'ch2-call': { build: buildCh2Call, title: 'Chapter 2 · The Four-Hour Call', chip: '📞 Ch.2 The Call', music: 'hideout', ch: 2, n: 2, name: 'The Four-Hour Call', stars: ['c2-static', 'c2-wave', 'c2-twilight'] },
   'ch2-shy': { build: buildCh2Shy, title: 'Chapter 2 · Kann ich mit dir flirten?', chip: '💜 Ch.2 Shyness', music: 'devil', ch: 2, n: 3, name: '"Kann ich mit dir flirten?"', stars: ['c2-shy'] },
-  playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground', music: 'fun' },
+  'ch3-bridge': { build: buildCh3Bridge, title: 'Chapter 3 · The Stone Bridge', chip: '🌉 Ch.3 Stone Bridge', music: 'winter', amb: 'waves', ambVol: 0.3, ch: 3, n: 1, name: 'The Stone Bridge', stars: ['c3-stack', 'c3-tape', 'c3-zip'], kits: ['medieval'] },
+  playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground', music: 'fun', amb: 'waves', ambVol: 0.14 },
 };
 
 /** the story in order (the Playground is the place to wait for the next chapter) */
-export const ORDER = ['prologue', 'ch1-square', 'ch1-cards', 'ch1-plane', 'ch2-day', 'ch2-call', 'ch2-shy'];
+export const ORDER = ['prologue', 'ch1-square', 'ch1-cards', 'ch1-plane', 'ch2-day', 'ch2-call', 'ch2-shy', 'ch3-bridge'];
 export const CHAPTERS = {
   0: { title: 'Prologue', name: 'Two Skies', icon: '📖' },
   1: { title: 'Chapter 1', name: 'Syria Unfiltered', icon: '💬' },
@@ -46,6 +48,8 @@ export function loadLevel(scene, id) {
   const w = def.build(root, scene);
   w.id = id in LEVELS ? id : 'playground';
   w.music = def.music || null;
+  w.amb = def.amb || null;          // ambience loop (assets/amb/<id>.mp3) under the music
+  w.ambVol = def.ambVol ?? 0.3;
   w.root = root;
   w.dispose = () => {
     scene.remove(root);
