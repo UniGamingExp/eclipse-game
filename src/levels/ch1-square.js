@@ -373,7 +373,7 @@ export function buildCh1Square(root, scene) {
     lobbyCam: { cx: 0, cz: -2, r: 40, h: 15 },
     killY: -14,
     portal: new THREE.Vector3(0, ROOF + 0.15, -14.4),   // where the end-of-part portal opens
-    intro: { all: ['Chapter 1 · Syria Unfiltered', 'October 2025. A Syrian server: politics, games… and a lot of shouting.'], sun: 'Sun joined #general', moon: 'Moon joined #gaming' },
+    intro: { all: ['Chapter 1 · Syria Unfiltered', 'The Sky Between: every island here is a memory you share.', 'The grey fog is the Distance. It eats memories… so bring the colours back, together.', 'The first memory: a Syrian server. Politics, games… and a lot of shouting.'], sun: 'Sun joined #general', moon: 'Moon joined #gaming' },
     abilities,
     bubbles: bub,   // for tests
     attach(a) { ab.attach(a); },

@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
 import { createGfx, ShaftsPass, guardBloom } from './gfx.js';
+import { createMemory } from './memory.js';
 import { loadNature, loadKit, kitReady } from './nature.js';
 import { townspeople } from './npc.js';
 import { loadHeroes, heroesReady, makeHero } from './hero.js';
@@ -50,6 +51,7 @@ composer.addPass(new OutputPass());
 const grade = gradePass();
 composer.addPass(grade);
 const gfx = createGfx({ renderer, scene, camera, composer, grade, shafts });
+let memory = null;   // the Sky Between layer (needs captions + sound, made below)
 
 const QUALITY = [
   { dpr: Math.min(devicePixelRatio, 2), bloom: true, shadow: 2048, shafts: true, dof: true },
@@ -107,6 +109,8 @@ if (!useDolls) { try { await heroesP; } catch (e) { console.warn('heroes failed 
 }
 let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
 gfx.setLevel(world, LEVELS[world.id], world.camYaw ? world.camYaw.sun ?? 0 : 0);
+memory = createMemory({ grade, save: () => { try { return G?.save ?? null; } catch { return null; } }, sound, caption: (t, ms) => caption(t, ms) });
+memory.setLevel(world, LEVELS[world.id]);
 // fetch the medieval kit in the background a little later, so Chapter 3 opens instantly
 setTimeout(() => { loadKit('medieval', __BUILD__).catch(() => {}); loadKit('npc', __BUILD__).catch(() => {}); }, 9000);
 const fx = new Effects(scene, camera);
@@ -267,6 +271,7 @@ function switchLevel(id) {
   G.portal = null;
   world = loadLevel(scene, id);
   gfx.setLevel(world, LEVELS[id], world.camYaw ? world.camYaw[G.active] ?? 0 : 0);
+  memory.setLevel(world, LEVELS[id]);
   world.attach?.(levelApi);
   store.set('lastLevel', id);
   if (!!world.kid !== wasKid) makeChars();
@@ -314,8 +319,10 @@ function onLevelFinished() {
   const p = makePortal();
   p.g.position.set(at.x, at.y + p.R + 0.25, at.z);
   world.root.add(p.g);
-  G.portal = { p, at, from: world.id, next: nextLevel(world.id), sent: false, waitShown: false };
-  setTimeout(() => caption('✨ A portal opened! Step in together', 4200), 400);
+  // the portal takes them only after the colour wave and the golden thread have played
+  G.portal = { p, at, from: world.id, next: nextLevel(world.id), sent: false, waitShown: false, readyAt: performance.now() + (LEVELS[world.id].ch >= 1 ? 4500 : 0) };
+  memory.restore(at);
+  setTimeout(() => caption('✨ A portal opened! Step in together', 4200), 8200);
   sound.play('shine');
 }
 function portalUpdate(dt) {
@@ -328,7 +335,7 @@ function portalUpdate(dt) {
   if (meIn && !partnerIn && !P.waitShown) { P.waitShown = true; caption(`Waiting for ${G.active === 'sun' ? 'Moon' : 'Sun'}… ✨`, 3000); }
   if (meIn && Math.random() < dt * 8) fx.sparks(me.clone().setY(me.y + 1), 0xffd6f0, 4, 1.2);
   // Sun's phone (or practice) sends the two of them on
-  if (!P.sent && meIn && partnerIn && (G.kind === 'solo' || G.role === 'sun')) {
+  if (!P.sent && meIn && partnerIn && performance.now() > P.readyAt && (G.kind === 'solo' || G.role === 'sun')) {
     P.sent = true;
     sound.play('star');
     G.net?.setSave('level', P.next);
@@ -348,8 +355,8 @@ function showBook(from, to, starsGot, starsAll, then) {
   stars.innerHTML = starsAll ? '<span>⭐</span>'.repeat(starsAll) : '';
   const dots = $('#pa-dots');
   dots.innerHTML = partsOf(F.ch).map((id) => `<i class="${LEVELS[id].n < F.n ? 'done' : LEVELS[id].n === F.n ? 'now' : ''}"></i>`).join('');
-  const lines = ['You two make a great team ✨', 'Together, as always 💜', 'One step closer…', 'Sun and Moon, side by side ☀️🌙'];
-  $('#pa-line').textContent = starsAll && starsGot === starsAll ? 'All stars found! ⭐' : lines[Math.floor(Math.random() * lines.length)];
+  const lines = F.ch === 0 ? ['Two kids. Two cities. One sky ✨'] : ['This memory shines again ✨', 'The Distance backs away… 🌫️', 'One step closer to the eclipse ☀️🌙', 'Sun and Moon, side by side ✨'];
+  $('#pa-line').textContent = chapterDone && F.ch > 0 ? '✨ A golden thread is tied between your skies' : starsAll && starsGot === starsAll ? 'All starlight found! ⭐' : lines[Math.floor(Math.random() * lines.length)];
   // the next page
   const N = T && T.ch != null ? T : null;
   if (N) {
@@ -1440,6 +1447,7 @@ function frame(nowMs) {
   motes.update(G.cam.target, G.t, dt);
   updateArrow(partnerVisible);
   fx.update(dt, G.t);
+  memory.update(dt, G.t);
   gfx.update(dt, G.t, lookFocus());
   composer.render(dt);
 

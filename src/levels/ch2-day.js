@@ -15,6 +15,7 @@ import { createLights } from './light.js';
 import { nature, kit } from '../nature.js';
 import { house } from './medieval.js';
 import { lane, checkpoint, platform, plate, approach } from './play.js';
+import { memoryMist } from '../memory.js';
 
 const SX = -2.4, MX = 2.4, LW = 3.2;
 const CY = 29;                          // courtyard / rooftop height
@@ -509,6 +510,14 @@ export function buildCh2Day(root, scene) {
     world.add(im);
   }
 
+  // where this memory ends: soft glowing mist along the town's outer edges and under the rooftops
+  {
+    const P = [], R = ((sd) => () => ((sd = (sd * 16807) % 2147483647) / 2147483647))(99);
+    for (let z = 20; z > -72; z -= 2.6) for (const x of [-17.5, 15.5]) for (let k = 0; k < 2; k++) P.push([x + (R() - 0.5) * 3, -1 + R() * 5 + k * 3, z + (R() - 0.5) * 2]);
+    for (let x = -16; x < 16; x += 2.6) P.push([x, -1 + R() * 4, 21 + R() * 2]);
+    for (let x = 12; x < 170; x += 3.2) for (const z of [-97, -64]) P.push([x + R() * 2, 8 + R() * 14, z + (R() - 0.5) * 6]);
+    memoryMist(world, P, { size: 11, color: 0xffc2e2, opacity: 0.38 });
+  }
   const lit = createLights(world, colliders, specs);
 
   // ---------------------------------------------------------------- checkpoints & stars
@@ -556,7 +565,7 @@ export function buildCh2Day(root, scene) {
     // the split street: never respawn next to the partner across the time wall
     respawnNearPartner: (pp) => !(pp && pp.z > -66 && pp.x > -12 && pp.x < 12 && pp.y < 6),
     killAt: (p) => (p.y < -1.2 && p.z > -74 && p.x < 11) || (p.x > 11.6 && p.y < 19),
-    intro: { all: ['Chapter 2 · 12 October', 'Two hours apart: when the sun is still up for one, night has already come for the other.'], sun: 'Your Daylight makes the golden platforms solid ☀', moon: 'Your Nightfall makes the lilac platforms solid ☾' },
+    intro: { all: ['Chapter 2 · 12 October', 'Two hours apart: when the sun is still up for one, night has already come for the other.', 'The Distance has eaten half of this memory. Light it up again, together.'], sun: 'Your Daylight makes the golden platforms solid ☀', moon: 'Your Nightfall makes the lilac platforms solid ☾' },
     abilities: lit.abilities,
     lights: lit,
     attach(a) { api = a; lit.attach(a); },   // saved puzzle state is read in story(), once the save has arrived

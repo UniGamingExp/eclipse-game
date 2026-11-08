@@ -228,6 +228,17 @@ export function buildPrologue(root, scene) {
 
   const onCenter = (p) => p && p.y > CENTER_Y - 0.6 && Math.hypot(p.x, p.z) < 3.6;
 
+  // the wishing star: a bright streak across the whole sky at the end of the Prologue
+  const wishStar = { go: false, t: 0 };
+  {
+    const head = new THREE.Mesh(new THREE.SphereGeometry(1.4, 16, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 3.4, 2.6), fog: false }));
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(1.2, 26, 16, 1, true).rotateZ(Math.PI / 2).translate(13, 0, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.8, 2.6), transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    const g = new THREE.Group();
+    g.add(head, tail);
+    g.visible = false;
+    root.add(g);
+    wishStar.g = g;
+  }
   return {
     id: 'prologue',
     title: 'Prologue · Two Skies',
@@ -270,13 +281,23 @@ export function buildPrologue(root, scene) {
       if (st.done && finaleT < 0 && bridgeT >= 0) {
         finaleT = t;
         ctx.caption('Two kids. Two cities. One sky.', 3200);
-        setTimeout(() => ctx.caption('One day, they would find each other…', 3200), 3400);
-        setTimeout(() => ctx.finish(), 7000);
+        setTimeout(() => { wishStar.go = true; ctx.caption('A falling star crossed both skies… and two wishes were made.', 4200); }, 3400);
+        setTimeout(() => ctx.caption('Years later, on a night in October, the wishes came true…', 3800), 8000);
+        setTimeout(() => ctx.finish(), 12000);
       }
     },
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      if (wishStar.go && wishStar.t < 5) {
+        wishStar.t += dt;
+        const u = wishStar.t / 4.5;
+        wishStar.g.visible = u < 1;
+        // from high on the left, across both skies, down to the right
+        wishStar.g.position.set(-180 + u * 360, 120 - u * 50, -150 + u * 20);
+        wishStar.g.rotation.z = -0.14;
+        wishStar.g.scale.setScalar(u < 0.1 ? u * 10 : u > 0.85 ? (1 - u) / 0.15 : 1);
+      }
     },
   };
 }
