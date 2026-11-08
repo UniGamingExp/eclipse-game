@@ -241,6 +241,7 @@ export function buildCh1Cards(root, scene) {
     return { seed: t.seed, plays };
   };
   let table = null, seatedBefore = false, finishedT = 0;
+  let seatT = 0, lastT = null, opened = false, replayHint = false;
   function newMatch() { api.setSave('ch1/trex', { seed: 1 + Math.floor(Math.random() * 1e9), p: null }); api.sound.play('shuffle'); }
   let tableKind = null, practiceSeat = 0;
   function ensureTable() {
@@ -293,11 +294,19 @@ export function buildCh1Cards(root, scene) {
       // both seated (in practice: Sun alone) → open the table
       const solo = api.kind === 'solo';
       const seated = solo ? near(api.bodies.sun.pos, seats.sun) : near(a, seats.sun) && near(b, seats.moon);
-      if (seated && !seatedBefore) {
+      // the first time it opens straight away; after the game is won, only if you stay seated a moment
+      // (so walking over the cushions doesn't pop the results up again)
+      seatT = seated ? seatT + (t - (lastT ?? t)) : 0;
+      lastT = t;
+      const replay = !!st.cards;
+      if (seated && !seatedBefore && replay && !replayHint) { replayHint = true; ctx.caption('Stay on your cushion to play again 🃏', 2600); }
+      if (seated && !opened && (!replay || seatT > 1.4)) {
+        opened = true;
         if (!matchOf() && (solo || api.role === 'sun')) newMatch();
         api.setInput(false);
         ensureTable().open();
       }
+      if (!seated) opened = false;
       seatedBefore = seated;
       if (st.cards && !cardsShown) { cardsShown = true; ctx.caption('The ace of hearts swings open: a paper plane is waiting… ✈️', 4500); }
       if (st.cards && atDoor(a) && atDoor(b) && doneT < 0) {

@@ -73,6 +73,8 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #btn-heart { right: calc(var(--sr) + 38px); bottom: calc(var(--sb) + 128px); color: var(--pink); }
 #btn-swap { right: calc(var(--sr) + 196px); bottom: calc(var(--sb) + 106px); }
 #btn-dash { right: calc(var(--sr) + 118px); bottom: calc(var(--sb) + 108px); width: 58px; height: 58px; }
+#btn-lift { right: calc(var(--sr) + 206px); bottom: calc(var(--sb) + 22px); width: 62px; height: 62px; box-shadow: 0 0 0 3px rgba(255, 182, 39, 0.75), 0 3px 10px rgba(43, 37, 80, 0.18); }
+#btn-lift .ic { font-size: 24px; } #btn-lift .lbl { font-size: 10px; margin-top: 0; }
 #btn-dash .ic { font-size: 24px; } #btn-dash .lbl { font-size: 10px; margin-top: 0; }
 body.sun #btn-ability { border-color: #ffd36b; }
 body.moon #btn-ability { border-color: #b9c2ff; }

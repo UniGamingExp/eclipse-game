@@ -128,7 +128,7 @@ export function buildCh1Plane(root, scene) {
     emissive: 0xff3b4d, emissiveIntensity: 0.3,
   }), 0, P2.top + th * 0.62, TOWER.z1 + 0.02, { cast: false });
   anims.push((t) => badge.scale.setScalar(1 + Math.max(0, Math.sin(t * 3)) * 0.08));
-  const s2 = sign(world, -2.2, -38.6, -0.3, ['Sun: Lift Moon,', 'then Throw her up!', '(then shout yourself up)']);
+  const s2 = sign(world, -2.2, -38.6, -0.3, ['Sun: tap 🤲 Lift by Moon,', 'then Throw her up!', '(then shout yourself up)']);
   s2.position.y = P2.top;
   stars.push(makeStar(world, 'c1-tower', 1.6, TOWER.top + 0.9, -46.7, 2));
 

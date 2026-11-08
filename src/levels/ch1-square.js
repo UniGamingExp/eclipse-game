@@ -233,7 +233,10 @@ export function buildCh1Square(root, scene) {
   const crowd = crowdCols.map((c, i) => {
     const g = avatar(world, c, MOODS[i % MOODS.length]);
     const r0 = 5.2 + (i % 4) * 1.3, sp = (i % 2 ? 1 : -1) * (0.09 + (i % 3) * 0.03), a0 = i * 0.63;
-    return { g, r0, sp, a0, ph: i * 1.7 };
+    // they're solid: you bump into them (the collider follows them every frame)
+    const col = { type: 'cyl', x: 0, z: 0, r: 0.42, top: 1.75, bottom: 0, noGrab: true, noStep: true, noCam: true };
+    colliders.push(col);
+    return { g, r0, sp, a0, ph: i * 1.7, col };
   });
   const crowdPos = (c, sNow, out) => {
     const s = sNow / 1000;
@@ -289,6 +292,7 @@ export function buildCh1Square(root, scene) {
     a.position.set(mw1 + 1.6, 0, z);
     a.rotation.y = -Math.PI / 2;
     gamers.push(a);
+    colliders.push({ type: 'cyl', x: mw1 + 1.6, z, r: 0.42, top: 1.75, bottom: 0, noGrab: true, noStep: true, noCam: true });
   }
   // a tall pillar with a star, and a pinned bubble at its foot: pop it to fly
   add(world, new THREE.CylinderGeometry(0.9, 1.0, 7.6, 20), mat(0xc9b8e8), MOON_X + 0.5, 3.8, 4.4);
@@ -407,6 +411,7 @@ export function buildCh1Square(root, scene) {
       for (const c of crowd) {
         const prev = c.g.position.clone();
         crowdPos(c, serverMs, c.g.position);
+        c.col.x = c.g.position.x; c.col.z = c.g.position.z;
         const d = c.g.position.clone().sub(prev);
         if (d.lengthSq() > 1e-6) c.g.rotation.y = Math.atan2(d.x, d.z);
         c.g.userData.parts.body.position.y = 0.6 + Math.abs(Math.sin(t * 6 + c.ph)) * 0.06;

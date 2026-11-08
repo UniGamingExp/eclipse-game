@@ -462,7 +462,7 @@ const serverNow = () => baseNow() + clockSkew;
 const input = createInput({
   canvas,
   joyZone: $('#joy-zone'), joyBase: $('#joy-base'), joyKnob: $('#joy-knob'),
-  buttons: { jump: $('#btn-jump'), ability: $('#btn-ability'), heart: $('#btn-heart'), swap: $('#btn-swap'), dash: $('#btn-dash') },
+  buttons: { jump: $('#btn-jump'), ability: $('#btn-ability'), heart: $('#btn-heart'), swap: $('#btn-swap'), dash: $('#btn-dash'), lift: $('#btn-lift') },
 });
 const canFullscreen = isTouch && !isIOS && !!document.documentElement.requestFullscreen;
 function goFullscreen() {
@@ -1169,12 +1169,13 @@ function frame(nowMs) {
     if (input.consume('ability') && G.cooldown.ability <= 0) {
       G.cooldown.ability = 0.45;
       const who = G.kind === 'solo' ? G.active : G.role;
-      if (world.abilities?.first?.(who) && world.abilities.use(who)) { /* the level's power took it */ }
-      else if (!(who === 'sun' && sunAction()) && !world.abilities?.use(who)) {
+      // the ✦ button is always the level's power; lifting/throwing Moon has its own button
+      if (!world.abilities?.use(who)) {
         useAbilityFx(who);
         G.net.sendEvent('ability');
       }
     }
+    if (input.consume('lift')) { const who = G.kind === 'solo' ? G.active : G.role; if (who === 'sun') sunAction(); }
     if (input.consume('heart') && G.cooldown.heart <= 0) {
       G.cooldown.heart = 0.6;
       const who = G.kind === 'solo' ? G.active : G.role;
@@ -1234,9 +1235,11 @@ function frame(nowMs) {
     // context label on the ability button
     const who = G.kind === 'solo' ? G.active : G.role;
     const special = world.abilities?.label(who);
-    const first = world.abilities?.first?.(who);
-    const label = who === 'sun' ? (ctls.sun.carrying ? 'Throw' : first ? special : canLift() ? 'Lift' : special || 'Shine') : special || 'Tide';
+    const label = special || (who === 'sun' ? 'Shine' : 'Tide');
     if (label !== G.abilityLabel) { G.abilityLabel = label; $('#ability-label').textContent = label; }
+    // the Lift button shows up only when Sun can lift Moon (or is carrying her: then it throws)
+    const liftState = who !== 'sun' || world.kid ? '' : ctls.sun.carrying ? 'Throw' : canLift() ? 'Lift' : '';
+    if (liftState !== G.liftState) { G.liftState = liftState; $('#btn-lift').hidden = !liftState; if (liftState) $('#lift-label').textContent = liftState; }
 
     // stars
     for (const s of world.stars) {
@@ -1322,7 +1325,12 @@ function frame(nowMs) {
     const avg = ftAcc / ftN;
     fpsShown = 1 / avg;
     G.slowN = avg > 1 / 45 ? (G.slowN || 0) + 1 : 0;
-    if (G.slowN >= 2 && qLevel < QUALITY.length - 1 && G.t > 6 && !params.has('q')) { G.slowN = 0; qLevel++; resize(); }
+    if (G.slowN >= 2 && qLevel < QUALITY.length - 1 && G.t > 6 && !params.has('q') && !G.qBusy) {
+      // rebuilding the canvas can show a blank frame for a moment: do it behind a quick fade
+      G.slowN = 0; G.qBusy = true;
+      fade.classList.add('on');
+      setTimeout(() => { qLevel++; resize(); setTimeout(() => { fade.classList.remove('on'); G.qBusy = false; }, 160); }, 220);
+    }
     ftAcc = 0; ftN = 0;
   }
   if (DEBUG) {
@@ -1362,7 +1370,7 @@ window.__eclipse = {
       control(ctls[r], o.move || idleInput, (o.jumpAt || []).includes(i), o.hold ?? true, dt, (o.dashAt || []).includes(i));
       if (G.kind === 'solo') for (const k of ROLES) if (k !== r) control(ctls[k], idleInput, (o.otherJumpAt || []).includes(i), false, dt);
       if (o.actionAt && o.actionAt.includes(i)) sunAction();
-      for (const [who, steps] of Object.entries(o.use || {})) if (steps.includes(i)) { if (world.abilities?.first?.(who) && world.abilities.use(who)) continue; if (!(who === 'sun' && sunAction())) world.abilities?.use(who); }
+      for (const [who, steps] of Object.entries(o.use || {})) if (steps.includes(i)) world.abilities?.use(who);
       if (o.every && i % o.every === 0) trace.push([+bodies[r].pos.x.toFixed(2), +bodies[r].pos.y.toFixed(2), +bodies[r].pos.z.toFixed(2), bodies[r].grounded ? 1 : 0, ctls[r].state[0] + ctls[r].anim]);
     }
     return { pos: bodies[r].pos.toArray().map((v) => +v.toFixed(3)), grounded: bodies[r].grounded, state: ctls[r].state, anim: ctls[r].anim, trace };
