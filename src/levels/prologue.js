@@ -184,7 +184,7 @@ export function buildPrologue(root, scene) {
   // the bridge of stars and the starlight cloud in the middle (appear later)
   const starTile = new THREE.ExtrudeGeometry(starShape(0.85, 0.45), { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 });
   starTile.rotateX(-Math.PI / 2);
-  const tileMat = new THREE.MeshStandardMaterial({ color: 0xfff1b8, emissive: 0xffc94d, emissiveIntensity: 2.2, roughness: 0.4 });
+  const tileMat = new THREE.MeshStandardMaterial({ color: 0xffeeb0, emissive: 0xffc94d, emissiveIntensity: 1.45, roughness: 0.45 });
   const bridge = [];
   for (const role of ['sun', 'moon']) {
     const d = islands[role].dir;
@@ -202,7 +202,7 @@ export function buildPrologue(root, scene) {
   center.position.set(0, CENTER_Y, 0);
   center.scale.setScalar(0.001);
   cloud(center, 0, 0, 0, 7, 7, 12);
-  const halo = add(center, new THREE.TorusGeometry(3.7, 0.06, 8, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 2.0, 1.1) }), 0, 0.05, 0, { cast: false });
+  const halo = add(center, new THREE.TorusGeometry(3.7, 0.06, 8, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.68, 0.95) }), 0, 0.05, 0, { cast: false });
   halo.rotation.x = Math.PI / 2;
   const centerCol = { type: 'cyl', x: 0, z: 0, r: 3.5, top: CENTER_Y, bottom: CENTER_Y - 0.6, disabled: true, safe: true };
   colliders.push(centerCol);
