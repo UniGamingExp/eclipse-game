@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { add, rbox } from './common.js';
 
-export const R = 5, FLARE_R = 9, FLARE_MS = 3000, GRACE = 0.4;
+export const R = 5, FLARE_R = 9, FLARE_MS = 4000, GRACE = 0.4;
 const COL = {
   day: { lit: 0xffc94d, glow: 0xffa21f, ghost: 0xffe7a8 },
   night: { lit: 0xa98bff, glow: 0x7a4dff, ghost: 0xd8ccff },
@@ -52,7 +52,7 @@ export function createLights(world, colliders, specs) {
     use(who) {
       const sNow = api.serverNow();
       if (cd[who] > 0) { api.sound.play('no'); return true; }
-      cd[who] = 4.5;
+      cd[who] = 5.5;
       flareUntil[who] = sNow + FLARE_MS;
       api.sound.play(who === 'sun' ? 'shine' : 'tide');
       api.fx.sparks(api.bodies[who].pos.clone().setY(api.bodies[who].pos.y + 1), who === 'sun' ? 0xffc94d : 0xa98bff, 24, 3);

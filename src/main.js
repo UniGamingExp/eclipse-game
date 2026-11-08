@@ -1099,6 +1099,13 @@ function updateCamera(dt) {
     c.lastDrag = G.t;
   }
   const b = bodies[G.active];
+  // camera corridors (narrow streets): keep the camera looking along the street, a bit from above
+  const cz = !ln && world.camZones?.find((z) => b.pos.x > z.x0 && b.pos.x < z.x1 && b.pos.z > z.z0 && b.pos.z < z.z1 && b.pos.y < (z.y1 ?? 1e9));
+  if (cz) {
+    const dy = angleDiff(cz.yaw, c.yaw);
+    if (Math.abs(dy) > cz.spread) c.yaw = dampAngle(c.yaw, cz.yaw + Math.sign(dy) * cz.spread, 6, dt);
+    if (c.pitch < cz.pitchMin) c.pitch = damp(c.pitch, cz.pitchMin, 4, dt);
+  }
   // gently swing the camera behind the direction of travel (never when walking towards the camera)
   const sp = Math.hypot(b.vel.x, b.vel.z);
   if (sp > 1.5 && G.t - c.lastDrag > 1.2 && !ln) {
