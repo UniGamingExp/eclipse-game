@@ -32,6 +32,8 @@ export function gradePass() {
       uniform float vignette, sat, contrast, aspect, shafts, dof, bgA, bgB, nearBlur, focus, near, far, dofPx, time;
       uniform vec3 lift, gain, shaftCol; uniform vec2 res;
       varying vec2 vUv;
+      bool badF(float x){ return (floatBitsToUint(x) & 0x7f800000u) == 0x7f800000u; }
+vec3 safeC(vec3 c){ return (badF(c.r) || badF(c.g) || badF(c.b)) ? vec3(0.0) : clamp(c, 0.0, 32.0); }
       float viewZ(vec2 uv){ float d = texture2D(tDepth, uv).x; return (near * far) / (far - d * (far - near)); }
       float coc(float z){
         float bg = smoothstep(focus * bgA, focus * bgB, z);
@@ -39,7 +41,7 @@ export function gradePass() {
         return max(bg, fg);
       }
       void main(){
-        vec3 c = texture2D(tDiffuse, vUv).rgb;
+        vec3 c = safeC(texture2D(tDiffuse, vUv).rgb);
         if (dof > 0.002) {
           float z = viewZ(vUv);
           float k = coc(z) * dof;
@@ -51,12 +53,12 @@ export function gradePass() {
               vec2 uv = vUv + vec2(cos(a), sin(a)) * r * k * dofPx * res;
               float zs = viewZ(uv);
               float w = zs < z * 0.8 ? coc(zs) * dof : 1.0;     // sharp things in front never smear into the blur
-              acc += texture2D(tDiffuse, uv).rgb * w; ws += w;
+              acc += safeC(texture2D(tDiffuse, uv).rgb) * w; ws += w;
             }
             c = acc / ws;
           }
         }
-        c += texture2D(tShafts, vUv).rgb * shaftCol * shafts;
+        c += safeC(texture2D(tShafts, vUv).rgb) * shaftCol * shafts;
         c = clamp(c, 0.0, 1.0);
         float l = dot(c, vec3(0.299, 0.587, 0.114));
         c = mix(vec3(l), c, sat);

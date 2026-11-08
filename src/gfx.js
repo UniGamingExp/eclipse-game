@@ -8,6 +8,11 @@
 import * as THREE from 'three';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
+// replaces broken pixels (NaN / infinity) with black; checks the float's bits, which shader compilers can't optimise away
+export const SAFE_GLSL = /* glsl */`
+bool badF(float x){ return (floatBitsToUint(x) & 0x7f800000u) == 0x7f800000u; }
+vec3 safeC(vec3 c){ return (badF(c.r) || badF(c.g) || badF(c.b)) ? vec3(0.0) : clamp(c, 0.0, 32.0); }`;
+
 // ---------------------------------------------------------------- light shafts (quarter resolution)
 // Marches from each pixel towards the sun on screen and gathers the glowing sky it passes over.
 // Anything with depth (trees, towers, characters, planets) blocks the sky, which is what carves the rays.
@@ -22,11 +27,13 @@ export class ShaftsPass extends Pass {
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: /* glsl */`
         uniform sampler2D tColor, tDepth; uniform vec2 sun; uniform float aspect, amt; varying vec2 vUv;
+        bool badF(float x){ return (floatBitsToUint(x) & 0x7f800000u) == 0x7f800000u; }
+vec3 safeC(vec3 c){ return (badF(c.r) || badF(c.g) || badF(c.b)) ? vec3(0.0) : clamp(c, 0.0, 32.0); }
         vec3 sky(vec2 uv){
           if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
           if (texture2D(tDepth, uv).x < 0.99999) return vec3(0.0);
           vec2 d = (uv - sun) * vec2(aspect, 1.0);
-          return texture2D(tColor, uv).rgb * exp(-dot(d, d) * 7.0);
+          return safeC(texture2D(tColor, uv).rgb) * exp(-dot(d, d) * 7.0);
         }
         void main(){
           if (amt < 0.001) { gl_FragColor = vec4(0.0); return; }
@@ -53,6 +60,19 @@ export class ShaftsPass extends Pass {
 
 // shared with shaders that want to know where the sun is (the river's glints, ...)
 export const skyU = { sunDir: { value: new THREE.Vector3(0, 0.3, -1).normalize() }, sunCol: { value: new THREE.Color(1, 0.9, 0.8) } };
+
+/**
+ * One broken pixel (a NaN from some lighting maths) is invisible on its own, but the bloom blurs it over
+ * the whole screen and the frame goes black (seen in playtest 2). Make the bloom's first step skip them.
+ */
+export function guardBloom(bloom) {
+  const m = bloom.materialHighPassFilter;
+  m.fragmentShader = m.fragmentShader
+    .replace('void main() {', SAFE_GLSL + '\nvoid main() {')
+    .replace('vec4 texel = texture2D( tDiffuse, vUv );', 'vec4 texel = texture2D( tDiffuse, vUv ); texel.rgb = safeC( texel.rgb ); texel.a = 1.0;');
+  if (!m.fragmentShader.includes('safeC( texel')) console.warn('guardBloom: shader changed');
+  m.needsUpdate = true;
+}
 
 // ---------------------------------------------------------------- per level
 const UP = new THREE.Vector3(0, 1, 0);

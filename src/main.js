@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
-import { createGfx, ShaftsPass } from './gfx.js';
+import { createGfx, ShaftsPass, guardBloom } from './gfx.js';
 import { loadNature, loadKit, kitReady } from './nature.js';
 import { townspeople } from './npc.js';
 import { loadHeroes, heroesReady, makeHero } from './hero.js';
@@ -44,6 +44,7 @@ composer.addPass(new RenderPass(scene, camera));
 const shafts = new ShaftsPass();
 composer.addPass(shafts);
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.5, 1.3);
+if (!params.has('noguard')) guardBloom(bloom);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 const grade = gradePass();
@@ -1367,7 +1368,7 @@ function frame(nowMs) {
 requestAnimationFrame(frame);
 
 // for automated tests
-window.__eclipse = { gfx,
+window.__eclipse = { gfx, composer,
   townspeople, scene, G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
   THREE,
   /** Dr. Bata for stills / cutscenes: bata([x,y,z], yaw, scale, talking) or bata(null) to remove */
