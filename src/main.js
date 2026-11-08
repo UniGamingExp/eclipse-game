@@ -248,6 +248,7 @@ function chooseLevel(id) {
   if (id === 'ch1-square') G.net.setSave('ch1', null);
   if (id === 'ch1-cards') { G.net.setSave('ch1/cards', null); G.net.setSave('ch1/trex', null); }
   if (id === 'ch1-plane') { G.net.setSave('ch1/plane', null); G.net.setSave('ch1/planeDone', null); }
+  if (id === 'ch2-day') G.net.setSave('ch2/day', null);
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
@@ -261,7 +262,10 @@ function onLevelFinished() {
   } else if (world.id === 'ch1-cards') {
     setTimeout(() => G.net?.setSave('level', 'ch1-plane'), 600);
   } else if (world.id === 'ch1-plane') {
-    caption('Chapter 2 · 12 October is coming next 💜', 4000);
+    caption('Chapter 2 · 12 October', 3000);
+    setTimeout(() => G.net?.setSave('level', 'ch2-day'), 2500);
+  } else if (world.id === 'ch2-day') {
+    caption('Part 2 · The Four-Hour Call is coming next 📞', 4000);
     setTimeout(() => G.net?.setSave('level', 'playground'), 3000);
   }
 }
