@@ -96,13 +96,46 @@ export function sign(parent, x, z, rotY, lines) {
   cx.fillStyle = '#4a3352';
   cx.textAlign = 'center'; cx.textBaseline = 'middle';
   const size = lines.length > 1 ? 58 : 76;
-  cx.font = `800 ${size}px ui-rounded, "SF Pro Rounded", system-ui, sans-serif`;
+  cx.font = `700 ${size}px Fredoka, ui-rounded, "SF Pro Rounded", system-ui, sans-serif`;
   lines.forEach((l, i) => cx.fillText(l, 256, 110 + (i - (lines.length - 1) / 2) * (size * 1.15), 490));
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   const face = add(g, new THREE.PlaneGeometry(1.76, 0.7), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), 0, 1.25, 0.065, { cast: false });
   face.receiveShadow = true;
+  return g;
+}
+
+/**
+ * A shop-style sign hanging above a street from an iron bracket, so it never stands in the way.
+ * (x, y, z) = centre of the board; it faces +z turned by rotY; wallX = where the bracket meets the wall.
+ */
+export function hangSign(parent, x, y, z, lines, { rotY = 0, wallX = null, w = 2.3 } = {}) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  g.rotation.y = rotY;
+  parent.add(g);
+  const iron = mat(0x3a3048, { roughness: 0.5, metalness: 0.5 });
+  const h = lines.length > 2 ? 1.05 : 0.85;
+  add(g, rbox(w, h, 0.1, 0.06), mat(0x8a5a3a, { roughness: 0.8 }), 0, 0, 0);
+  const cv = document.createElement('canvas');
+  cv.width = 640; cv.height = Math.round(640 * (h - 0.12) / (w - 0.14));
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#f6dcbc'; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.fillStyle = '#4a3352'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  const size = Math.min(70, (cv.height * 0.86) / lines.length / 1.12);
+  cx.font = `600 ${size}px Fredoka, ui-rounded, system-ui, sans-serif`;
+  lines.forEach((l, i) => cx.fillText(l, cv.width / 2, cv.height / 2 + (i - (lines.length - 1) / 2) * size * 1.12, cv.width - 30));
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  for (const sgn of [1, -1]) add(g, new THREE.PlaneGeometry(w - 0.14, h - 0.12).rotateY(sgn > 0 ? 0 : Math.PI), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), 0, 0, sgn * 0.056, { cast: false });
+  // chains up to the bracket, and the bracket to the wall
+  for (const sx of [-w * 0.38, w * 0.38]) add(g, new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), iron, sx, h / 2 + 0.25, 0, { cast: false });
+  if (wallX != null) {           // (assumes rotY = 0: the wall is along x)
+    const endX = x + Math.sign(x - wallX) * w * 0.45;
+    add(g, new THREE.BoxGeometry(Math.abs(endX - wallX), 0.07, 0.07), iron, (wallX + endX) / 2 - x, h / 2 + 0.52, 0, { cast: false });
+  }
+  g.traverse((o) => { o.userData.noHide = true; });
   return g;
 }
 

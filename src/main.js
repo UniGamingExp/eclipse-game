@@ -298,7 +298,7 @@ function chooseLevel(id) {
   if (id === 'ch1-square') G.net.setSave('ch1', null);
   if (id === 'ch1-cards') { G.net.setSave('ch1/cards', null); G.net.setSave('ch1/trex', null); }
   if (id === 'ch1-plane') { G.net.setSave('ch1/plane', null); G.net.setSave('ch1/planeDone', null); }
-  if (id === 'ch2-day') { G.net.setSave('ch2/day', null); G.net.setSave('ch2/d2', null); }
+  if (id === 'ch2-day') { G.net.setSave('ch2/day', null); G.net.setSave('ch2/day2', null); G.net.setSave('ch2/d2', null); }
   if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); }
   if (id === 'ch2-shy') { G.net.setSave('ch2/shy', null); G.net.setSave('ch2/shyOpen', null); }
   if (id === 'ch3-bridge') G.net.setSave('ch3', null);
@@ -1123,8 +1123,22 @@ function updateCamera(dt) {
   if (!Number.isFinite(c.zoom)) c.zoom = 1;
   if (!Number.isFinite(c.cur)) c.cur = c.dist;
   const want = ln ? (ln.dist ?? 11) * (camera.aspect < 1 ? 1.35 : 1) : c.dist * c.zoom * (camera.aspect < 1 ? 1.2 : 1) * (world.kid ? 0.88 : 1);
-  const cp = Math.cos(c.pitch);
-  _dir.set(Math.sin(c.yaw) * cp, Math.sin(c.pitch), Math.cos(c.yaw) * cp);
+  // a wall right behind the player: rise and look down over it instead of pressing against it
+  const dirAt = (p) => _dir.set(Math.sin(c.yaw) * Math.cos(p), Math.sin(p), Math.cos(c.yaw) * Math.cos(p));
+  let craneWant = 0;
+  const h0 = ln ? want : camHit(c.target, dirAt(c.pitch), want);
+  if (h0 < want * 0.55) {
+    // the angle that gives the most room (a tall wall close behind: nearly top-down)
+    let bestH = h0 * 1.4 + 0.5;
+    for (const extra of [0.3, 0.55, 0.8, 1.05, 1.2]) {
+      const p2 = Math.min(1.42, c.pitch + extra), h2 = camHit(c.target, dirAt(p2), want);
+      if (h2 > bestH) { bestH = h2; craneWant = p2 - c.pitch; }
+      if (h2 >= want * 0.75) break;
+    }
+  }
+  c.crane = damp(c.crane || 0, craneWant, craneWant > (c.crane || 0) ? 4 : 1.5, dt);
+  const pitchNow = Math.min(1.4, c.pitch + c.crane);
+  dirAt(pitchNow);
   // don't let walls and blocks get between the camera and the player: pull in fast, ease back out
   const hit = camHit(c.target, _dir, want);
   const dist = Math.min(want, Math.max(1.4, hit - 0.35));
@@ -1454,7 +1468,7 @@ function frame(nowMs) {
 requestAnimationFrame(frame);
 
 // for automated tests
-window.__eclipse = { gfx, composer,
+window.__eclipse = { gfx, composer, camHit: (o, d, m) => camHit(o, d, m), camera,
   townspeople, scene, G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
   THREE,
   /** Dr. Bata for stills / cutscenes: bata([x,y,z], yaw, scale, talking) or bata(null) to remove */

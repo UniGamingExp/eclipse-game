@@ -10,7 +10,7 @@
 //  4. The shadow run: across the rooftops while a wall of shadow follows; flares push it back.
 //  5. 7:13 PM: moving twilight tiles (both lights at once) to the ringing phone.
 import * as THREE from 'three';
-import { mat, add, rbox, islandMeshes, sign, cloud, sky, makeStar, spinStars, lights, meadow, decorate } from './common.js';
+import { mat, add, rbox, islandMeshes, sign, hangSign, cloud, sky, makeStar, spinStars, lights, meadow, decorate } from './common.js';
 import { createLights } from './light.js';
 import { nature, kit } from '../nature.js';
 import { house } from './medieval.js';
@@ -97,17 +97,17 @@ function shamiHouse(parent, x, y, z, w, d, hgt, { rotY = 0, seed = 1 } = {}) {
   add(g, new THREE.BoxGeometry(w, hgt, d), mat(stoneC, { roughness: 0.92 }), 0, hgt / 2, 0);
   add(g, new THREE.BoxGeometry(w + 0.2, 0.3, d + 0.2), mat(0x9a88b0, { roughness: 0.9 }), 0, hgt + 0.15, 0);   // parapet
   // striped ablaq band (the black-and-white stone stripes of old Damascus)
-  for (let k = 0; k < 3; k++) add(g, new THREE.BoxGeometry(w + 0.04, 0.16, d + 0.04), mat(k % 2 ? 0xeee4f4 : 0x4a4068), 0, 0.9 + k * 0.16, 0, { cast: false });
+  for (let k = 0; k < 3; k++) add(g, new THREE.BoxGeometry(w + 0.1, 0.16, d + 0.1), mat(k % 2 ? 0xeee4f4 : 0x4a4068), 0, 0.9 + k * 0.16, 0, { cast: false });
   const lit = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 1.45, 0.75) });
   const wood = mat(0x5a3a2a, { roughness: 0.8 });
   // arched door (front = +z face)
-  add(g, new THREE.BoxGeometry(1.1, 1.7, 0.1), mat(0x3a2a40), 0, 0.85, d / 2 + 0.02, { cast: false });
-  add(g, new THREE.CylinderGeometry(0.55, 0.55, 0.1, 16, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2), mat(0x3a2a40), 0, 1.7, d / 2 + 0.02, { cast: false });
+  add(g, new THREE.BoxGeometry(1.1, 1.7, 0.1), mat(0x3a2a40), 0, 0.85, d / 2 + 0.03, { cast: false });
+  add(g, new THREE.CylinderGeometry(0.55, 0.55, 0.1, 16, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2), mat(0x3a2a40), 0, 1.7, d / 2 + 0.03, { cast: false });
   // lattice windows (mashrabiya) glowing from inside
   for (let f = 1; f * 2.2 < hgt - 0.5; f++) for (const sx of [-w / 3, w / 3]) {
     if (R() < 0.25) continue;
-    add(g, new THREE.BoxGeometry(0.8, 1.0, 0.08), lit, sx, f * 2.2 + 0.2, d / 2 + 0.03, { cast: false });
-    add(g, new THREE.BoxGeometry(0.95, 1.15, 0.12), wood, sx, f * 2.2 + 0.2, d / 2 + 0.06, { cast: false }).scale.set(1, 1, 0.5);
+    add(g, new THREE.BoxGeometry(0.8, 1.0, 0.08), lit, sx, f * 2.2 + 0.2, d / 2 + 0.05, { cast: false });
+    add(g, new THREE.BoxGeometry(0.95, 1.15, 0.06), wood, sx, f * 2.2 + 0.2, d / 2 + 0.03, { cast: false });
   }
   return g;
 }
@@ -199,10 +199,15 @@ export function buildCh2Day(root, scene) {
   colliders.push(gateCol);
   const gatePlate = plate(world, { x: SX, y: 0, z: -2.2, who: 'sun' });
   // obstacles in Sun's market street
-  box(-4, -2.4, -18.6, -17.6, 1.0, 0, wood, { col: { safe: true } });
-  box(-2.6, -0.15, -22.4, -21.4, 1.2, 0, wood, { col: { safe: true } });
-  box(-4, -2.4, -26.6, -25.4, 2.2, 0, wood, { col: { safe: true } });
-  if (K.has('Prop_Crate')) for (const [x, y, z] of [[-3.2, 0, -18.1], [-1.4, 0, -21.9], [-3.2, 0, -26], [-3.2, 1.1, -26]]) K.place(world, 'Prop_Crate', x, y, z, { rotY: x * z });
+  const plank = mat(0xc89060, { roughness: 0.85 }), frame = mat(0x7a4a2a, { roughness: 0.8 });
+  const crate = (x, y, z, s = 1.1) => {
+    add(world, new THREE.BoxGeometry(s - 0.04, s - 0.04, s - 0.04), plank, x, y + s / 2, z);
+    for (const [ax, az] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) add(world, new THREE.BoxGeometry(0.12, s, 0.12), frame, x + ax * (s / 2 - 0.05), y + s / 2, z + az * (s / 2 - 0.05), { cast: false });
+    for (const yy of [0.06, s - 0.06]) for (const [w, d] of [[s, 0.12], [0.12, s]]) for (const sg of [-1, 1]) add(world, new THREE.BoxGeometry(w, 0.12, d), frame, x + (d === s ? sg * (s / 2 - 0.05) : 0), y + yy, z + (w === s ? sg * (s / 2 - 0.05) : 0), { cast: false });
+    colliders.push({ type: 'box', x0: x - s / 2, x1: x + s / 2, z0: z - s / 2, z1: z + s / 2, top: y + s, bottom: y, safe: true });
+  };
+  crate(-3.3, 0, -18.1); crate(-1.2, 0, -21.9); crate(-2.35, 0, -21.9);
+  crate(-3.3, 0, -26); crate(-3.3, 1.1, -26);
   // the time wall between the streets
   const wallLen = 9 - -66, wallZ = (9 + -66) / 2;
   const wallMat = new THREE.ShaderMaterial({
@@ -235,11 +240,14 @@ export function buildCh2Day(root, scene) {
     colliders.push({ type: 'cyl', x, z: 6.4, r: 0.1, top: 2.2, bottom: 0, noStep: true, noGrab: true });
     sign(world, x + (x < 0 ? 0.9 : -0.9), 4.2, rot, [label]).scale.setScalar(0.7);
   }
-  sign(world, SX - 0.6, 1.2, 0.25, ['☀ Sun: step on the plate', 'to open Moon\'s gate']);
-  sign(world, SX - 0.6, -3.6, 0.2, ['Too high alone! Lilac steps', 'are solid only near Moon ☾']);
-  sign(world, MX + 0.6, -15.4, -0.2, ['Golden planks are solid', 'only near Sun ☀']);
-  sign(world, -7.6, -33.0, 0.5, ['Too far apart? Flare (E):', 'your light reaches twice', 'as far for 4 seconds']);
-  sign(world, SX - 0.6, -50.6, 0.2, ['Ride the ferries', 'side by side ⛴']);
+  hangSign(world, SX, 3.5, 3.2, ['☀ Stand on the plate:', 'it holds Moon\'s gate open'], { wallX: -4.2 });
+  hangSign(world, MX, 3.5, 3.2, ['☾ The gate opens while', 'Sun stands on his plate'], { wallX: 4.2 });
+  hangSign(world, SX, 3.7, -0.6, ['Too high alone! Lilac steps', 'appear only near Moon ☾'], { wallX: -4.2 });
+  hangSign(world, MX, 3.6, -12.2, ['Golden steps appear', 'only near Sun ☀'], { wallX: 4.2 });
+  hangSign(world, -6.6, 3.7, -32.2, ['Too far apart? Flare ✦ (E):', 'your light reaches twice', 'as far for 4 seconds'], { wallX: -8.6 });
+  hangSign(world, MX, 3.7, -31.4, ['Too far apart? Flare ✦ (E):', 'your light reaches twice', 'as far for 4 seconds'], { wallX: 4.2 });
+  hangSign(world, SX, 3.5, -48.6, ['Ride the ferries', 'side by side ⛴'], { wallX: -4.2 });
+  hangSign(world, MX, 3.5, -48.6, ['Ride the ferries', 'side by side ⛴'], { wallX: 4.2 });
 
   // Sun's side: the old town (half-timbered houses); Moon's side: Damascus at night
   if (K.has('Wall_Plaster_Straight')) {
@@ -250,6 +258,7 @@ export function buildCh2Day(root, scene) {
     house(world, -2.5, 0, -43.2, { w: 6, d: 4, floors: 2, rotY: Math.PI / 2, seed: 52 });
     for (const [z, w, d, fl] of [[-30, 4, 4, 3], [-38, 6, 6, 3], [-45, 4, 4, 2]]) house(world, -8.8 - d / 2 - 0.4, 0, z, { w, d, floors: fl, rotY: Math.PI / 2, seed: sd++ });
   }
+  world.children.forEach((c) => { if (c.isGroup) c.userData.noHide = true; });
   colliders.push({ type: 'box', x0: -4.6, x1: -0.4, z0: -46.2, z1: -34.2, top: 10, bottom: 0, noGrab: true });
   colliders.push({ type: 'box', x0: -16, x1: -8.6, z0: -50, z1: -28, top: 14, bottom: 0, noGrab: true });
   colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -28, z1: 9, top: 14, bottom: 0, noGrab: true });
@@ -257,6 +266,7 @@ export function buildCh2Day(root, scene) {
   let hs = 3;
   for (const [z, w, d, hh] of [[5, 5, 4, 5], [-1, 5, 5, 7], [-8, 5, 6, 4.5], [-24, 6, 6, 4], [-33, 5, 5, 6.5], [-41, 5, 6, 5], [-48, 5, 5, 7], [-56, 5, 6, 5], [-62.5, 5, 5, 6]]) shamiHouse(world, 4.5 + d / 2, 0, z, w, d, hh, { rotY: -Math.PI / 2, seed: hs++ });
   colliders.push({ type: 'box', x0: 4.2, x1: 14, z0: -66, z1: 9, top: 14, bottom: 0, noGrab: true });
+  world.children.forEach((c) => { if (c.isGroup && c !== wall) c.userData.noHide = true; });
   // night lanterns on Moon's side, flowers on Sun's
   const lanternMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.5, 0.8) });
   const stringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 1.3, 2.4) });
@@ -306,7 +316,7 @@ export function buildCh2Day(root, scene) {
   // wall-jump shaft on the left: the tower wall + a pillar
   box(-8.6, -7.6, -82, -78, 8, 2.0, towerM, { col: { wallJump: true, noGrab: true } });
   floor(-8.6, -4, -82, -78, 8, mat(0xd9c2a0), wood, { surface: 'wood' });
-  sign(world, -6.2, -78.6, 0, ['Wall-jump up the shaft:', 'jump at a wall, then again ↑']);
+  sign(world, -6.2, -82.6, 0, ['Wall-jump up the shaft:', 'jump at a wall, then again ↑']);
   // gear 1 (golden teeth) and gear 2 (lilac teeth): turning light platforms
   const gears = [];
   const gear = (cx, cy, R, kind, n, period, dir) => {
@@ -329,7 +339,7 @@ export function buildCh2Day(root, scene) {
   // the zig-zag: day and night steps, back to the left
   for (const [x, y, kind] of [[5.6, 19.6, 'night'], [1.6, 21.6, 'day'], [-2.4, 23.6, 'night'], [-6.4, 25.6, 'day']]) specs.push({ kind, x, y, z: TZ, w: 2.0, d: 3 });
   floor(-11, -8.4, -82, -78, 27.2, mat(0xd9c2a0), wood, { surface: 'wood' });
-  sign(world, -9.7, -78.6, 0, ['Ride the pendulum →']).position.y = 27.2;
+  sign(world, -9.7, -82.4, 0, ['Ride the pendulum →']).position.y = 27.2;
   // the pendulum
   const pivot = { x: -1.6, y: 35 }, PL = 8;
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, PL, 8), mat(0xc9a060, { metalness: 0.6, roughness: 0.3 }));
@@ -344,7 +354,7 @@ export function buildCh2Day(root, scene) {
   const door = add(world, new THREE.BoxGeometry(0.6, 3.2, 4), mat(0x8a5ac0, { roughness: 0.5 }), 11.5, 29 + 1.6, TZ);
   const doorCol = { type: 'box', x0: 11, x1: 12, z0: -82, z1: -78, top: 32.2, bottom: 29, noGrab: true };
   colliders.push(doorCol);
-  sign(world, 7.5, -78.4, 0, ['Both on your plates:', 'the door opens ☀ ☾']).position.y = 29;
+  sign(world, 7.5, -82.4, 0, ['Both on your plates:', 'the door opens ☀ ☾']).position.y = 29;
 
   // ================================================================ 3. THE COURTYARD OF FLOWERS
   const tiles = mat(0xe8d4c8, { roughness: 0.8 });
@@ -380,7 +390,7 @@ export function buildCh2Day(root, scene) {
   for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; const p = add(petals, new THREE.SphereGeometry(0.55, 10, 6), mat(0xffd84a, { roughness: 0.5 }), Math.cos(a) * 1.75, -0.2, Math.sin(a) * 1.75, { cast: false }); p.scale.set(1, 0.25, 0.5); p.rotation.y = -a; }
   world.add(petals);
   box(14, 24, -94, -91.4, 35.5, 34.8, wood, { col: { safe: true, surface: 'wood' } });
-  sign(world, 18.6, -88.2, 0.3, ['Sunflower lift: it rises', 'in Sun\'s light ☀']).position.y = CY;
+  sign(world, 19.6, -87.6, -Math.PI / 2, ['Sunflower lift: it rises', 'in Sun\'s light ☀']).position.y = CY;
   // the night-jasmine bridge (grows while Moon's light is at its root) to the east island
   const JB = { x: 18.5, z0: -66, z1: -52 };
   const vineM = new THREE.MeshStandardMaterial({ color: 0x5a7ad0, emissive: 0x6a5aff, emissiveIntensity: 0.5, roughness: 0.6 });
@@ -390,8 +400,8 @@ export function buildCh2Day(root, scene) {
   const blossoms = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.12, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 2.2, 2.4) }), 40);
   blossoms.userData.noHide = true; world.add(blossoms);
   const bo = new THREE.Object3D();
-  sign(world, 22.4, -67.6, 0.2, ['Night jasmine grows', 'in Moon\'s light ☾']).position.y = CY;
-  sign(world, 22, -80.5, -0.2, ['Light all three lamps:', '🟣 Moon · 🟡 Sun · 🩷 both at once']).position.y = CY;
+  sign(world, 21.6, -67.4, -Math.PI / 2, ['Night jasmine grows', 'in Moon\'s light ☾']).position.y = CY;
+  sign(world, 15.5, -84, -Math.PI / 2, ['Light all three lamps:', 'violet: Moon · gold: Sun', 'pink: both at once']).position.y = CY;
   // the exit gate in the east wall
   const exitDoor = add(world, new THREE.BoxGeometry(0.6, 3, 6), mat(0x8a5ac0, { roughness: 0.5 }), 38.7, CY + 1.5, -83);
   const exitCol = { type: 'box', x0: 38.4, x1: 39, z0: -86, z1: -80, top: CY + 3, bottom: CY, noGrab: true };
@@ -446,7 +456,7 @@ export function buildCh2Day(root, scene) {
   shadow.userData.noHide = true;
   sp.userData.noHide = sp2.userData.noHide = true;
   world.add(shadow);
-  sign(world, 42.5, RZ + 2.0, -0.3, ['Run! The shadow follows.', 'A flare pushes it back ✦']).position.y = CY;
+  sign(world, 42.5, RZ + 2.0, -Math.PI / 2, ['Run! The shadow follows.', 'A flare pushes it back ✦']).position.y = CY;
 
   // ================================================================ 5. 7:13 PM
   for (let i = 0; i < 5; i++) {
@@ -459,7 +469,7 @@ export function buildCh2Day(root, scene) {
   phone.g.rotation.y = -Math.PI / 2;
   colliders.push({ type: 'box', x0: PH.x + 0.3, x1: PH.x + 2.1, z0: PH.z - 1.2, z1: PH.z + 1.2, top: PH.y + 1.6, bottom: PH.y });
   meadow(world, [{ x: PH.x, z: PH.z, r: PH.r, flowers: 50 }], [[PH.x + 1.2, PH.z, 2]], { flowerCols: [0xffffff, 0xc6b3ff, 0xffd27a, 0xff8fbf] });
-  sign(world, 137.4, RZ + 2.0, -0.4, ['Pink tiles: both lights', 'at once. Hold hands? ♥']).position.y = CY;
+  sign(world, 137.4, RZ + 2.0, -Math.PI / 2, ['Pink tiles: both lights', 'at once. Hold hands? ♥']).position.y = CY;
   for (const [x, z, w] of [[60, -55, 8], [85, -110, 9], [130, -60, 7], [20, -40, 8]]) cloud(world, x, 10, z, w, w * 0.8, x * z);
 
   // the town below the rooftops (lit windows), for a full skyline
@@ -490,7 +500,7 @@ export function buildCh2Day(root, scene) {
   stars.push(makeStar(world, 'c2-run', 102.5, CY + 2.8, RZ, 4));               // over the chimneys
 
   // ---------------------------------------------------------------- state
-  let api = null, ringT = 0, doneT = -1;
+  let api = null, ringT = 0, doneT = -1, gateHeld = false, gateTold = false;
   const st = { gate: false, door: false, exit: false, lamps: { a: false, b: false, c: false } };
   let liftY = SF.y0, bridgeK = 0, shadowX = 36, shadowOn = false, caughtT = 0, gateK = 0, doorK = 0, exitK = 0;
   const flareT = { sun: -1e9, moon: -1e9 };   // when each one last flared near lamp C
@@ -529,8 +539,8 @@ export function buildCh2Day(root, scene) {
     story(ctx, t) {
       const sv = ctx.save.ch2 || {};
       if (sv.d2) loadState(ctx.save);
-      if (!sv.day && atPhone(ctx.pos.sun) && atPhone(ctx.pos.moon)) ctx.setSave('ch2/day', true);
-      if (sv.day && doneT < 0) {
+      if (!sv.day2 && atPhone(ctx.pos.sun) && atPhone(ctx.pos.moon)) ctx.setSave('ch2/day2', true);
+      if (sv.day2 && doneT < 0) {
         doneT = t;
         ctx.caption('12 October 2025 · 7:13 PM', 3000);
         setTimeout(() => ctx.caption('📞 Ring… ring…', 2600), 3100);
@@ -542,12 +552,15 @@ export function buildCh2Day(root, scene) {
       for (const a of anims) a(t, dt);
       const p = P();
       // 1. Moon's gate
-      if (!st.gate && gatePlate.update(p)) {
-        st.gate = true; saveKey('gate', true); api?.sound.play('shine');
-        api?.caption('☾ Moon\'s gate is open!', 2400);
-        api?.fx.sparks(new THREE.Vector3(MX, 2, -4), 0xb48cff, 40, 3);
-      } else gatePlate.update(p);
-      gateK = approach(gateK, st.gate ? 1 : 0, 0.8, dt);
+      // a hold-down plate: Moon's gate is open only while Sun stands on it
+      const held = gatePlate.update(p);
+      if (held && !gateHeld) {
+        api?.sound.play('shine');
+        api?.fx.sparks(new THREE.Vector3(MX, 2.4, -4), 0xb48cff, 40, 3);
+        if (!gateTold) { gateTold = true; api?.caption('☾ Moon\'s gate is open while you stand here', 2600); }
+      }
+      gateHeld = held;
+      gateK = approach(gateK, held ? 1 : 0, held ? 2.2 : 0.9, dt);
       gate.position.y = 1.5 - gateK * 3.1;
       gateCol.disabled = gateK > 0.7;
       // 2. tower: gears turn, the clock hands sweep, the pendulum swings, the door opens on both plates
