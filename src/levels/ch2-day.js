@@ -164,7 +164,7 @@ export function buildCh2Day(root, scene) {
   // ~9 m across; Moon's glide carries her ~15 m across. So "needs both" spots are WALLS too high to climb
   // alone (6.5 m) with light steps up them, or gaps wider than 16 m.
   // Sun: start → the canal wall (night steps) → market → alley wall (night steps, flare) → ferries
-  floor(-4, -0.15, -33.5, 9, 0, dayTop, daySide, { surface: 'wood' });
+  floor(-4, -0.15, -33.5, 15, 0, dayTop, daySide, { surface: 'wood' });
   const wallBlock = (x0, x1, z0, z1, top, m) => box(x0, x1, z0, z1, top, 0, m, { col: { safe: true, noGrab: true } });
   wallBlock(-4, -0.15, -12.5, -10.5, 7.0, stone);                                 // the canal gate-wall
   for (const [z, y] of [[-5.2, 1.8], [-7.0, 3.6], [-8.8, 5.4]]) specs.push({ kind: 'night', x: SX, y, z, w: 2.4, d: 1.5 });
@@ -174,7 +174,7 @@ export function buildCh2Day(root, scene) {
   for (const [z, y] of [[-34.8, 1.8], [-36.6, 3.6], [-38.4, 5.4]]) specs.push({ kind: 'night', x: -6.6, y, z, w: 2.4, d: 1.5 });
   floor(-8.4, -0.15, -50, -47, 0, dayTop, daySide, { surface: 'wood' });
   // Moon: gate (Sun's plate opens it) → rooftops climbing on day planks → down → alley wall (day steps, flare) → ferries
-  floor(0.15, 4, -14, 9, 0, nightTop, nightSide, { surface: 'carpet' });
+  floor(0.15, 4, -14, 15, 0, nightTop, nightSide, { surface: 'carpet' });
   for (let i = 0; i < 7; i++) box(0.15, 4, -14 - (i + 1) * 0.5, -14 - i * 0.5, (i + 1) * 0.43, 0, nightSide, { col: { safe: true, surface: 'carpet' } });
   box(0.15, 4, -21, -17.5, 3.0, 0, nightSide, { col: { safe: true, surface: 'carpet' } });
   for (const [z, y] of [[-22.3, 4.6], [-24.1, 6.2], [-25.9, 7.8]]) specs.push({ kind: 'day', x: MX, y, z, w: 2.4, d: 1.5 });
@@ -196,6 +196,7 @@ export function buildCh2Day(root, scene) {
   // Moon's gate, opened from Sun's plate
   const gateM = mat(0x6a4a8a, { roughness: 0.6 });
   const gate = add(world, rbox(3.7, 3, 0.4, 0.1), gateM, MX, 1.5, -4);
+  gate.userData.noHide = true;
   const gateCol = { type: 'box', x0: 0.15, x1: 4, z0: -4.2, z1: -3.8, top: 3, bottom: 0, noGrab: true };
   colliders.push(gateCol);
   const gatePlate = plate(world, { x: SX, y: 0, z: -2.2, who: 'sun' });
@@ -210,7 +211,7 @@ export function buildCh2Day(root, scene) {
   crate(-3.3, 0, -18.1); crate(-1.2, 0, -21.9); crate(-2.35, 0, -21.9);
   crate(-3.3, 0, -26); crate(-3.3, 1.1, -26);
   // the time wall between the streets
-  const wallLen = 9 - -66, wallZ = (9 + -66) / 2;
+  const wallLen = 15 - -66, wallZ = (15 + -66) / 2;
   const wallMat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
     uniforms: { time: { value: 0 } },
@@ -232,17 +233,19 @@ export function buildCh2Day(root, scene) {
   wall.renderOrder = 2;
   world.add(wall);
   anims.push((t) => { wallMat.uniforms.time.value = t; });
-  colliders.push({ type: 'box', x0: -0.15, x1: 0.15, z0: -66, z1: 9, top: 40, bottom: -30, noGrab: true, noCam: true });
+  colliders.push({ type: 'box', x0: -0.15, x1: 0.15, z0: -66, z1: 15, top: 40, bottom: -30, noGrab: true, noCam: true });
   // clocks at the start: two hours apart (hanging over each street, facing you)
   for (const [x, h, night, label, wallX] of [[SX, 5, false, 'Halle', -4.2], [MX, 7, true, 'Damascus', 4.2]]) {
     const g = new THREE.Group();
-    g.position.set(x, 5.4, 0.6);
+    g.position.set(x, 8.2, 0.6);
     world.add(g);
+    const px = wallX > 0 ? 3.75 : -3.75;
+    add(world, new THREE.CylinderGeometry(0.09, 0.12, 9.6, 10), mat(0x3a3048, { roughness: 0.5, metalness: 0.5 }), px, 4.8, 0.6).userData.noHide = true;
     const face = new THREE.MeshStandardMaterial({ map: clockTex(h, 13, night, label), roughness: 0.6, emissive: night ? 0xffffff : 0x000000, emissiveMap: night ? clockTex(h, 13, true, label) : null, emissiveIntensity: night ? 0.35 : 0 });
     add(g, new THREE.CylinderGeometry(0.95, 0.95, 0.16, 40).rotateX(Math.PI / 2), mat(night ? 0x8a78d8 : 0xc98a3a, { roughness: 0.4, metalness: 0.4 }), 0, 0, 0);
     for (const sg of [1, -1]) add(g, new THREE.CircleGeometry(0.86, 40).rotateY(sg > 0 ? 0 : Math.PI), face, 0, 0, sg * 0.1, { cast: false });
     const iron = mat(0x3a3048, { roughness: 0.5, metalness: 0.5 });
-    add(g, new THREE.BoxGeometry(Math.abs(wallX - x) + 0.3, 0.08, 0.08), iron, (wallX - x) / 2, 1.25, 0, { cast: false });
+    add(g, new THREE.BoxGeometry(Math.abs(px - x) + 0.2, 0.08, 0.08), iron, (px - x) / 2, 1.25, 0, { cast: false });
     add(g, new THREE.CylinderGeometry(0.025, 0.025, 0.32, 6), iron, 0, 1.05, 0, { cast: false });
     g.traverse((o) => { o.userData.noHide = true; });
   }
@@ -265,7 +268,9 @@ export function buildCh2Day(root, scene) {
   if (K.has('Wall_Plaster_Straight')) {
     let sd = 40;
     const sunHouse = (front) => (zc, w, i) => { const d = [6, 4, 6][i % 3]; house(world, front - d / 2, 0, zc, { w, d, floors: 2 + (i % 2), rotY: Math.PI / 2, seed: sd++ }); };
-    row(12, -28, -4.15, -1, sunHouse(-4.15));
+    row(15, -28, -4.15, -1, sunHouse(-4.15));
+    // behind the start: the street ends at a house, not in the sky
+    house(world, -2.1, 0, 17, { w: 4, d: 4, floors: 3, rotY: Math.PI, seed: 77 });
     row(-50.2, -70, -4.15, -1, sunHouse(-4.15));
     row(-28, -51, -8.55, -1, sunHouse(-8.55));               // the alley's far side
     // the house block between Sun's alley and the time wall
@@ -275,16 +280,18 @@ export function buildCh2Day(root, scene) {
   world.children.forEach((c) => { if (c.isGroup) c.userData.noHide = true; });
   colliders.push({ type: 'box', x0: -4.6, x1: -0.4, z0: -46.2, z1: -34.2, top: 10, bottom: 0, noGrab: true });
   colliders.push({ type: 'box', x0: -16, x1: -8.6, z0: -51, z1: -28, top: 14, bottom: 0, noGrab: true });
-  colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -28, z1: 12, top: 14, bottom: 0, noGrab: true });
+  colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -28, z1: 15, top: 14, bottom: 0, noGrab: true });
+  colliders.push({ type: 'box', x0: -4.2, x1: 4.2, z0: 15, z1: 19, top: 14, bottom: 0, noGrab: true });
   colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -70, z1: -50.2, top: 14, bottom: 0, noGrab: true });
   let hs = 3;
-  row(12, -70, 4.15, 1, (zc, w, i) => { const d = [5, 6, 5.5][i % 3]; shamiHouse(world, 4.15 + d / 2, 0, zc, w, d, [5, 7, 4.5, 6, 6.5][i % 5], { rotY: -Math.PI / 2, seed: hs++ }); });
+  shamiHouse(world, 2.1, 0, 17, 4, 4, 7.5, { rotY: Math.PI, seed: 78 });
+  row(15, -70, 4.15, 1, (zc, w, i) => { const d = [5, 6, 5.5][i % 3]; shamiHouse(world, 4.15 + d / 2, 0, zc, w, d, [5, 7, 4.5, 6, 6.5][i % 5], { rotY: -Math.PI / 2, seed: hs++ }); });
   // the ground under the town, so nothing floats (the time river stays open)
   const groundM = mat(0xb9a3b8, { roughness: 0.95 });
-  add(world, new THREE.BoxGeometry(32, 2, 66), groundM, -1, -1.08, -17, { cast: false }).receiveShadow = true;
+  add(world, new THREE.BoxGeometry(32, 2, 72), groundM, -1, -1.08, -14, { cast: false }).receiveShadow = true;
   add(world, new THREE.BoxGeometry(32, 2, 8), groundM, -1, -1.08, -68, { cast: false }).receiveShadow = true;
   for (const sx of [-1, 1]) add(world, new THREE.BoxGeometry(11.5, 2, 16), groundM, sx * 10.25, -1.08, -57, { cast: false });
-  colliders.push({ type: 'box', x0: 4.2, x1: 14, z0: -70, z1: 12, top: 14, bottom: 0, noGrab: true });
+  colliders.push({ type: 'box', x0: 4.2, x1: 14, z0: -70, z1: 15, top: 14, bottom: 0, noGrab: true });
   world.children.forEach((c) => { if (c.isGroup && c !== wall) c.userData.noHide = true; });
   // night lanterns on Moon's side, flowers on Sun's
   const lanternMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.5, 0.8) });
@@ -513,7 +520,7 @@ export function buildCh2Day(root, scene) {
     checkpoint(world, { x: 134.5, y: CY, z: RZ - 1.6, r: 3, sun: [134, CY, RZ - 0.8], moon: [134, CY, RZ + 0.8], yaw: -Math.PI / 2, label: '7:13 PM' }),
   ];
   stars.push(makeStar(world, 'c2-sun', -3.2, 3.6, -26, 0));               // on the crate stack
-  stars.push(makeStar(world, 'c2-moon', MX, 4.6, -24, 1));                // over Moon's roof planks
+  stars.push(makeStar(world, 'c2-moon', MX, 10.8, -28.5, 1));              // on top of Moon's high roof
   stars.push(makeStar(world, 'c2-tower', 7.2, 20.4, TZ, 2));              // above gear 2
   stars.push(makeStar(world, 'c2-flare', 14.6, 37.6, -92.6, 3));          // the balcony's corner
   stars.push(makeStar(world, 'c2-run', 102.5, CY + 2.8, RZ, 4));               // over the chimneys
