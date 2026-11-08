@@ -171,6 +171,7 @@ const levelApi = {
   toast: (m) => ui.toast(m),
   caption: (m, ms) => caption(m, ms),
   get save() { return G.save; },
+  respawn: (r) => respawn(ctls[r]),
   setSave: (k, v) => G.net?.setSave(k, v),
   /** throw one of our own bodies into the air (bubble pops, bouncy things…) */
   launch(r, vy, vx = 0, vz = 0) {
@@ -278,6 +279,8 @@ function switchLevel(id) {
   }
   G.hold = false;
   G.track.buf.length = 0; G.track.has = false; G.partnerK = null;
+  applyCheckpoint();
+  G.cpApplied = world.id;
   rebuildColliders();
   shownAll = false;
   onStars(G.starsMap);
@@ -295,10 +298,12 @@ function chooseLevel(id) {
   if (id === 'ch1-square') G.net.setSave('ch1', null);
   if (id === 'ch1-cards') { G.net.setSave('ch1/cards', null); G.net.setSave('ch1/trex', null); }
   if (id === 'ch1-plane') { G.net.setSave('ch1/plane', null); G.net.setSave('ch1/planeDone', null); }
-  if (id === 'ch2-day') G.net.setSave('ch2/day', null);
+  if (id === 'ch2-day') { G.net.setSave('ch2/day', null); G.net.setSave('ch2/d2', null); }
   if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); }
   if (id === 'ch2-shy') { G.net.setSave('ch2/shy', null); G.net.setSave('ch2/shyOpen', null); }
   if (id === 'ch3-bridge') G.net.setSave('ch3', null);
+  G.net.setSave('cp', null);
+  if (G.save) G.save.cp = null;
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
@@ -533,6 +538,7 @@ function startSession(kind, role, word) {
     G.save = sv;
     // both phones always follow the shared level; a new room starts at the Prologue
     const lvl = sv.level || 'prologue';
+    if (lvl === world.id && G.cpApplied !== world.id) { G.cpApplied = world.id; applyCheckpoint(); }
     if (lvl !== world.id) {
       if (G.portal && G.portal.from === world.id && G.mode === 'play') {
         const got = world.stars.filter((x) => x.collected).length, all = world.stars.length, from = world.id;
@@ -700,10 +706,17 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   // camera-relative input direction
   const yaw = G.cam.yaw;
   const fx_ = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
-  const mag = Math.min(1, Math.hypot(mv.x, mv.y));
+  let mag = Math.min(1, Math.hypot(mv.x, mv.y));
   let ix = rx * mv.x + fx_ * mv.y, iz = rz * mv.x + fz * mv.y;
   const il = Math.hypot(ix, iz);
   if (il > 1e-4) { ix /= il; iz /= il; } else { ix = 0; iz = 0; }
+  // side-view sections: left/right only, along the lane
+  const lane = (ctl.lane = laneAt(b.pos));
+  if (lane) {
+    const m = Math.abs(mv.x) > 0.15 ? mv.x : 0;
+    mag = Math.min(1, Math.abs(m));
+    ix = lane.ax * Math.sign(m); iz = lane.az * Math.sign(m);
+  }
   ctl.regrab = Math.max(0, ctl.regrab - dt);
   ctl.wjLock = Math.max(0, ctl.wjLock - dt);
 
@@ -720,6 +733,7 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   if (wantDash && ctl.dashCd <= 0 && !ctl.carrying && !ctl.boxCarry && (b.grounded || !ctl.airDashUsed)) {
     let ddx = ix, ddz = iz;
     if (mag < 0.2) { const y = chars[role].yaw; ddx = Math.sin(y); ddz = Math.cos(y); }
+    if (lane) { const sg = Math.sign(ddx * lane.ax + ddz * lane.az) || 1; ddx = lane.ax * sg; ddz = lane.az * sg; }
     ctl.dashX = ddx; ctl.dashZ = ddz; ctl.dashT = DASH_TIME; ctl.dashCd = 0.45;
     if (!b.grounded) ctl.airDashUsed = true;
     chars[role].setYaw(Math.atan2(ddx, ddz));
@@ -781,6 +795,7 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   const gliding = role === 'moon' && !b.grounded && jumpHeld && b.vel.y < 0 && ctl.airT > 0.15 && ctl.wallT <= 0;
   b.maxFall = gliding ? 2.2 : ctl.wallT > 0 ? 3.2 : 28;
 
+  if (lane) pinToLane(b, lane, dt);
   const landed = moveBody(b, colliders, dt);
   if (landed) {
     if (landed.collider.bounce) {
@@ -816,7 +831,65 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
     if (ctl.safeT > 0.35) ctl.safe.copy(b.pos);
   } else ctl.safeT = 0;
 
-  if (b.pos.y < world.killY) respawn(ctl);
+  if (b.pos.y < world.killY || world.killAt?.(b.pos)) respawn(ctl);
+}
+
+// ---------------------------------------------------------------- side-view lanes
+// world.lanes: [{ ax, az (unit, = screen right), px, pz (start), len, half, y0, y1, dist, pitch }]
+function laneAt(p) {
+  const L = world.lanes;
+  if (!L) return null;
+  for (const l of L) {
+    if (p.y < l.y0 || p.y > l.y1) continue;
+    const dx = p.x - l.px, dz = p.z - l.pz;
+    const t = dx * l.ax + dz * l.az, o = dx * -l.az + dz * l.ax;
+    if (t >= -0.5 && t <= l.len + 0.5 && Math.abs(o) <= l.half) return l;
+  }
+  return null;
+}
+function pinToLane(b, l, dt) {
+  const nx = -l.az, nz = l.ax;
+  const o = (b.pos.x - l.px) * nx + (b.pos.z - l.pz) * nz - (l.off || 0);
+  const k = Math.min(1, dt * 10);
+  b.pos.x -= nx * o * k; b.pos.z -= nz * o * k;
+  const vn = b.vel.x * nx + b.vel.z * nz;
+  b.vel.x -= nx * vn; b.vel.z -= nz * vn;
+}
+
+// ---------------------------------------------------------------- checkpoints
+// world.checkpoints: [{ x, y, z, r, spawn: { sun: Vector3, moon: Vector3 }, yaw?, label? }]. Reaching one saves
+// cp = { l: level, i } for both; loading the level (or reloading the page) starts there.
+function checkpointUpdate() {
+  const C = world.checkpoints;
+  if (!C || G.mode !== 'play' || !G.net) return;
+  const cur = G.save?.cp?.l === world.id ? G.save.cp.i : -1;
+  const mine = G.kind === 'solo' ? [G.active] : [G.role];
+  for (let i = cur + 1; i < C.length; i++) {
+    const c = C[i];
+    if (mine.some((r) => { const p = bodies[r].pos; return Math.hypot(p.x - c.x, p.z - c.z) < c.r && Math.abs(p.y - c.y) < 3; })) {
+      G.net.setSave('cp', { l: world.id, i });
+      if (G.save) G.save.cp = { l: world.id, i };
+      for (const r of ROLES) ctls[r].safe.copy(c.spawn[r]);
+      caption(`✦ Checkpoint${c.label ? ': ' + c.label : ''}`, 2200);
+      sound.play('star', { vol: 0.5 });
+      break;
+    }
+  }
+}
+function applyCheckpoint() {
+  const cp = G.save?.cp;
+  if (!cp || cp.l !== world.id || !world.checkpoints?.[cp.i]) return false;
+  const c = world.checkpoints[cp.i];
+  for (const r of ROLES) {
+    bodies[r].pos.copy(c.spawn[r]); bodies[r].vel.set(0, 0, 0);
+    bodies[r].grounded = false; bodies[r].ground = null;
+    chars[r].root.position.copy(c.spawn[r]);
+    ctls[r].safe.copy(c.spawn[r]);
+  }
+  if (c.yaw != null) G.cam.yaw = c.yaw;
+  G.cam.target.copy(bodies[G.active].pos);
+  world.onCheckpoint?.(cp.i, G.save);
+  return true;
 }
 
 function startHang(ctl, L) {
@@ -924,7 +997,8 @@ function respawn(ctl) {
   if (world.respawnNearPartner) {
     const other = otherRole(ctl.role), pp = partnerPos(ctl.role);
     const grounded = G.kind === 'solo' ? bodies[other].grounded : G.track.grounded;
-    if (pp && grounded && pp.y > world.killY + 4) b.pos.set(pp.x, pp.y + 1.2, pp.z + 0.9);
+    const ok = typeof world.respawnNearPartner !== 'function' || world.respawnNearPartner(pp, ctl.safe);
+    if (ok && pp && grounded && pp.y > world.killY + 4) b.pos.set(pp.x, pp.y + 1.2, pp.z + 0.9);
   }
   b.vel.set(0, 0, 0);
   b.ground = null; b.grounded = false;
@@ -1014,7 +1088,12 @@ function updateCamera(dt) {
     return;
   }
   const d = input.takeCam();
-  if (d.x || d.y) {
+  const ln = ctls[G.active]?.lane;
+  if (ln) {   // side view: the camera swings to the side of the lane and stays there
+    c.yaw = dampAngle(c.yaw, Math.atan2(-ln.az, ln.ax), 4, dt);
+    c.pitch = damp(c.pitch, ln.pitch ?? 0.14, 4, dt);
+    c.lastDrag = G.t;
+  } else if (d.x || d.y) {
     c.yaw -= d.x * 0.0065;
     c.pitch = clamp(c.pitch + d.y * 0.0045, -0.2, 1.2);
     c.lastDrag = G.t;
@@ -1022,7 +1101,7 @@ function updateCamera(dt) {
   const b = bodies[G.active];
   // gently swing the camera behind the direction of travel (never when walking towards the camera)
   const sp = Math.hypot(b.vel.x, b.vel.z);
-  if (sp > 1.5 && G.t - c.lastDrag > 1.2) {
+  if (sp > 1.5 && G.t - c.lastDrag > 1.2 && !ln) {
     const behind = Math.atan2(-b.vel.x, -b.vel.z);
     const diff = angleDiff(c.yaw, behind);
     if (Math.abs(diff) < 1.75) c.yaw += clamp(diff, -1, 1) * Math.min(1, sp / SPEED) * 0.9 * dt;
@@ -1036,7 +1115,7 @@ function updateCamera(dt) {
   if (z !== 1 && Number.isFinite(z) && z > 0) { c.zoom = clamp(c.zoom * z, 0.55, 1.8); store.set('camZoom', +c.zoom.toFixed(2)); }
   if (!Number.isFinite(c.zoom)) c.zoom = 1;
   if (!Number.isFinite(c.cur)) c.cur = c.dist;
-  const want = c.dist * c.zoom * (camera.aspect < 1 ? 1.2 : 1) * (world.kid ? 0.88 : 1);
+  const want = ln ? (ln.dist ?? 11) * (camera.aspect < 1 ? 1.35 : 1) : c.dist * c.zoom * (camera.aspect < 1 ? 1.2 : 1) * (world.kid ? 0.88 : 1);
   const cp = Math.cos(c.pitch);
   _dir.set(Math.sin(c.yaw) * cp, Math.sin(c.pitch), Math.cos(c.yaw) * cp);
   // don't let walls and blocks get between the camera and the player: pull in fast, ease back out
@@ -1335,7 +1414,7 @@ function frame(nowMs) {
 
   updateCamera(dt);
   runFrameHooks(G.t, dt, camera);
-  if (G.mode === 'play') portalUpdate(dt);
+  if (G.mode === 'play') { portalUpdate(dt); checkpointUpdate(); }
   if (G.bata?.root.visible) G.bata.animate(G.t, G.bata.talking);
   motes.update(G.cam.target, G.t, dt);
   updateArrow(partnerVisible);

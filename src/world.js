@@ -16,7 +16,7 @@ export const LEVELS = {
   'ch1-square': { build: buildCh1Square, title: 'Chapter 1 · The Town Square', chip: '💬 Ch.1 Town Square', music: 'town', ch: 1, n: 1, name: 'The Town Square', stars: ['c1-sun', 'c1-moon', 'c1-debate'] },
   'ch1-cards': { build: buildCh1Cards, title: 'Chapter 1 · The Card Tables', chip: '🃏 Ch.1 Card Tables', music: 'paws', ch: 1, n: 2, name: 'The Card Tables', stars: ['c1-card', 'c1-chips', 'c1-trex'] },
   'ch1-plane': { build: buildCh1Plane, title: 'Chapter 1 · 8 October', chip: '✈️ Ch.1 8 October', music: 'lonely', ch: 1, n: 3, name: '8 October', stars: ['c1-msg', 'c1-bridge', 'c1-tower'] },
-  'ch2-day': { build: buildCh2Day, title: 'Chapter 2 · Night & Day', chip: '🌗 Ch.2 Night & Day', music: 'mystic', ch: 2, n: 1, name: 'Night & Day', stars: ['c2-sun', 'c2-moon', 'c2-flare'] },
+  'ch2-day': { build: buildCh2Day, title: 'Chapter 2 · Night & Day', chip: '🌗 Ch.2 Night & Day', music: 'mystic', ch: 2, n: 1, name: 'Night & Day', stars: ['c2-sun', 'c2-moon', 'c2-tower', 'c2-flare', 'c2-run'], kits: ['medieval'] },
   'ch2-call': { build: buildCh2Call, title: 'Chapter 2 · The Four-Hour Call', chip: '📞 Ch.2 The Call', music: 'hideout', ch: 2, n: 2, name: 'The Four-Hour Call', stars: ['c2-static', 'c2-wave', 'c2-twilight'] },
   'ch2-shy': { build: buildCh2Shy, title: 'Chapter 2 · Kann ich mit dir flirten?', chip: '💜 Ch.2 Shyness', music: 'devil', ch: 2, n: 3, name: '"Kann ich mit dir flirten?"', stars: ['c2-shy'] },
   'ch3-bridge': { build: buildCh3Bridge, title: 'Chapter 3 · The Stone Bridge', chip: '🌉 Ch.3 Stone Bridge', music: 'winter', amb: 'waves', ambVol: 0.3, ch: 3, n: 1, name: 'The Stone Bridge', stars: ['c3-stack', 'c3-tape', 'c3-zip'], kits: ['medieval', 'npc'] },

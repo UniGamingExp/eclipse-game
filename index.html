@@ -13,12 +13,13 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preload" href="assets/fonts/fredoka.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/nunito.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=0f14a72b45">
+<link rel="stylesheet" href="style.css?v=8505aa1bd3">
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="hud" hidden>
+  <div id="keys">🖱 Click the game to look around with the mouse · <b>WASD</b> move · <b>Space</b> jump · <b>Shift</b> dash · <b>E</b> / click power · <b>R</b> lift · <b>Q</b> switch · <b>H</b> heart · <b>Esc</b> mouse back</div>
   <button id="status-pill" class="pill"><span class="dot"></span><span id="status-text">…</span></button>
   <div id="top-right">
     <div id="stars" class="pill">⭐ <span id="star-count">0</span>/<span id="star-total">3</span></div>
@@ -30,12 +31,12 @@
     <div id="joy-base" hidden><div id="joy-knob"></div></div>
   </div>
 
-  <button id="btn-heart" class="act small" aria-label="Send a heart">♥</button>
-  <button id="btn-swap" class="act small" aria-label="Switch character" hidden>⇄</button>
-  <button id="btn-dash" class="act small" aria-label="Dash"><span class="ic">»</span><span class="lbl">Dash</span></button>
-  <button id="btn-lift" class="act small" aria-label="Lift Moon" hidden><span class="ic">🤲</span><span class="lbl" id="lift-label">Lift</span></button>
-  <button id="btn-ability" class="act mid"><span class="ic">✦</span><span class="lbl" id="ability-label">Shine</span></button>
-  <button id="btn-jump" class="act big"><span class="ic">▲</span><span class="lbl">Jump</span></button>
+  <button id="btn-heart" data-key="H" class="act small" aria-label="Send a heart">♥</button>
+  <button id="btn-swap" data-key="Q" class="act small" aria-label="Switch character" hidden>⇄</button>
+  <button id="btn-dash" data-key="Shift" class="act small" aria-label="Dash"><span class="ic">»</span><span class="lbl">Dash</span></button>
+  <button id="btn-lift" data-key="R" class="act small" aria-label="Lift Moon" hidden><span class="ic">🤲</span><span class="lbl" id="lift-label">Lift</span></button>
+  <button id="btn-ability" data-key="E" class="act mid"><span class="ic">✦</span><span class="lbl" id="ability-label">Shine</span></button>
+  <button id="btn-jump" data-key="Space" class="act big"><span class="ic">▲</span><span class="lbl">Jump</span></button>
 
   <div id="partner-arrow" hidden><span id="partner-arrow-icon">🌙</span></div>
   <div id="toasts"></div>
@@ -201,6 +202,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=0f14a72b45"></script>
+<script type="module" src="build/game.js?v=8505aa1bd3"></script>
 </body>
 </html>

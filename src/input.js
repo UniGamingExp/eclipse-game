@@ -91,7 +91,27 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
   function camEnd(e) { cams.delete(e.pointerId); pinchD = 0; }
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); st.zoom *= Math.exp(e.deltaY * 0.001); }, { passive: false });
   canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); camStart(e); });
-  canvas.addEventListener('pointermove', camMove);
+  canvas.addEventListener('pointermove', (e) => { if (document.pointerLockElement !== canvas) camMove(e); });
+
+  // ---- laptop: click the game to steer the camera with the mouse (Esc gives the pointer back) ----
+  const fine = matchMedia('(pointer: fine)').matches && !('ontouchstart' in window);
+  if (fine) {
+    document.body.classList.add('desktop');
+    canvas.addEventListener('click', () => { if (st.enabled && document.pointerLockElement !== canvas) canvas.requestPointerLock?.()?.catch?.(() => {}); });
+    document.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement !== canvas) return;
+      st.camDX += e.movementX * 0.7; st.camDY += e.movementY * 0.7;
+    });
+    document.addEventListener('pointerlockchange', () => document.body.classList.toggle('mouselook', document.pointerLockElement === canvas));
+    // mouse buttons while the mouse is locked: left = power, right = lift / throw
+    canvas.addEventListener('mousedown', (e) => {
+      if (document.pointerLockElement !== canvas) return;
+      if (e.button === 0) press('ability');
+      if (e.button === 2) press('lift');
+    });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  st.desktop = fine;
   canvas.addEventListener('pointerup', camEnd);
   canvas.addEventListener('pointercancel', camEnd);
 
@@ -130,6 +150,7 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
     if (e.code === 'Space') { press('jump'); st.jumpHeld = true; e.preventDefault(); }
     if (e.code === 'KeyE') press('ability');
     if (e.code === 'KeyH') press('heart');
+    if (e.code === 'KeyF') press('ability');
     if (e.code === 'KeyQ') press('swap');
     if (e.code === 'KeyR') press('lift');
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyK') press('dash');

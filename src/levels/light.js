@@ -69,6 +69,7 @@ export function createLights(world, colliders, specs) {
       cd.sun -= dt; cd.moon -= dt;
       const P = { sun: posOf('sun'), moon: posOf('moon') };
       const rad = { sun: radius('sun', sNow), moon: radius('moon', sNow) };
+      state.P = P; state.rad = rad; state.sNow = sNow;
       for (const r of ['sun', 'moon']) {
         const a = auras[r];
         a.g.visible = !!P[r];
@@ -102,5 +103,15 @@ export function createLights(world, colliders, specs) {
       }
     },
   };
-  return { abilities, attach(a) { api = a; }, plats, flareUntil };
+  const state = { P: { sun: null, moon: null }, rad: { sun: R, moon: R }, sNow: 0 };
+  /** is the point (x, z) inside the glow of `who` ('sun' | 'moon' | 'twilight' = both)? pad widens the test */
+  const glowAt = (r, x, z, pad) => state.P[r] && Math.hypot(state.P[r].x - x, state.P[r].z - z) < state.rad[r] + pad;
+  function isLit(kind, x, z, pad = 0) {
+    if (kind === 'day' || kind === 'sun') return !!glowAt('sun', x, z, pad);
+    if (kind === 'night' || kind === 'moon') return !!glowAt('moon', x, z, pad);
+    return !!(glowAt('sun', x, z, pad) && glowAt('moon', x, z, pad));
+  }
+  /** is `who` flaring right now, within `dist` of (x, z)? */
+  const flaringNear = (r, x, z, dist) => state.sNow < flareUntil[r] && state.P[r] && Math.hypot(state.P[r].x - x, state.P[r].z - z) < dist;
+  return { abilities, attach(a) { api = a; }, plats, flareUntil, isLit, flaringNear, state };
 }
