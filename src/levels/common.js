@@ -101,7 +101,7 @@ export function sign(parent, x, z, rotY, lines) {
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
-  const face = add(g, new THREE.PlaneGeometry(1.76, 0.7), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), 0, 1.25, 0.065, { cast: false });
+  const face = add(g, new THREE.PlaneGeometry(1.76, 0.7), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), 0, 1.25, 0.085, { cast: false });
   face.receiveShadow = true;
   return g;
 }
@@ -128,7 +128,7 @@ export function hangSign(parent, x, y, z, lines, { rotY = 0, wallX = null, w = 2
   lines.forEach((l, i) => cx.fillText(l, cv.width / 2, cv.height / 2 + (i - (lines.length - 1) / 2) * size * 1.12, cv.width - 30));
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  for (const sgn of [1, -1]) add(g, new THREE.PlaneGeometry(w - 0.14, h - 0.12).rotateY(sgn > 0 ? 0 : Math.PI), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), 0, 0, sgn * 0.056, { cast: false });
+  for (const sgn of [1, -1]) add(g, new THREE.PlaneGeometry(w - 0.14, h - 0.12).rotateY(sgn > 0 ? 0 : Math.PI), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), 0, 0, sgn * 0.075, { cast: false });
   // chains up to the bracket, and the bracket to the wall
   for (const sx of [-w * 0.38, w * 0.38]) add(g, new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), iron, sx, h / 2 + 0.25, 0, { cast: false });
   if (wallX != null) {           // (assumes rotY = 0: the wall is along x)

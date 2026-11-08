@@ -32,7 +32,7 @@ function canvasTex(w, h, draw) {
   t.anisotropy = 4;
   return t;
 }
-const clockTex = (h, m, night) => canvasTex(512, 512, (g) => {
+const clockTex = (h, m, night, label = '') => canvasTex(512, 512, (g) => {
   const C = 256, R = 244;
   g.fillStyle = night ? '#2f2a66' : '#fff3da'; g.beginPath(); g.arc(C, C, R, 0, Math.PI * 2); g.fill();
   g.lineWidth = 18; g.strokeStyle = night ? '#b9a6ff' : '#c98a3a'; g.stroke();
@@ -46,6 +46,7 @@ const clockTex = (h, m, night) => canvasTex(512, 512, (g) => {
     hand(m / 60 * Math.PI * 2, 170, 13);
     g.fillStyle = night ? '#ffffff' : '#3a2810'; g.beginPath(); g.arc(C, C, 16, 0, Math.PI * 2); g.fill();
   }
+  if (label) { g.font = '600 40px Fredoka, sans-serif'; g.fillStyle = night ? '#ffd27a' : '#b0602a'; g.fillText(label, C, C + 105); }
 });
 /** façade with lit windows (night town) */
 const windowsTex = (warm) => {
@@ -167,7 +168,7 @@ export function buildCh2Day(root, scene) {
   const wallBlock = (x0, x1, z0, z1, top, m) => box(x0, x1, z0, z1, top, 0, m, { col: { safe: true, noGrab: true } });
   wallBlock(-4, -0.15, -12.5, -10.5, 7.0, stone);                                 // the canal gate-wall
   for (const [z, y] of [[-5.2, 1.8], [-7.0, 3.6], [-8.8, 5.4]]) specs.push({ kind: 'night', x: SX, y, z, w: 2.4, d: 1.5 });
-  floor(-8.4, -3.9, -33.5, -30, 0, dayTop, daySide, { surface: 'wood' });          // corner into the alley
+  floor(-8.4, -3.9, -33.5, -28, 0, dayTop, daySide, { surface: 'wood' });          // corner into the alley
   floor(-8.4, -4.8, -47, -33.5, 0, dayTop, daySide, { surface: 'wood' });          // the alley
   wallBlock(-8.4, -4.8, -42, -40, 7.0, stone);
   for (const [z, y] of [[-34.8, 1.8], [-36.6, 3.6], [-38.4, 5.4]]) specs.push({ kind: 'night', x: -6.6, y, z, w: 2.4, d: 1.5 });
@@ -232,13 +233,18 @@ export function buildCh2Day(root, scene) {
   world.add(wall);
   anims.push((t) => { wallMat.uniforms.time.value = t; });
   colliders.push({ type: 'box', x0: -0.15, x1: 0.15, z0: -66, z1: 9, top: 40, bottom: -30, noGrab: true, noCam: true });
-  // clocks at the start: two hours apart
-  for (const [x, rot, h, night, label] of [[SX - 1.9, Math.PI / 2, 5, false, 'Halle'], [MX + 1.9, -Math.PI / 2, 7, true, 'Damascus']]) {
-    const c = add(world, new THREE.CircleGeometry(0.9, 40), new THREE.MeshStandardMaterial({ map: clockTex(h, 13, night), roughness: 0.6, emissive: night ? 0x2a2060 : 0x000000 }), x, 2.6, 6.4, { cast: false });
-    c.rotation.y = rot;
-    add(world, new THREE.CylinderGeometry(0.06, 0.08, 2.0, 8), mat(0xdddde6), x, 1.0, 6.4);
-    colliders.push({ type: 'cyl', x, z: 6.4, r: 0.1, top: 2.2, bottom: 0, noStep: true, noGrab: true });
-    sign(world, x + (x < 0 ? 0.9 : -0.9), 4.2, rot, [label]).scale.setScalar(0.7);
+  // clocks at the start: two hours apart (hanging over each street, facing you)
+  for (const [x, h, night, label, wallX] of [[SX, 5, false, 'Halle', -4.2], [MX, 7, true, 'Damascus', 4.2]]) {
+    const g = new THREE.Group();
+    g.position.set(x, 5.4, 0.6);
+    world.add(g);
+    const face = new THREE.MeshStandardMaterial({ map: clockTex(h, 13, night, label), roughness: 0.6, emissive: night ? 0xffffff : 0x000000, emissiveMap: night ? clockTex(h, 13, true, label) : null, emissiveIntensity: night ? 0.35 : 0 });
+    add(g, new THREE.CylinderGeometry(0.95, 0.95, 0.16, 40).rotateX(Math.PI / 2), mat(night ? 0x8a78d8 : 0xc98a3a, { roughness: 0.4, metalness: 0.4 }), 0, 0, 0);
+    for (const sg of [1, -1]) add(g, new THREE.CircleGeometry(0.86, 40).rotateY(sg > 0 ? 0 : Math.PI), face, 0, 0, sg * 0.1, { cast: false });
+    const iron = mat(0x3a3048, { roughness: 0.5, metalness: 0.5 });
+    add(g, new THREE.BoxGeometry(Math.abs(wallX - x) + 0.3, 0.08, 0.08), iron, (wallX - x) / 2, 1.25, 0, { cast: false });
+    add(g, new THREE.CylinderGeometry(0.025, 0.025, 0.32, 6), iron, 0, 1.05, 0, { cast: false });
+    g.traverse((o) => { o.userData.noHide = true; });
   }
   hangSign(world, SX, 3.5, 3.2, ['☀ Stand on the plate:', 'it holds Moon\'s gate open'], { wallX: -4.2 });
   hangSign(world, MX, 3.5, 3.2, ['☾ The gate opens while', 'Sun stands on his plate'], { wallX: 4.2 });
@@ -250,22 +256,35 @@ export function buildCh2Day(root, scene) {
   hangSign(world, MX, 3.5, -48.6, ['Ride the ferries', 'side by side ⛴'], { wallX: 4.2 });
 
   // Sun's side: the old town (half-timbered houses); Moon's side: Damascus at night
+  // rows of houses without gaps, fronts right at the street edge (seen from the street: no void)
+  const row = (z0, z1, front, dir, fn) => {   // fills z0 → z1 (z0 > z1) with houses 4 or 6 m wide
+    const W = [4, 6, 4, 4, 6];
+    let z = z0, i = 0;
+    while (z - 2 > z1) { const w = Math.min(W[i % W.length], Math.max(4, Math.round((z - z1) / 2) * 2)); fn(z - w / 2, w, i); z -= w; i++; }
+  };
   if (K.has('Wall_Plaster_Straight')) {
     let sd = 40;
-    for (const [z, w, d, fl] of [[4, 4, 6, 2], [-2, 4, 4, 3], [-9, 6, 6, 2], [-17, 4, 6, 3], [-24, 4, 4, 2], [-53, 4, 4, 2], [-57.5, 4, 6, 3], [-63, 4, 4, 2]]) house(world, -4 - d / 2 - 0.4, 0, z, { w, d, floors: fl, rotY: Math.PI / 2, seed: sd++ });
+    const sunHouse = (front) => (zc, w, i) => { const d = [6, 4, 6][i % 3]; house(world, front - d / 2, 0, zc, { w, d, floors: 2 + (i % 2), rotY: Math.PI / 2, seed: sd++ }); };
+    row(12, -28, -4.15, -1, sunHouse(-4.15));
+    row(-50.2, -70, -4.15, -1, sunHouse(-4.15));
+    row(-28, -51, -8.55, -1, sunHouse(-8.55));               // the alley's far side
     // the house block between Sun's alley and the time wall
     house(world, -2.5, 0, -37.2, { w: 6, d: 4, floors: 2, rotY: Math.PI / 2, style: 'plaster', seed: 51 });
     house(world, -2.5, 0, -43.2, { w: 6, d: 4, floors: 2, rotY: Math.PI / 2, seed: 52 });
-    for (const [z, w, d, fl] of [[-30, 4, 4, 3], [-38, 6, 6, 3], [-45, 4, 4, 2]]) house(world, -8.8 - d / 2 - 0.4, 0, z, { w, d, floors: fl, rotY: Math.PI / 2, seed: sd++ });
   }
   world.children.forEach((c) => { if (c.isGroup) c.userData.noHide = true; });
   colliders.push({ type: 'box', x0: -4.6, x1: -0.4, z0: -46.2, z1: -34.2, top: 10, bottom: 0, noGrab: true });
-  colliders.push({ type: 'box', x0: -16, x1: -8.6, z0: -50, z1: -28, top: 14, bottom: 0, noGrab: true });
-  colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -28, z1: 9, top: 14, bottom: 0, noGrab: true });
-  colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -66, z1: -50.2, top: 14, bottom: 0, noGrab: true });
+  colliders.push({ type: 'box', x0: -16, x1: -8.6, z0: -51, z1: -28, top: 14, bottom: 0, noGrab: true });
+  colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -28, z1: 12, top: 14, bottom: 0, noGrab: true });
+  colliders.push({ type: 'box', x0: -16, x1: -4.2, z0: -70, z1: -50.2, top: 14, bottom: 0, noGrab: true });
   let hs = 3;
-  for (const [z, w, d, hh] of [[5, 5, 4, 5], [-1, 5, 5, 7], [-8, 5, 6, 4.5], [-24, 6, 6, 4], [-33, 5, 5, 6.5], [-41, 5, 6, 5], [-48, 5, 5, 7], [-56, 5, 6, 5], [-62.5, 5, 5, 6]]) shamiHouse(world, 4.5 + d / 2, 0, z, w, d, hh, { rotY: -Math.PI / 2, seed: hs++ });
-  colliders.push({ type: 'box', x0: 4.2, x1: 14, z0: -66, z1: 9, top: 14, bottom: 0, noGrab: true });
+  row(12, -70, 4.15, 1, (zc, w, i) => { const d = [5, 6, 5.5][i % 3]; shamiHouse(world, 4.15 + d / 2, 0, zc, w, d, [5, 7, 4.5, 6, 6.5][i % 5], { rotY: -Math.PI / 2, seed: hs++ }); });
+  // the ground under the town, so nothing floats (the time river stays open)
+  const groundM = mat(0xb9a3b8, { roughness: 0.95 });
+  add(world, new THREE.BoxGeometry(32, 2, 66), groundM, -1, -1.08, -17, { cast: false }).receiveShadow = true;
+  add(world, new THREE.BoxGeometry(32, 2, 8), groundM, -1, -1.08, -68, { cast: false }).receiveShadow = true;
+  for (const sx of [-1, 1]) add(world, new THREE.BoxGeometry(11.5, 2, 16), groundM, sx * 10.25, -1.08, -57, { cast: false });
+  colliders.push({ type: 'box', x0: 4.2, x1: 14, z0: -70, z1: 12, top: 14, bottom: 0, noGrab: true });
   world.children.forEach((c) => { if (c.isGroup && c !== wall) c.userData.noHide = true; });
   // night lanterns on Moon's side, flowers on Sun's
   const lanternMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.5, 0.8) });
