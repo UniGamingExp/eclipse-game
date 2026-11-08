@@ -61,7 +61,11 @@ export const nature = placer(models);
 // medieval: Quaternius Medieval Village MegaKit (CC0), packed by scripts/pack-kit.mjs into assets/medieval.glb
 const KITS = { medieval: { url: 'assets/medieval.glb', models: new Map(), p: null } };
 /** start loading a kit (safe to call many times); resolves when ready */
+/** other modules can add kits with their own loader: registerKit(id, { load(version) → Promise, ready() → bool }) */
+const CUSTOM = {};
+export function registerKit(id, k) { CUSTOM[id] = k; }
 export function loadKit(id, version = '') {
+  if (CUSTOM[id]) return CUSTOM[id].load(version);
   const k = KITS[id];
   if (!k) return Promise.resolve();
   if (!k.p) {
@@ -91,7 +95,7 @@ export function loadKit(id, version = '') {
   }
   return k.p;
 }
-export const kitReady = (id) => !KITS[id] || KITS[id].models.size > 0;
+export const kitReady = (id) => (CUSTOM[id] ? CUSTOM[id].ready() : !KITS[id] || KITS[id].models.size > 0);
 export const kit = (id) => placer(KITS[id].models);
 
 function placer(models) { return {

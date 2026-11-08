@@ -12,6 +12,7 @@ import { mat, add, rbox, sign, sky, makeStar, spinStars, lights, cloud } from '.
 import { kit, nature } from '../nature.js';
 import { house, gateTower } from './medieval.js';
 import { createMoving, BOX } from './moving.js';
+import { townspeople } from '../npc.js';
 
 const DY = 6.8;        // bridge deck height above the bank
 const WATER = -3.6;    // Danube surface
@@ -337,6 +338,21 @@ export function buildCh3Bridge(root, scene) {
 
   for (const [x, z, w] of [[-34, -30, 7], [30, -70, 8], [-28, -84, 6], [36, -20, 6]]) cloud(world, x, 22, z, w, w * 0.7, x * z);
 
+  // ---------- townspeople in the background (never on the puzzle path) ----------
+  const PEOPLE = [
+    { who: 'PeasantM', x: -18, y: 0, z: 1.95, rotY: Math.PI, clip: 'Idle_Rail_Loop' },
+    { who: 'PeasantF2', x: 9.4, y: 0, z: 14.6, rotY: -2.2, clip: 'Idle_TalkingPhone_Loop' },
+    { who: 'PeasantM2', x: -6, y: 0, z: 19.4, path: [[-6, 19.4], [7, 19.4]] },
+    { who: 'RangerF', x: -2.5, y: DY, z: -46, rotY: -Math.PI / 2, clip: 'Idle_Rail_Loop' },
+    { who: 'PeasantF', x: -3.4, y: DY, z: -61.2, rotY: 0.4, clip: 'Idle_Lantern_Loop' },
+    { who: 'PeasantM', x: 4.7, y: DY, z: -106.0, rotY: Math.PI / 2, clip: 'Consume' },
+    { who: 'RangerM', x: 5.1, y: DY, z: -108.7, rotY: 1.1, clip: 'Consume' },
+    { who: 'PeasantF', x: -6.2, y: DY, z: -114.6, rotY: 0.8, clip: 'Yes' },
+    { who: 'PeasantM2', x: -4.9, y: DY, z: -113.3, rotY: -2.3, clip: 'Idle_FoldArms_Loop' },
+  ];
+  const crowd = townspeople(world, PEOPLE);
+  if (crowd) for (const q of PEOPLE) if (!q.path) colliders.push({ type: 'cyl', x: q.x, z: q.z, r: 0.35, top: (q.y ?? 0) + 1.5, bottom: q.y ?? 0, noGrab: true, noStep: true });
+
   // ---------- story ----------
   let api = null, doneT = -1;
   const seen = {};
@@ -387,6 +403,7 @@ export function buildCh3Bridge(root, scene) {
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      crowd?.update(dt);
       // the sun's shadow box follows the player (the level is long)
       if (api) {
         const p = api.bodies[api.active].pos;

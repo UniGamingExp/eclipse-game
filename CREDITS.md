@@ -50,6 +50,9 @@ Eclipse is a gift made for two people. It uses these free works. Thank you to th
 - **Medieval Village MegaKit** (Standard) by **Quaternius** (https://quaternius.com). **CC0**.
   Selected wall, roof, window and prop pieces, simplified and compressed into `assets/medieval.glb`; the houses and the bridge tower in
   Chapter 3 are assembled from them.
+- **Universal Base Characters**, **Modular Character Outfits – Fantasy** and **Universal Animation Library 2** (Standard) by **Quaternius**
+  (https://quaternius.com). **CC0**. Six background townspeople assembled from outfits, heads cut from the base bodies and hairstyles,
+  simplified and compressed into `assets/npc/npc.glb`; seven animation clips (without finger motion) in `assets/npc/npc-anim.glb`.
 
 ## Fonts
 

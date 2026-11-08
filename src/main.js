@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
 import { loadNature, loadKit, kitReady } from './nature.js';
+import './npc.js';
 import { makeBata } from './bata.js';
 import { makePortal } from './portal.js';
 import { runFrameHooks } from './levels/hooks.js';
@@ -92,7 +93,7 @@ setTimeout(() => $('#boot').remove(), 600);
 }
 let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
 // fetch the medieval kit in the background a little later, so Chapter 3 opens instantly
-setTimeout(() => { loadKit('medieval', __BUILD__).catch(() => {}); }, 9000);
+setTimeout(() => { loadKit('medieval', __BUILD__).catch(() => {}); loadKit('npc', __BUILD__).catch(() => {}); }, 9000);
 const fx = new Effects(scene, camera);
 const motes = makeMotes(scene);
 const ROLES = ['sun', 'moon'];
