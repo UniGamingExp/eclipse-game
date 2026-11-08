@@ -171,6 +171,7 @@ export function buildCh2Call(root, scene) {
     camYaw: { sun: 0, moon: 0 },
     lobbyCam: { cx: 0, cz: -55, r: 60, h: 24 },
     killY: -14,
+    portal: new THREE.Vector3(0, 6, -111.5),   // where the end-of-part portal opens
     respawnNearPartner: true,
     intro: { all: ['Part 2 · The Four-Hour Call', '7:13 PM. "Call you here or on Discord?" "Doesn\'t matter."'] },
     abilities: lit.abilities,

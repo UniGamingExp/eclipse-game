@@ -176,6 +176,7 @@ export function buildCh1Plane(root, scene) {
     camYaw: { sun: 0, moon: 0 },
     lobbyCam: { cx: 0, cz: -32, r: 46, h: 18 },
     killY: -14,
+    portal: new THREE.Vector3(-2.4, 0, -63.5),   // where the end-of-part portal opens
     intro: { all: ['Part 3 · 8 October', 'Out of all the noise… a paper plane. A private message. Catch it!'] },
     abilities: ab.abilities,
     bubbles: bub,

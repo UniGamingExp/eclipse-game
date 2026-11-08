@@ -145,6 +145,7 @@ export function buildCh2Shy(root, scene) {
     camYaw: { sun: 0, moon: 0 },
     lobbyCam: { cx: 0, cz: 0, r: 26, h: 12 },
     killY: -14,
+    portal: new THREE.Vector3(0, 0, -1),   // where the end-of-part portal opens
     respawnNearPartner: true,
     intro: { all: ['Part 3 · "Kann ich mit dir flirten?"', 'Around 10 PM, something big got in the way: SHYNESS.'] },
     abilities,

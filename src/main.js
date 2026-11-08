@@ -7,8 +7,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
 import { loadNature } from './nature.js';
 import { makeBata } from './bata.js';
+import { makePortal } from './portal.js';
 import { runFrameHooks } from './levels/hooks.js';
-import { loadLevel, LEVELS } from './world.js';
+import { loadLevel, LEVELS, nextLevel, partsOf, CHAPTERS } from './world.js';
 import { makeCharacter, MODE, SIZES, KID_SIZES } from './characters.js';
 import { Body, moveBody, findLedge, playerCollider, syncPlayerCollider } from './physics.js';
 import { createInput } from './input.js';
@@ -222,6 +223,7 @@ function switchLevel(id) {
   const wasKid = !!world.kid;
   world.dispose();
   capQ.length = 0;   // drop the old level's waiting captions
+  G.portal = null;
   world = loadLevel(scene, id);
   world.attach?.(levelApi);
   store.set('lastLevel', id);
@@ -242,7 +244,7 @@ function switchLevel(id) {
     G.cam.yaw = world.camYaw ? world.camYaw[G.active] : 0; G.cam.pitch = 0.3;
     G.cam.target.copy(bodies[G.active].pos);
     fade.classList.add('on'); setTimeout(() => fade.classList.remove('on'), 350);
-    startLevelStory();
+    if (G.book) G.afterBook = startLevelStory; else startLevelStory();
   }
 }
 function chooseLevel(id) {
@@ -257,27 +259,91 @@ function chooseLevel(id) {
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
+// ---------------------------------------------------------------- end of a part: portal + storybook page
 function onLevelFinished() {
-  if (world.id === 'prologue') {
-    if (!filmSeen('bata-1')) setTimeout(() => playFilm('bata-1'), 1200);   // Dr. Bata arrives
-    caption('Chapter 1 · Syria Unfiltered', 3000);
-    setTimeout(() => G.net?.setSave('level', 'ch1-square'), 1500);
-  } else if (world.id === 'ch1-square') {
-    setTimeout(() => G.net?.setSave('level', 'ch1-cards'), 600);
-  } else if (world.id === 'ch1-cards') {
-    setTimeout(() => G.net?.setSave('level', 'ch1-plane'), 600);
-  } else if (world.id === 'ch1-plane') {
-    caption('Chapter 2 · 12 October', 3000);
-    setTimeout(() => G.net?.setSave('level', 'ch2-day'), 2500);
-  } else if (world.id === 'ch2-day') {
-    setTimeout(() => G.net?.setSave('level', 'ch2-call'), 800);
-  } else if (world.id === 'ch2-call') {
-    setTimeout(() => G.net?.setSave('level', 'ch2-shy'), 800);
-  } else if (world.id === 'ch2-shy') {
-    caption('Chapter 3 · Regensburg is coming next 🌉', 4000);
-    setTimeout(() => G.net?.setSave('level', 'playground'), 3000);
+  if (G.portal || LEVELS[world.id].ch == null) return;   // the Playground has no end
+  const at = (world.portal || bodies[G.active].pos).clone();
+  const p = makePortal();
+  p.g.position.set(at.x, at.y + p.R + 0.25, at.z);
+  world.root.add(p.g);
+  G.portal = { p, at, from: world.id, next: nextLevel(world.id), sent: false, waitShown: false };
+  setTimeout(() => caption('✨ A portal opened! Step in together', 4200), 400);
+  sound.play('shine');
+}
+function portalUpdate(dt) {
+  const P = G.portal;
+  if (!P) return;
+  const inside = (pos) => pos && Math.hypot(pos.x - P.at.x, pos.z - P.at.z) < 1.6 && pos.y > P.at.y - 1 && pos.y < P.at.y + 3;
+  const me = bodies[G.active].pos, partner = partnerPos(G.active);
+  const meIn = inside(me), partnerIn = G.kind === 'solo' ? true : inside(partner);
+  P.p.update(G.t, dt, camera.position, meIn || partnerIn);
+  if (meIn && !partnerIn && !P.waitShown) { P.waitShown = true; caption(`Waiting for ${G.active === 'sun' ? 'Moon' : 'Sun'}… ✨`, 3000); }
+  if (meIn && Math.random() < dt * 8) fx.sparks(me.clone().setY(me.y + 1), 0xffd6f0, 4, 1.2);
+  // Sun's phone (or practice) sends the two of them on
+  if (!P.sent && meIn && partnerIn && (G.kind === 'solo' || G.role === 'sun')) {
+    P.sent = true;
+    sound.play('star');
+    G.net?.setSave('level', P.next);
   }
 }
+
+const book = $('#book');
+let bookTimers = [];
+/** the storybook page: "Part complete" with the stars, then it turns to the next title */
+function showBook(from, to, starsGot, starsAll, then) {
+  const F = LEVELS[from], T = LEVELS[to];
+  const chapterDone = !T || T.ch !== F.ch;
+  const C = CHAPTERS[F.ch];
+  $('#pa-kicker').textContent = chapterDone ? (F.ch === 0 ? '✦ Prologue complete ✦' : `✦ ${C.title} complete ✦`) : '✦ Part complete ✦';
+  $('#pa-title').textContent = F.ch === 0 ? `Prologue · ${F.name}` : `${C.title} · ${F.name}`;
+  const stars = $('#pa-stars');
+  stars.innerHTML = starsAll ? '<span>⭐</span>'.repeat(starsAll) : '';
+  const dots = $('#pa-dots');
+  dots.innerHTML = partsOf(F.ch).map((id) => `<i class="${LEVELS[id].n < F.n ? 'done' : LEVELS[id].n === F.n ? 'now' : ''}"></i>`).join('');
+  const lines = ['You two make a great team ✨', 'Together, as always 💜', 'One step closer…', 'Sun and Moon, side by side ☀️🌙'];
+  $('#pa-line').textContent = starsAll && starsGot === starsAll ? 'All stars found! ⭐' : lines[Math.floor(Math.random() * lines.length)];
+  // the next page
+  const N = T && T.ch != null ? T : null;
+  if (N) {
+    const NC = CHAPTERS[N.ch];
+    $('#pb-kicker').textContent = chapterDone ? NC.title : `${NC.title} · Part ${N.n}`;
+    $('#pb-icon').textContent = NC.icon;
+    $('#pb-title').textContent = chapterDone ? NC.name : N.name;
+    $('#pb-part').textContent = chapterDone ? `Part ${N.n} · ${N.name}` : '';
+  } else {
+    const nc = CHAPTERS[(F.ch ?? 0) + 1];
+    $('#pb-kicker').textContent = 'Coming soon';
+    $('#pb-icon').textContent = nc ? nc.icon : '✨';
+    $('#pb-title').textContent = nc ? `${nc.title} · ${nc.name}` : 'To be continued…';
+    $('#pb-part').textContent = 'Meanwhile: the Playground 🏝️';
+  }
+  bookTimers.forEach(clearTimeout); bookTimers = [];
+  G.book = true;
+  input.setEnabled(false);
+  music.duck(0.4);
+  book.classList.remove('turn', 'ready', 'show');
+  book.hidden = false;
+  requestAnimationFrame(() => book.classList.add('show'));
+  sound.play(chapterDone ? 'win' : 'star');
+  [...stars.children].forEach((sp, i) => { if (i < starsGot) bookTimers.push(setTimeout(() => { sp.classList.add('on'); sound.play('pin'); }, 700 + i * 380)); });
+  bookTimers.push(setTimeout(() => then?.(), 500));                       // switch the level behind the page
+  bookTimers.push(setTimeout(() => { book.classList.add('turn'); sound.play('card'); }, 3200));
+  bookTimers.push(setTimeout(() => book.classList.add('ready'), 4300));
+  bookTimers.push(setTimeout(closeBook, 9000));
+}
+function closeBook() {
+  if (!G.book) return;
+  bookTimers.forEach(clearTimeout); bookTimers = [];
+  book.classList.remove('show');
+  setTimeout(() => { book.hidden = true; }, 450);
+  G.book = false;
+  music.duck(1);
+  if (G.mode === 'play') input.setEnabled(true);
+  const f = G.afterBook; G.afterBook = null;
+  f?.();
+}
+$('#book-go').addEventListener('click', closeBook);
+
 const levelChips = $('#level-chips');
 for (const [id, def] of Object.entries(LEVELS)) {
   const b = document.createElement('button');
@@ -356,7 +422,13 @@ function startSession(kind, role, word) {
     G.save = sv;
     // both phones always follow the shared level; a new room starts at the Prologue
     const lvl = sv.level || 'prologue';
-    if (lvl !== world.id) switchLevel(lvl);
+    if (lvl !== world.id) {
+      if (G.portal && G.portal.from === world.id && G.mode === 'play') {
+        const got = world.stars.filter((x) => x.collected).length, all = world.stars.length, from = world.id;
+        G.portal = null;
+        showBook(from, lvl, got, all, () => switchLevel(lvl));
+      } else switchLevel(lvl);
+    }
   });
   net.join(kind === 'solo' ? 'solo' : roomIdFromWord(word), role);
 
@@ -1131,6 +1203,7 @@ function frame(nowMs) {
 
   updateCamera(dt);
   runFrameHooks(G.t, dt, camera);
+  if (G.mode === 'play') portalUpdate(dt);
   if (G.bata?.root.visible) G.bata.animate(G.t, G.bata.talking);
   motes.update(G.cam.target, G.t, dt);
   updateArrow(partnerVisible);

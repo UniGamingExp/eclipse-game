@@ -288,3 +288,32 @@ body.photo #hud, body.photo #caption, body.photo #toasts, body.photo #partner-ar
 #intro video { width: 100%; height: 100%; object-fit: contain; background: #120c2a; }
 #intro-skip { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); border: 0; border-radius: 999px; padding: 10px 18px; font: 800 15px ui-rounded, system-ui, sans-serif; color: #fff; background: rgba(255,255,255,.22); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 #intro-sound { position: absolute; left: 50%; top: max(16px, env(safe-area-inset-top)); transform: translateX(-50%); border: 0; border-radius: 999px; padding: 10px 18px; font: 800 15px ui-rounded, system-ui, sans-serif; color: #3b2a63; background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+
+/* ---------- storybook page between levels ---------- */
+#book { position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 40%, #4b3a8a 0%, #24184f 70%, #140c30 100%); opacity: 0; transition: opacity .45s; }
+#book.show { opacity: 1; }
+.book-wrap { position: relative; width: min(560px, 88vw); height: min(330px, 78vh); perspective: 1600px; }
+#book .page { position: absolute; inset: 0; border-radius: 18px; background: #fff8ec; color: #3b2a63; box-shadow: 0 18px 50px rgba(0,0,0,.45), inset 0 0 0 3px #e8d6b8, inset 0 0 0 9px #fff8ec, inset 0 0 0 11px #d9b8ff; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; padding: 22px; font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; }
+#book .page-a { transform-origin: left center; transform-style: preserve-3d; transition: transform 1.1s cubic-bezier(.6,.05,.3,1); background: transparent; box-shadow: none; padding: 0; }
+#book .page-a .front, #book .page-a .back { position: absolute; inset: 0; border-radius: 18px; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #fff8ec; box-shadow: 0 18px 50px rgba(0,0,0,.45), inset 0 0 0 3px #e8d6b8, inset 0 0 0 9px #fff8ec, inset 0 0 0 11px #d9b8ff; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; padding: 22px; }
+#book .page-a .back { transform: rotateY(180deg); background: linear-gradient(90deg, #f3e6cf, #fff8ec); }
+#book.turn .page-a { transform: rotateY(-178deg); }
+#book .page-a .back { transition: opacity .35s .8s; }
+#book.turn .page-a .back { opacity: 0; }
+#book .kicker { margin: 0; font-size: 14px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #b06bff; }
+#book h2 { margin: 2px 0; font-size: 24px; line-height: 1.2; }
+#book h1 { margin: 0; font-size: 34px; line-height: 1.1; }
+#book .pb-icon { font-size: 44px; line-height: 1; animation: bookBob 2.4s ease-in-out infinite; }
+#book .pb-part { margin: 2px 0 8px; font-size: 16px; font-weight: 700; opacity: .8; }
+#book .pa-line { margin: 4px 0 0; font-size: 14px; opacity: .75; }
+#book .pa-stars { display: flex; gap: 6px; font-size: 34px; min-height: 42px; }
+#book .pa-stars span { opacity: .25; filter: grayscale(1); transform: scale(.6); transition: transform .35s cubic-bezier(.3,1.8,.5,1), opacity .2s, filter .2s; }
+#book .pa-stars span.on { opacity: 1; filter: none; transform: scale(1); }
+#book .pa-dots { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+#book .pa-dots i { width: 12px; height: 12px; border-radius: 50%; background: #e3d6f5; }
+#book .pa-dots i.done { background: #b06bff; }
+#book .pa-dots i.now { background: #ff8fbf; box-shadow: 0 0 0 4px rgba(255,143,191,.3); }
+#book #book-go { margin-top: 6px; opacity: 0; transition: opacity .4s; pointer-events: none; }
+#book.ready #book-go { opacity: 1; pointer-events: auto; }
+@keyframes bookBob { 50% { transform: translateY(-6px) rotate(-4deg); } }
+@media (max-height: 420px) { #book h1 { font-size: 28px; } #book .pb-icon { font-size: 36px; } }

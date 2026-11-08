@@ -239,6 +239,7 @@ export function buildPrologue(root, scene) {
     camYaw: { sun: -Math.PI / 2, moon: Math.PI / 2 },
     lobbyCam: { cx: 0, cz: 0, r: 46, h: 16 },
     killY: -14,
+    portal: new THREE.Vector3(0, CENTER_Y, -2),   // where the end-of-part portal opens
     intro: { all: ['Prologue · Two Skies', 'Long before they met…'], sun: 'Little Sun, in his garden', moon: 'Little Moon, in her garden' },
     bounce() {},
     /**

@@ -280,6 +280,7 @@ export function buildCh1Cards(root, scene) {
     camYaw: { sun: 0, moon: 0 },
     lobbyCam: { cx: 0, cz: 4, r: 34, h: 14 },
     killY: -14,
+    portal: new THREE.Vector3(-2.2, DECK.top, -8.9),   // where the end-of-part portal opens
     intro: { all: ['Part 2 · The Card Tables', 'Late nights in #card-tables: Trex, as partners.'] },
     abilities: ab.abilities,
     bubbles: bub,

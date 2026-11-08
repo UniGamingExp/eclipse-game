@@ -11,7 +11,7 @@
 <title>Eclipse</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="style.css?v=3ef924b05c">
+<link rel="stylesheet" href="style.css?v=83be071303">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -92,6 +92,28 @@
   </div>
 </div>
 
+<div id="book" hidden>
+  <div class="book-wrap">
+    <div class="page page-b">
+      <p class="kicker" id="pb-kicker"></p>
+      <div class="pb-icon" id="pb-icon"></div>
+      <h1 id="pb-title"></h1>
+      <p class="pb-part" id="pb-part"></p>
+      <button id="book-go" class="primary">Let's go ✨</button>
+    </div>
+    <div class="page page-a">
+      <div class="front">
+        <p class="kicker" id="pa-kicker"></p>
+        <h2 id="pa-title"></h2>
+        <div class="pa-stars" id="pa-stars"></div>
+        <div class="pa-dots" id="pa-dots"></div>
+        <p class="pa-line" id="pa-line"></p>
+      </div>
+      <div class="back"></div>
+    </div>
+  </div>
+</div>
+
 <div id="intro" hidden>
   <video playsinline webkit-playsinline preload="none" poster="assets/intro-poster.jpg"></video>
   <button id="intro-sound" hidden>🔊 Tap for sound</button>
@@ -158,6 +180,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=3ef924b05c"></script>
+<script type="module" src="build/game.js?v=83be071303"></script>
 </body>
 </html>

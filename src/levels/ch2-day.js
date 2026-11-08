@@ -188,6 +188,7 @@ export function buildCh2Day(root, scene) {
     camYaw: { sun: 0, moon: 0 },
     lobbyCam: { cx: 0, cz: -36, r: 50, h: 20 },
     killY: -14,
+    portal: new THREE.Vector3(-3, 0, -79),   // where the end-of-part portal opens
     intro: { all: ['Chapter 2 · 12 October', 'Two hours apart: when the sun is still up for one, night has already come for the other.'], sun: 'Your Daylight makes the golden platforms solid ☀', moon: 'Your Nightfall makes the lilac platforms solid ☾' },
     abilities: lit.abilities,
     lights: lit,
