@@ -170,7 +170,7 @@ const levelApi = {
   send: (type, data) => G.net?.sendEvent(type, data),
   toast: (m) => ui.toast(m),
   caption: (m, ms) => caption(m, ms),
-  get save() { return G.save; },
+  get save() { return G?.save ?? null; },   // (levels may ask during boot, before G exists)
   respawn: (r) => respawn(ctls[r]),
   setSave: (k, v) => G.net?.setSave(k, v),
   /** throw one of our own bodies into the air (bubble pops, bouncy things…) */

@@ -518,7 +518,7 @@ export function buildCh2Day(root, scene) {
     intro: { all: ['Chapter 2 · 12 October', 'Two hours apart: when the sun is still up for one, night has already come for the other.'], sun: 'Your Daylight makes the golden platforms solid ☀', moon: 'Your Nightfall makes the lilac platforms solid ☾' },
     abilities: lit.abilities,
     lights: lit,
-    attach(a) { api = a; lit.attach(a); loadState(a.save); },
+    attach(a) { api = a; lit.attach(a); },   // saved puzzle state is read in story(), once the save has arrived
     onCheckpoint(i, sv) { loadState(sv); },
     story(ctx, t) {
       const sv = ctx.save.ch2 || {};
