@@ -219,6 +219,7 @@ function switchLevel(id) {
   if (world.id === id || !LEVELS[id]) return;
   const wasKid = !!world.kid;
   world.dispose();
+  capQ.length = 0;   // drop the old level's waiting captions
   world = loadLevel(scene, id);
   world.attach?.(levelApi);
   store.set('lastLevel', id);
@@ -249,6 +250,7 @@ function chooseLevel(id) {
   if (id === 'ch1-cards') { G.net.setSave('ch1/cards', null); G.net.setSave('ch1/trex', null); }
   if (id === 'ch1-plane') { G.net.setSave('ch1/plane', null); G.net.setSave('ch1/planeDone', null); }
   if (id === 'ch2-day') G.net.setSave('ch2/day', null);
+  if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); }
   G.net.setSave('level', id);
   if (G.mode === 'menu') enterPlay();
 }
@@ -265,7 +267,9 @@ function onLevelFinished() {
     caption('Chapter 2 · 12 October', 3000);
     setTimeout(() => G.net?.setSave('level', 'ch2-day'), 2500);
   } else if (world.id === 'ch2-day') {
-    caption('Part 2 · The Four-Hour Call is coming next 📞', 4000);
+    setTimeout(() => G.net?.setSave('level', 'ch2-call'), 800);
+  } else if (world.id === 'ch2-call') {
+    caption('Part 3 · "Kann ich mit dir flirten?" is coming next 💜', 4000);
     setTimeout(() => G.net?.setSave('level', 'playground'), 3000);
   }
 }
@@ -726,6 +730,13 @@ function respawn(ctl) {
   ctl.state = 'free'; ctl.anim = MODE.normal; ctl.wallT = 0;
   if (ctl.role === 'sun' && ctl.carrying) { ctl.carrying = false; if (G.kind === 'solo') release(ctls.moon, new THREE.Vector3(0, 2, 0)); }
   b.pos.copy(ctl.safe).add(_v.set(0, 0.3, 0));
+  // on shared paths (one path for both, crossings need both lights) you come back next to your partner,
+  // like in It Takes Two, so the two of you can never end up stuck on opposite sides
+  if (world.respawnNearPartner) {
+    const other = otherRole(ctl.role), pp = partnerPos(ctl.role);
+    const grounded = G.kind === 'solo' ? bodies[other].grounded : G.track.grounded;
+    if (pp && grounded && pp.y > world.killY + 4) b.pos.set(pp.x, pp.y + 1.2, pp.z + 0.9);
+  }
   b.vel.set(0, 0, 0);
   b.ground = null; b.grounded = false;
   ctl.k++;

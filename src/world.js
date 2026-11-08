@@ -7,6 +7,7 @@ import { buildCh1Square } from './levels/ch1-square.js';
 import { buildCh1Cards } from './levels/ch1-cards.js';
 import { buildCh1Plane } from './levels/ch1-plane.js';
 import { buildCh2Day } from './levels/ch2-day.js';
+import { buildCh2Call } from './levels/ch2-call.js';
 
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue', music: 'woods' },
@@ -14,6 +15,7 @@ export const LEVELS = {
   'ch1-cards': { build: buildCh1Cards, title: 'Chapter 1 · The Card Tables', chip: '🃏 Ch.1 Card Tables', music: 'paws' },
   'ch1-plane': { build: buildCh1Plane, title: 'Chapter 1 · 8 October', chip: '✈️ Ch.1 8 October', music: 'lonely' },
   'ch2-day': { build: buildCh2Day, title: 'Chapter 2 · Night & Day', chip: '🌗 Ch.2 Night & Day', music: 'mystic' },
+  'ch2-call': { build: buildCh2Call, title: 'Chapter 2 · The Four-Hour Call', chip: '📞 Ch.2 The Call', music: 'hideout' },
   playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground', music: 'fun' },
 };
 
