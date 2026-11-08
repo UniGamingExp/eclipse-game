@@ -342,7 +342,9 @@ export function buildCh3Bridge(root, scene) {
   const PEOPLE = [
     { who: 'PeasantM', x: -18, y: 0, z: 1.95, rotY: Math.PI, clip: 'Idle_Rail_Loop' },
     { who: 'PeasantF2', x: 9.4, y: 0, z: 14.6, rotY: -2.2, clip: 'Idle_TalkingPhone_Loop' },
-    { who: 'PeasantM2', x: -6, y: 0, z: 19.4, path: [[-6, 19.4], [7, 19.4]] },
+    { who: 'PeasantM2', x: -6, y: 0, z: 19.4, path: [[-6, 19.4], [7, 19.4]], carry: true },
+    { who: 'RangerF', x: -30, y: 0, z: 3.2, path: [[-32, 3.2], [-21, 3.2]], speed: 0.9 },
+    { who: 'PeasantM', x: -9, y: DY, z: -119, path: [[-9, -119], [9, -119]], speed: 0.85 },
     { who: 'RangerF', x: -2.5, y: DY, z: -46, rotY: -Math.PI / 2, clip: 'Idle_Rail_Loop' },
     { who: 'PeasantF', x: -3.4, y: DY, z: -61.2, rotY: 0.4, clip: 'Idle_Lantern_Loop' },
     { who: 'PeasantM', x: 4.7, y: DY, z: -106.0, rotY: Math.PI / 2, clip: 'Consume' },

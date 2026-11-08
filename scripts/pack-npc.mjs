@@ -32,6 +32,9 @@ const VARIANTS = {
   RangerF: { outfit: 'Female_Ranger', body: 'Superhero_Female_FullBody', hair: [] },
   PeasantM2: { outfit: 'Male_Peasant', body: 'Superhero_Male_FullBody', hair: ['Hair_Buzzed'] },
   PeasantF2: { outfit: 'Female_Peasant', body: 'Superhero_Female_FullBody', hair: ['Hair_Long'] },
+  // look-alike prototypes of the two heroes (recoloured outfits)
+  SunHero: { outfit: 'Male_Peasant', body: 'Superhero_Male_FullBody', hair: ['Hair_Beard', 'Hair_Buzzed'], recolor: '/home/claude/assets-src/heroes/T_Peasant_sun.png' },
+  MoonHero: { outfit: 'Female_Peasant', body: 'Superhero_Female_FullBody', hair: ['Hair_Long'], recolor: '/home/claude/assets-src/heroes/T_Peasant_moon.png' },
 };
 
 /** keep only the triangles of a primitive whose vertices hang mostly on the given joints */
@@ -74,6 +77,10 @@ let lib = null;
 for (const [name, V] of Object.entries(VARIANTS)) {
   const doc = await io.read(path.join(OUTF, V.outfit + '.gltf'));
   const root = doc.getRoot(), scene = root.listScenes()[0];
+  if (V.recolor) {
+    const tex = doc.createTexture(name + '_outfit').setImage(fs.readFileSync(V.recolor)).setMimeType('image/png');
+    for (const m of root.listMaterials()) if (m.getName() === 'MI_Peasant') m.setName('MI_Peasant_' + name).setBaseColorTexture(tex);
+  }
   const skin = root.listSkins()[0];
   const outfitRoots = scene.listChildren();
   // the armature node that holds the joints: the topmost parent of the skeleton
@@ -128,11 +135,22 @@ for (const [name, V] of Object.entries(VARIANTS)) {
 }
 
 // ---------- animations ----------
-const KEEP = ['Idle_Rail_Loop', 'Idle_TalkingPhone_Loop', 'Walk_Carry_Loop', 'Idle_FoldArms_Loop', 'Idle_Lantern_Loop', 'Consume', 'Yes'];
+const KEEP = ['Idle_Rail_Loop', 'Idle_TalkingPhone_Loop', 'Walk_Carry_Loop', 'Idle_FoldArms_Loop', 'Idle_Lantern_Loop', 'Consume', 'Yes',
+  'Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Idle_Talking_Loop', 'Sitting_Idle_Loop', 'Sitting_Talking_Loop', 'Dance_Loop', 'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Roll', 'Push_Loop', 'Interact', 'ClimbUp_1m', 'OverhandThrow', 'Swim_Fwd_Loop', 'Swim_Idle_Loop', 'Driving_Loop', 'Walk_Formal_Loop'];
 const FINGER = /^(index|middle|pinky|ring|thumb)_|_leaf_/;
 {
   const doc = await io.read(path.join(P, 'ual2/Universal Animation Library 2[Standard]/Unreal-Godot/UAL2_Standard.glb'));
   const root = doc.getRoot();
+  // bring in the everyday clips of the first library and point them at this file's skeleton (same bone names)
+  const mine = new Map(root.listNodes().map((n) => [n.getName(), n]));
+  const ual1 = await io.read(path.join(P, 'ual1/Universal Animation Library[Standard]/Unreal-Godot/UAL1_Standard.glb'));
+  const scenesBefore = new Set(root.listScenes()), animsBefore = new Set(root.listAnimations());
+  mergeDocuments(doc, ual1);
+  for (const a of root.listAnimations()) {
+    if (animsBefore.has(a)) continue;
+    for (const c of a.listChannels()) { const t = c.getTargetNode(); if (t && mine.has(t.getName())) c.setTargetNode(mine.get(t.getName())); }
+  }
+  for (const sc of root.listScenes()) if (!scenesBefore.has(sc)) { for (const n of sc.listChildren()) n.traverse((x) => { x.setMesh(null); x.setSkin(null); }); sc.listChildren().forEach((n) => { sc.removeChild(n); n.traverse((x) => x.dispose()); }); sc.dispose(); }
   for (const a of root.listAnimations()) {
     if (!KEEP.includes(a.getName())) { for (const c of a.listChannels()) c.dispose(); for (const sm of a.listSamplers()) sm.dispose(); a.dispose(); continue; }
     for (const c of a.listChannels()) {
@@ -146,7 +164,7 @@ const FINGER = /^(index|middle|pinky|ring|thumb)_|_leaf_/;
   for (const m of root.listMeshes()) m.dispose();
   for (const acc of root.listAccessors()) if (!used.has(acc)) acc.dispose();
   for (const s of root.listSkins()) s.dispose();
-  await doc.transform(resample(), prune({ keepLeaves: true }), dedup(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  await doc.transform(unpartition(), resample(), prune({ keepLeaves: true }), dedup(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   await io.write(path.join(OUT, 'npc-anim.glb'), doc);
   console.log('npc-anim.glb', fs.statSync(path.join(OUT, 'npc-anim.glb')).size, root.listAnimations().map((a) => a.getName()).join(','));
 }

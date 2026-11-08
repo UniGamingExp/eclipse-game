@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
 import { loadNature, loadKit, kitReady } from './nature.js';
-import './npc.js';
+import { townspeople } from './npc.js';
 import { makeBata } from './bata.js';
 import { makePortal } from './portal.js';
 import { runFrameHooks } from './levels/hooks.js';
@@ -1331,7 +1331,7 @@ requestAnimationFrame(frame);
 
 // for automated tests
 window.__eclipse = {
-  G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
+  townspeople, scene, G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
   THREE,
   /** Dr. Bata for stills / cutscenes: bata([x,y,z], yaw, scale, talking) or bata(null) to remove */
   bata(pos, yaw = 0, scale = 1, talking = false) {

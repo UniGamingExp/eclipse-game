@@ -43,6 +43,79 @@ function load(version = '') {
 }
 registerKit('npc', { load, ready: () => templates.size > 0 });
 
+/** rectangular tortoiseshell glasses (Sun wears them), sized to the eyes and fixed to the head bone */
+function addGlasses(o) {
+  const head = o.getObjectByName('Head');
+  let eyes = null;
+  o.traverse((m) => { if (m.isMesh && m.material?.name === 'MI_Eyes') eyes = m; });
+  if (!head || !eyes) return;
+  o.updateMatrixWorld(true);
+  // precise box: runs the skinning on the vertices, so it is where the eyes really are
+  const bb = new THREE.Box3().setFromObject(eyes, true);
+  const c = bb.getCenter(new THREE.Vector3()), size = bb.getSize(new THREE.Vector3());
+  const w = Math.max(size.x, 0.05);   // across both eyes
+  const frame = new THREE.MeshStandardMaterial({ color: 0x5a3020, roughness: 0.35, metalness: 0.1 });
+  const g = new THREE.Group();
+  const lensW = w * 0.62, lensH = w * 0.38, t = w * 0.07;
+  const shape = (W, H) => { const s = new THREE.Shape(); const r = H * 0.25; s.moveTo(-W / 2 + r, -H / 2); s.lineTo(W / 2 - r, -H / 2); s.quadraticCurveTo(W / 2, -H / 2, W / 2, -H / 2 + r); s.lineTo(W / 2, H / 2 - r); s.quadraticCurveTo(W / 2, H / 2, W / 2 - r, H / 2); s.lineTo(-W / 2 + r, H / 2); s.quadraticCurveTo(-W / 2, H / 2, -W / 2, H / 2 - r); s.lineTo(-W / 2, -H / 2 + r); s.quadraticCurveTo(-W / 2, -H / 2, -W / 2 + r, -H / 2); return s; };
+  for (const sx of [-1, 1]) {
+    const ring = shape(lensW + t * 2, lensH + t * 2);
+    ring.holes.push(shape(lensW, lensH));
+    const m = new THREE.Mesh(new THREE.ExtrudeGeometry(ring, { depth: t * 0.8, bevelEnabled: false }), frame);
+    m.position.set(sx * (lensW / 2 + t * 1.6), 0, 0);
+    g.add(m);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(t * 0.7, t * 0.9, w * 1.25), frame);
+    arm.position.set(sx * (lensW + t * 2.6), lensH * 0.2, -w * 0.62);
+    g.add(arm);
+  }
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(t * 3.4, t * 0.9, t * 0.8), frame);
+  bridge.position.set(0, lensH * 0.22, t * 0.4);
+  g.add(bridge);
+  // build it in world units at the eyes, then hand it to the head bone (attach keeps the world transform)
+  const holder = o.parent;
+  g.position.copy(holder.worldToLocal(new THREE.Vector3(c.x, c.y + lensH * 0.05, bb.max.z + t * 0.4)));
+  holder.add(g);
+  holder.updateMatrixWorld(true);
+  head.attach(g);
+}
+
+/** Sun and Moon: their own (fairer) skin, dark hair; Moon gets a long flowing dress over the trousers */
+function heroLook(o, who) {
+  const swap = new Map();
+  o.traverse((m) => {
+    if (!m.isMesh) return;
+    const mat = m.material;
+    if (!/Superhero|Regular|Hair/.test(mat.name)) return;
+    if (!swap.has(mat)) {
+      const c = mat.clone();
+      if (/Hair/.test(mat.name)) c.color.setRGB(0.12, 0.08, 0.07);
+      else {
+        // the pack's skin texture is tanned: blend it toward their real (fair) skin, keeping the painted shading
+        const tone = who === 'SunHero' ? new THREE.Vector3(1.0, 0.86, 0.78) : new THREE.Vector3(0.97, 0.8, 0.7);
+        c.onBeforeCompile = (sh) => {
+          sh.uniforms.skinTone = { value: tone };
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 skinTone;')
+            .replace('#include <map_fragment>', '#include <map_fragment>\n{ float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, skinTone * clamp(l / 0.42, 0.35, 1.25), 0.72); }');
+        };
+        c.customProgramCacheKey = () => 'skin' + who;
+      }
+      swap.set(mat, c);
+    }
+    m.material = swap.get(mat);
+  });
+  if (who !== 'MoonHero') return;
+  const pelvis = o.getObjectByName('pelvis');
+  if (!pelvis) return;
+  o.updateMatrixWorld(true);
+  const p = pelvis.getWorldPosition(new THREE.Vector3());
+  const k = o.scale.x;
+  const pts = [[0.17, 0.12], [0.19, 0.0], [0.27, -0.35], [0.36, -0.7], [0.4, -0.86]].map(([r, y]) => new THREE.Vector2(r / k * 0.74, y / k * 0.74 * 1.05));
+  const dress = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), new THREE.MeshStandardMaterial({ color: 0x5a2a8a, roughness: 0.75, side: THREE.DoubleSide }));
+  dress.castShadow = true;
+  dress.position.copy(o.worldToLocal(p.clone()));
+  o.add(dress);
+}
+
 /** a heavy-ish moving box in the arms (for the carry walk) */
 function armsBox() {
   const g = new THREE.Group();
@@ -57,7 +130,7 @@ function armsBox() {
 
 /**
  * Put townspeople into a level. people: [{ who: 'PeasantM'|'PeasantF'|'RangerM'|'RangerF'|'PeasantM2'|'PeasantF2',
- *   x, y, z, rotY, clip, s = 0.74, path?: [[x,z],[x,z]] (walks back and forth, uses Walk_Carry_Loop + a box) }]
+ *   x, y, z, rotY, clip, s = 0.74, path?: [[x,z],[x,z]] (walks back and forth), carry? (with a moving box) }]
  * Returns { update(dt), list } (call update every frame), or null if the models aren't loaded.
  */
 export function townspeople(parent, people) {
@@ -73,10 +146,12 @@ export function townspeople(parent, people) {
     o.userData.noHide = true;
     // toy proportions: a bigger head (hair and hoods grow with it), like the chunky dolls
     const head = o.getObjectByName('Head');
-    if (head) head.scale.setScalar(1.4);
+    if (head) head.scale.setScalar(q.head ?? 1.4);
     parent.add(o);
+    if (q.who === 'SunHero' || q.who === 'MoonHero') heroLook(o, q.who);
+    if (q.who === 'SunHero') addGlasses(o);
     const mixer = new THREE.AnimationMixer(o);
-    const clipName = q.path ? 'Walk_Carry_Loop' : q.clip || 'Idle_FoldArms_Loop';
+    const clipName = q.path ? (q.carry ? 'Walk_Carry_Loop' : q.clip || 'Walk_Loop') : q.clip || 'Idle_FoldArms_Loop';
     const clip = clips.get(clipName);
     if (clip) {
       const act = mixer.clipAction(clip);
@@ -84,7 +159,7 @@ export function townspeople(parent, people) {
       act.time = Math.random() * clip.duration;
       act.timeScale = 0.9 + Math.random() * 0.2;
     }
-    if (q.path) {
+    if (q.path && q.carry) {
       const b = armsBox();
       const chest = o.getObjectByName('spine_03');
       if (chest) { chest.add(b); b.position.set(0, 0.05, 0.42); b.scale.setScalar(1); }
@@ -102,7 +177,7 @@ export function townspeople(parent, people) {
         const P = n.q.path;
         if (P) {
           const [a, b] = P, len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-          n.u += (n.dir * 1.0 * dt) / len;
+          n.u += (n.dir * (n.q.speed ?? 1.0) * dt) / len;
           if (n.u > 1) { n.u = 1; n.dir = -1; } else if (n.u < 0) { n.u = 0; n.dir = 1; }
           n.o.position.x = a[0] + (b[0] - a[0]) * n.u;
           n.o.position.z = a[1] + (b[1] - a[1]) * n.u;
