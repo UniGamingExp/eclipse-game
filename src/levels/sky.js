@@ -27,10 +27,13 @@ function dome(root, pal) {
       starAmt: { value: pal.stars },
       nebAmt: { value: pal.nebula },
       time: timeU,
+      sunDir: { value: new THREE.Vector3(0, 0.3, -1).normalize() },   // set per level by gfx.js
+      sunCol: { value: new THREE.Color(1, 0.9, 0.8) },
+      sunAmt: { value: 0 },
     },
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: /* glsl */`
-      uniform vec3 top, mid, low, neb1, neb2; uniform float starAmt, nebAmt, time; varying vec3 vP;
+      uniform vec3 top, mid, low, neb1, neb2, sunDir, sunCol; uniform float starAmt, nebAmt, time, sunAmt; varying vec3 vP;
       ${NOISE}
       void main(){
         vec3 d = normalize(vP); float h = d.y;
@@ -57,12 +60,17 @@ function dome(root, pal) {
           }
         }
         c += vec3(1.0, 0.96, 0.9) * s * starAmt * up * 2.2;
+        // the sun (or the moon, on night levels): a bright disc in a wide warm glow
+        float sd = max(dot(d, sunDir), 0.0);
+        vec3 glow = sunCol * (pow(sd, 5.0) * 0.22 + pow(sd, 48.0) * 0.4 + pow(sd, 900.0) * 1.4);
+        c += (glow + sunCol * smoothstep(0.99935, 0.99965, sd) * 3.0) * sunAmt;
         gl_FragColor = vec4(c, 1.0);
         #include <colorspace_fragment>
       }`,
   }));
   m.renderOrder = -10;
   m.frustumCulled = false;
+  m.userData.skyDome = true;
   root.add(m);
   return m;
 }

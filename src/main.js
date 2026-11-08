@@ -5,6 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { gradePass, makeMotes } from './look.js';
+import { createGfx, ShaftsPass } from './gfx.js';
 import { loadNature, loadKit, kitReady } from './nature.js';
 import { townspeople } from './npc.js';
 import { loadHeroes, heroesReady, makeHero } from './hero.js';
@@ -37,20 +38,23 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 700);
-const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4, depthTexture: new THREE.DepthTexture(4, 4) });
 const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene, camera));
+const shafts = new ShaftsPass();
+composer.addPass(shafts);
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.5, 1.3);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 const grade = gradePass();
 composer.addPass(grade);
+const gfx = createGfx({ renderer, scene, camera, composer, grade, shafts });
 
 const QUALITY = [
-  { dpr: Math.min(devicePixelRatio, 2), bloom: true, shadow: 2048 },
-  { dpr: Math.min(devicePixelRatio, 1.6), bloom: true, shadow: 2048 },
-  { dpr: Math.min(devicePixelRatio, 1.25), bloom: true, shadow: 1024 },
-  { dpr: 1, bloom: true, shadow: 1024 },
+  { dpr: Math.min(devicePixelRatio, 2), bloom: true, shadow: 2048, shafts: true, dof: true },
+  { dpr: Math.min(devicePixelRatio, 1.6), bloom: true, shadow: 2048, shafts: true, dof: true },
+  { dpr: Math.min(devicePixelRatio, 1.25), bloom: true, shadow: 1024, shafts: true, dof: true },
+  { dpr: 1, bloom: true, shadow: 1024, shafts: false, dof: false },
 ];
 let qLevel = clamp(+params.get('q') || 0, 0, 3);
 
@@ -71,6 +75,9 @@ function resize() {
   camera.aspect = w / h;
   camera.fov = w < h ? 74 : 62;
   grade.uniforms.aspect.value = w / h;
+  grade.uniforms.res.value.set(1 / (w * q.dpr), 1 / (h * q.dpr));
+  grade.uniforms.dofPx.value = 7 * q.dpr;
+  gfx.setQuality(q);
   camera.updateProjectionMatrix();
   if (w > h) $('#rotate-hint').hidden = true;
   if (!first) try { composer.render(0); } catch { /* not ready yet */ }
@@ -98,6 +105,7 @@ if (!useDolls) { try { await heroesP; } catch (e) { console.warn('heroes failed 
   for (const k of first?.kits || []) { try { await loadKit(k, __BUILD__); } catch (e) { console.warn('kit failed', k, e); } }
 }
 let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
+gfx.setLevel(world, LEVELS[world.id], world.camYaw ? world.camYaw.sun ?? 0 : 0);
 // fetch the medieval kit in the background a little later, so Chapter 3 opens instantly
 setTimeout(() => { loadKit('medieval', __BUILD__).catch(() => {}); loadKit('npc', __BUILD__).catch(() => {}); }, 9000);
 const fx = new Effects(scene, camera);
@@ -256,6 +264,7 @@ function switchLevel(id) {
   capQ.length = 0;   // drop the old level's waiting captions
   G.portal = null;
   world = loadLevel(scene, id);
+  gfx.setLevel(world, LEVELS[id], world.camYaw ? world.camYaw[G.active] ?? 0 : 0);
   world.attach?.(levelApi);
   store.set('lastLevel', id);
   if (!!world.kid !== wasKid) makeChars();
@@ -972,6 +981,19 @@ function resolveBase(id, out) {
 }
 
 // ---------------------------------------------------------------- camera
+/** what the camera is looking at (sharp, and the centre of the shadows), and how "story-like" the moment is */
+const _focus = new THREE.Vector3();
+function lookFocus() {
+  if (G.photo) return { focus: _focus.set(...G.photo.look), story: G.photo.dof || 0 };
+  if (G.mode === 'lobby' || G.mode === 'connecting') {
+    const L = world.lobbyCam || { cx: 6, cz: -2 };
+    return { focus: _focus.set(L.cx, 0.5, L.cz), story: 1 };
+  }
+  let story = 0;
+  if (G.bata?.root.visible) story = 0.8;
+  if (G.portal && bodies[G.active] && Math.hypot(bodies[G.active].pos.x - G.portal.at.x, bodies[G.active].pos.z - G.portal.at.z) < 2.2) story = 0.7;
+  return { focus: _focus.copy(G.cam.target), story };
+}
 const _look = new THREE.Vector3();
 function updateCamera(dt) {
   const c = G.cam;
@@ -1317,6 +1339,7 @@ function frame(nowMs) {
   motes.update(G.cam.target, G.t, dt);
   updateArrow(partnerVisible);
   fx.update(dt, G.t);
+  gfx.update(dt, G.t, lookFocus());
   composer.render(dt);
 
   // adaptive quality: if we can't hold ~50 fps, step resolution down (never back up)
@@ -1344,7 +1367,7 @@ function frame(nowMs) {
 requestAnimationFrame(frame);
 
 // for automated tests
-window.__eclipse = {
+window.__eclipse = { gfx,
   townspeople, scene, G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
   THREE,
   /** Dr. Bata for stills / cutscenes: bata([x,y,z], yaw, scale, talking) or bata(null) to remove */

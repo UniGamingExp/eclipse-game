@@ -8,6 +8,7 @@
 //     the main channel and both zip across.
 // Stars: on the bank (a two-box stack and a jump), out on a river pillar (side tape), on the zipline.
 import * as THREE from 'three';
+import { skyU } from '../gfx.js';
 import { mat, add, rbox, sign, sky, makeStar, spinStars, lights, cloud } from './common.js';
 import { kit, nature } from '../nature.js';
 import { house, gateTower } from './medieval.js';
@@ -36,7 +37,7 @@ function worldUV(geo, s = 2) {
 function waterMaterial() {
   return new THREE.ShaderMaterial({
     fog: true,
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { time: { value: 0 } }]),
+    uniforms: { ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { time: { value: 0 } }]), ...skyU },
     vertexShader: /* glsl */`
       varying vec3 vW;
       #include <fog_pars_vertex>
@@ -48,7 +49,7 @@ function waterMaterial() {
         #include <fog_vertex>
       }`,
     fragmentShader: /* glsl */`
-      uniform float time;
+      uniform float time; uniform vec3 sunDir, sunCol;
       varying vec3 vW;
       #include <fog_pars_fragment>
       float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -71,6 +72,17 @@ function waterMaterial() {
         vec3 deep = vec3(0.22, 0.42, 0.62), light = vec3(0.45, 0.72, 0.85), foam = vec3(0.95, 0.97, 1.0);
         vec3 col = mix(deep, light, w);
         col = mix(col, foam, clamp(lines * 0.35 + swirl * 0.45, 0.0, 0.8));
+        // ripples tilt the surface: the sky reflects at a glance, and the sun leaves a trail of glints
+        float e = 0.35;
+        float hx = n(q * 0.9 + vec2(e, 0.0)) - n(q * 0.9 - vec2(e, 0.0)) + (n(p * 2.3 + time * 0.6 + vec2(e, 0.0)) - n(p * 2.3 + time * 0.6 - vec2(e, 0.0))) * 0.5;
+        float hz = n(q * 0.9 + vec2(0.0, e)) - n(q * 0.9 - vec2(0.0, e)) + (n(p * 2.3 + time * 0.6 + vec2(0.0, e)) - n(p * 2.3 + time * 0.6 - vec2(0.0, e))) * 0.5;
+        vec3 N = normalize(vec3(-hx * 0.9, 1.0, -hz * 0.9));
+        vec3 V = normalize(cameraPosition - vW);
+        float fr = pow(1.0 - max(dot(N, V), 0.0), 4.0);
+        vec3 skyTint = mix(vec3(1.0, 0.8, 0.86), sunCol, 0.35);
+        col = mix(col, skyTint, fr * 0.55);
+        float sp = max(dot(reflect(-V, N), normalize(sunDir)), 0.0);
+        col += sunCol * (pow(sp, 60.0) * 0.6 + pow(sp, 400.0) * 4.0);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

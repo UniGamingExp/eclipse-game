@@ -14,23 +14,60 @@ ShaderChunk.lights_fragment_end += /* glsl */`
 #endif
 `;
 
-// ---- colour grade: a touch more saturation and warmth, lifted shadows, soft vignette ----
+// ---- colour grade: gentle filmic contrast, split toning (plum shadows, peach highlights), vignette,
+// light shafts added on top, depth of field, and dithering so the soft sky gradients never band on phones
 export function gradePass() {
   return new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, vignette: { value: 0.32 }, sat: { value: 1.1 }, aspect: { value: 1 } },
+    uniforms: {
+      tDiffuse: { value: null }, tDepth: { value: null }, tShafts: { value: null },
+      vignette: { value: 0.3 }, sat: { value: 1.12 }, contrast: { value: 0.22 }, aspect: { value: 1 },
+      lift: { value: new THREE.Vector3(0.035, 0.012, 0.05) }, gain: { value: new THREE.Vector3(1.03, 1.0, 0.97) },
+      shafts: { value: 0 }, shaftCol: { value: new THREE.Color(1, 0.9, 0.8) },
+      dof: { value: 0 }, bgA: { value: 1.35 }, bgB: { value: 3.2 }, nearBlur: { value: 0 }, focus: { value: 10 }, near: { value: 0.1 }, far: { value: 700 },
+      res: { value: new THREE.Vector2(1 / 1024, 1 / 1024) }, dofPx: { value: 9 }, time: { value: 0 },
+    },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: /* glsl */`
-      uniform sampler2D tDiffuse; uniform float vignette, sat, aspect; varying vec2 vUv;
+      uniform sampler2D tDiffuse, tDepth, tShafts;
+      uniform float vignette, sat, contrast, aspect, shafts, dof, bgA, bgB, nearBlur, focus, near, far, dofPx, time;
+      uniform vec3 lift, gain, shaftCol; uniform vec2 res;
+      varying vec2 vUv;
+      float viewZ(vec2 uv){ float d = texture2D(tDepth, uv).x; return (near * far) / (far - d * (far - near)); }
+      float coc(float z){
+        float bg = smoothstep(focus * bgA, focus * bgB, z);
+        float fg = smoothstep(focus * 0.6, focus * 0.25, z) * nearBlur;
+        return max(bg, fg);
+      }
       void main(){
-        vec4 t = texture2D(tDiffuse, vUv);
-        vec3 c = t.rgb;
+        vec3 c = texture2D(tDiffuse, vUv).rgb;
+        if (dof > 0.002) {
+          float z = viewZ(vUv);
+          float k = coc(z) * dof;
+          if (k > 0.03 && z < far * 0.98) {
+            vec3 acc = c; float ws = 1.0;
+            for (int i = 0; i < 12; i++) {
+              float fi = float(i);
+              float r = sqrt((fi + 0.5) / 12.0), a = fi * 2.39996;
+              vec2 uv = vUv + vec2(cos(a), sin(a)) * r * k * dofPx * res;
+              float zs = viewZ(uv);
+              float w = zs < z * 0.8 ? coc(zs) * dof : 1.0;     // sharp things in front never smear into the blur
+              acc += texture2D(tDiffuse, uv).rgb * w; ws += w;
+            }
+            c = acc / ws;
+          }
+        }
+        c += texture2D(tShafts, vUv).rgb * shaftCol * shafts;
+        c = clamp(c, 0.0, 1.0);
         float l = dot(c, vec3(0.299, 0.587, 0.114));
         c = mix(vec3(l), c, sat);
-        c = c * vec3(1.02, 1.0, 0.98) + vec3(0.012, 0.006, 0.02) * (1.0 - l);   // warm highs, plum-tinted shadows
+        c = mix(c, c * c * (3.0 - 2.0 * c), contrast);                         // soft S-curve
+        c = c * gain + lift * (1.0 - l) * (1.0 - l);                           // peach highs, plum shadows
         vec2 d = (vUv - 0.5) * vec2(aspect, 1.0) / max(aspect, 1.0);
         float v = smoothstep(0.85, 0.25, length(d) * 1.25);
         c *= mix(1.0 - vignette, 1.0, v);
-        gl_FragColor = vec4(c, t.a);
+        float n = fract(sin(dot(gl_FragCoord.xy + time * 61.0, vec2(12.9898, 78.233))) * 43758.5453);
+        c += (n - 0.5) * (1.5 / 255.0);                                       // dither: no banding in the sky
+        gl_FragColor = vec4(c, 1.0);
       }`,
   });
 }
