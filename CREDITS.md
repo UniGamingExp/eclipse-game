@@ -25,6 +25,12 @@ Eclipse is a gift made for two people. It uses these free works. Thank you to th
 - Narration: the voice **"Roger"** generated with **ElevenLabs** (https://elevenlabs.io).
 - Music: "Enchanted Woods" by FarBeyond Studio (CC BY 4.0, see above). Edited, titled and mixed for this game.
 
+## Dr. Bata's scenes (`assets/cut/`)
+
+- Video clips generated with **Grok Imagine** (xAI), starting from frames rendered from this game.
+- Dr. Bata's voice: **"Kano"** generated with **ElevenLabs** (https://elevenlabs.io).
+- Music: "It's Always Fun with You" (bata-1) and "Riding an Animal with Large Paws" (bata-2) by VividGlo (CC BY-SA 4.0, see above). Edited, subtitled and mixed for this game.
+
 ## Sound effects
 
 - **Casino Audio**, **Impact Sounds** and **Interface Sounds** by **Kenney** (https://kenney.nl). **CC0**.

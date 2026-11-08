@@ -239,7 +239,7 @@ function switchLevel(id) {
     G.cam.yaw = world.camYaw ? world.camYaw[G.active] : 0; G.cam.pitch = 0.3;
     G.cam.target.copy(bodies[G.active].pos);
     fade.classList.add('on'); setTimeout(() => fade.classList.remove('on'), 350);
-    introCaptions();
+    startLevelStory();
   }
 }
 function chooseLevel(id) {
@@ -253,6 +253,7 @@ function chooseLevel(id) {
 }
 function onLevelFinished() {
   if (world.id === 'prologue') {
+    if (!filmSeen('bata-1')) setTimeout(() => playFilm('bata-1'), 1200);   // Dr. Bata arrives
     caption('Chapter 1 · Syria Unfiltered', 3000);
     setTimeout(() => G.net?.setSave('level', 'ch1-square'), 1500);
   } else if (world.id === 'ch1-square') {
@@ -363,36 +364,65 @@ function enterPlay() {
     if (isTouch && innerHeight > innerWidth && !store.get('rotateOk', false)) $('#rotate-hint').hidden = false;
     if (G.kind === 'solo') ui.toast('Practice: ⇄ switches characters · ☰ → choose a level');
     if (world.id === 'playground') setTimeout(() => caption('Chapter 1 is waiting: open ☰ and choose a level ✨', 4500), 3000);
-    if (!store.get('introSeen', false)) playIntro(() => introCaptions());   // the intro film, once per phone
-    else introCaptions();
+    if (!store.get('introSeen', false)) playIntro(() => startLevelStory());   // the intro film, once per phone
+    else startLevelStory();
   }
 }
 
 // ---------------------------------------------------------------- intro film
-function playIntro(then) {
-  const box = $('#intro'), v = box.querySelector('video');
-  if (G.intro) return;
+// films: the intro and Dr. Bata's story scenes. Played one after another (queue), skippable,
+// each remembered per phone once seen.
+const FILMS = { intro: 'assets/intro.mp4', 'bata-1': 'assets/cut/bata-1.mp4', 'bata-2': 'assets/cut/bata-2.mp4' };
+const filmQueue = [];
+let filmNow = null;
+const filmSeen = (id) => (id === 'intro' ? store.get('introSeen', false) : store.get('film.' + id, false));
+function playFilm(id, then) {
+  if (filmNow === id || filmQueue.some((q) => q[0] === id)) { if (then) filmQueue.push([null, then]); return; }
+  if (G.intro) { filmQueue.push([id, then]); return; }
+  if (!id) { then?.(); nextFilm(); return; }
+  const box = $('#intro'), v = box.querySelector('video'), snd = $('#intro-sound');
   G.intro = true;
+  filmNow = id;
   input.setEnabled(false);
   box.hidden = false;
+  snd.hidden = true;
   v.muted = false;
-  v.src = `assets/intro.mp4?v=${__BUILD__}`;
+  v.src = `${FILMS[id]}?v=${__BUILD__}`;
   const done = () => {
-    if (!G.intro) return;
+    if (!G.intro || filmNow !== id) return;
     G.intro = false;
+    filmNow = null;
     v.pause();
     box.hidden = true;
     v.removeAttribute('src'); v.load();
-    store.set('introSeen', true);
+    if (id === 'intro') store.set('introSeen', true); else store.set('film.' + id, true);
     if (G.mode === 'play') input.setEnabled(true);
     then?.();
+    nextFilm();
   };
   v.onended = done;
   v.onerror = done;
   $('#intro-skip').onclick = done;
-  // started from a tap, so sound is allowed; if the browser still refuses, play muted
+  snd.onclick = () => { v.muted = false; snd.hidden = true; v.play().catch(() => {}); };
+  // if the phone refuses to start it with sound (no tap just before), play muted with a "tap for sound" button
   const p = v.play();
-  if (p) p.catch(() => { v.muted = true; v.play().catch(done); });
+  if (p) p.catch(() => { v.muted = true; snd.hidden = false; v.play().catch(done); });
+}
+function nextFilm() {
+  if (G.intro || !filmQueue.length) return;
+  const [id, then] = filmQueue.shift();
+  playFilm(id, then);
+}
+const playIntro = (then) => playFilm('intro', then);
+/** story scenes that belong at the start of a level (each phone plays the ones it hasn't seen) */
+function levelFilms(id) {
+  if (id === 'ch1-square') return ['bata-1', 'bata-2'].filter((f) => !filmSeen(f));
+  return [];
+}
+function startLevelStory() {
+  const films = levelFilms(world.id);
+  if (!films.length) { introCaptions(); return; }
+  films.forEach((f, i) => playFilm(f, i === films.length - 1 ? () => introCaptions() : null));
 }
 
 // a soft click for menu buttons (not the game buttons, they make their own sounds)
@@ -407,6 +437,7 @@ $('#credits-close').addEventListener('click', () => { $('#credits').hidden = tru
 $('#lobby-credits').addEventListener('click', () => openCredits($('#lobby')));
 $('#opt-credits').addEventListener('click', () => openCredits($('#conn')));
 $('#opt-intro').addEventListener('click', () => { if (G.mode === 'menu') enterPlay(); playIntro(); });
+$('#opt-bata').addEventListener('click', () => { if (G.mode === 'menu') enterPlay(); playFilm('bata-1'); playFilm('bata-2'); });
 
 // auto-rejoin after "Try again"
 if (sessionStorage.getItem('eclipse.autojoin') && store.get('role') && store.get('word')) {
