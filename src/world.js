@@ -18,7 +18,7 @@ export const LEVELS = {
   'ch1-plane': { build: buildCh1Plane, title: 'Chapter 1 · 8 October', chip: '✈️ Ch.1 8 October', music: 'lonely', ch: 1, n: 3, name: '8 October', stars: ['c1-msg', 'c1-bridge', 'c1-tower'] },
   'ch2-day': { build: buildCh2Day, title: 'Chapter 2 · Night & Day', chip: '🌗 Ch.2 Night & Day', music: 'mystic', ch: 2, n: 1, name: 'Night & Day', stars: ['c2-sun', 'c2-moon', 'c2-tower', 'c2-flare', 'c2-run'], kits: ['medieval'] },
   'ch2-call': { build: buildCh2Call, title: 'Chapter 2 · The Four-Hour Call', chip: '📞 Ch.2 The Call', music: 'hideout', ch: 2, n: 2, name: 'The Four-Hour Call', stars: ['c2-dial', 'c2-wave', 'c2-storm', 'c2-gust', 'c2-hands'] },
-  'ch2-shy': { build: buildCh2Shy, title: 'Chapter 2 · Kann ich mit dir flirten?', chip: '💜 Ch.2 Shyness', music: 'devil', ch: 2, n: 3, name: '"Kann ich mit dir flirten?"', stars: ['c2-shy'] },
+  'ch2-shy': { build: buildCh2Shy, title: 'Chapter 2 · Kann ich mit dir flirten?', chip: '💜 Ch.2 Shyness', music: 'devil', ch: 2, n: 3, name: '"Kann ich mit dir flirten?"', stars: ['c2-garden', 'c2-kann', 'c2-mit', 'c2-flirten', 'c2-brave'] },
   'ch3-bridge': { build: buildCh3Bridge, title: 'Chapter 3 · The Stone Bridge', chip: '🌉 Ch.3 Stone Bridge', music: 'winter', amb: 'waves', ambVol: 0.3, ch: 3, n: 1, name: 'The Stone Bridge', stars: ['c3-stack', 'c3-tape', 'c3-zip'], kits: ['medieval', 'npc'] },
   playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground', music: 'fun', amb: 'waves', ambVol: 0.14 },
 };

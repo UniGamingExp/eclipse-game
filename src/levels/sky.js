@@ -276,7 +276,7 @@ function cloudSea(root, pal) {
   const R = rng(7);
   for (let i = 0; i < n; i++) {
     const a = R() * Math.PI * 2, r = 12 + Math.pow(R(), 0.7) * 170;
-    o.position.set(Math.cos(a) * r + pal.cx, -13 - R() * 5, Math.sin(a) * r);
+    o.position.set(Math.cos(a) * r + pal.cx, (pal.seaY ?? -13) - R() * 5, Math.sin(a) * r + (pal.seaZ ?? 0));
     const s = 4 + R() * 8;
     o.scale.set(s * 1.5, s * 0.5, s);
     o.rotation.y = R() * 3;
@@ -292,7 +292,7 @@ function cloudSea(root, pal) {
 /**
  * Build the whole sky. opts: top/mid/low (gradient), neb1/neb2 (nebula tints), stars (0..1), nebula (0..1),
  * cloud (cloud-sea glow), cx/cz (level centre), planets (array of [preset, azimuth, elevation, distance, tilt, scale?]) or false,
- * lightDir (direction the planets are lit from).
+ * lightDir (direction the planets are lit from), seaY / seaZ (height and z of the cloud sea, default -13 / 0).
  */
 export function buildSky(root, opts = {}) {
   const pal = {
