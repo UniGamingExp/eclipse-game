@@ -304,7 +304,7 @@ function chooseLevel(id) {
   if (id === 'ch1-cards') { G.net.setSave('ch1/cards', null); G.net.setSave('ch1/trex', null); }
   if (id === 'ch1-plane') { G.net.setSave('ch1/plane', null); G.net.setSave('ch1/planeDone', null); }
   if (id === 'ch2-day') { G.net.setSave('ch2/day', null); G.net.setSave('ch2/day2', null); G.net.setSave('ch2/d2', null); }
-  if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); }
+  if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); G.net.setSave('ch2/call2', null); G.net.setSave('ch2/c2', null); }
   if (id === 'ch2-shy') { G.net.setSave('ch2/shy', null); G.net.setSave('ch2/shyOpen', null); }
   if (id === 'ch3-bridge') G.net.setSave('ch3', null);
   G.net.setSave('cp', null);
