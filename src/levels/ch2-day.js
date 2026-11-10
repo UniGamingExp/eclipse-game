@@ -16,6 +16,7 @@ import { nature, kit } from '../nature.js';
 import { house } from './medieval.js';
 import { lane, checkpoint, platform, plate, approach } from './play.js';
 import { memoryMist } from '../memory.js';
+import { createMinigame, tilesGame, withMinigames } from './minigame.js';
 
 const SX = -2.4, MX = 2.4, LW = 3.2;
 const CY = 29;                          // courtyard / rooftop height
@@ -446,6 +447,25 @@ export function buildCh2Day(root, scene) {
     world.add(im);
   }
 
+  // ---------------------------------------------------------------- hidden minigame: Day & Night Tiles
+  // a secret roof terrace east of the jasmine island (planks across from x 21.5)
+  floor(21.5, 23.6, -50.6, -48.4, CY, mat(0x9a6a4a, { roughness: 0.8 }), darkStone, { surface: 'wood' });
+  floor(23.5, 37.5, -58.5, -42.5, CY, tiles, darkStone, { surface: 'concrete' });
+  add(world, new THREE.BoxGeometry(13.4, CY, 15.4), bodyM, 30.5, CY / 2 - 0.6, -50.5);
+  for (const [x0, x1, z0, z1] of [[23.5, 37.5, -59.1, -58.5], [23.5, 37.5, -42.5, -41.9], [36.9, 37.5, -58.5, -42.5], [23.5, 24.1, -58.5, -50.8], [23.5, 24.1, -48.2, -42.5]]) box(x0, x1, z0, z1, CY + 0.8, CY, darkStone, { col: { noGrab: true } });
+  for (const zz of [-42.8, -58.2]) {   // two strings of lights over the terrace (on posts)
+    for (const x of [24, 37]) add(world, new THREE.CylinderGeometry(0.06, 0.07, 3.6, 6), darkStone, x, CY + 1.8, zz);
+    const im = new THREE.InstancedMesh(bulbGeo, stringMat, 25), o = new THREE.Object3D();
+    for (let i = 0; i <= 24; i++) { const u = i / 24; o.position.set(24 + u * 13, CY + 3.6 - Math.sin(u * Math.PI) * 0.9, zz); o.scale.setScalar(0.08); o.updateMatrix(); im.setMatrixAt(i, o.matrix); }
+    im.userData.noHide = true;
+    world.add(im);
+  }
+  const mgTiles = createMinigame(world, colliders, {
+    id: 'c2day', title: 'Day & Night Tiles', rules: ['Run over the tiles to paint them', 'in your colour. Most tiles in 30 s!'],
+    at: { x: 30.5, y: CY, z: -57.2 }, face: 0, pads: { sun: [27.2, -56.8], moon: [33.8, -56.8] }, dur: 30000,
+    game: tilesGame({ cx: 30.5, cz: -49.5, y: CY, n: 5, size: 2.2 }),
+  });
+
   // ================================================================ 4. THE SHADOW RUN (rooftops)
   const roofs = [[39, 50, CY], [70, 79, CY], [99, 108, CY], [128, 138, CY]];   // all level: no drop to glide from
   for (const [x0, x1, y] of roofs) {
@@ -566,9 +586,9 @@ export function buildCh2Day(root, scene) {
     respawnNearPartner: (pp) => !(pp && pp.z > -66 && pp.x > -12 && pp.x < 12 && pp.y < 6),
     killAt: (p) => (p.y < -1.2 && p.z > -74 && p.x < 11) || (p.x > 11.6 && p.y < 19),
     intro: { all: ['Chapter 2 · 12 October', 'Two hours apart: when the sun is still up for one, night has already come for the other.', 'The Distance has eaten half of this memory. Light it up again, together.'], sun: 'Your Daylight makes the golden platforms solid ☀', moon: 'Your Nightfall makes the lilac platforms solid ☾' },
-    abilities: lit.abilities,
+    abilities: withMinigames(lit.abilities, [mgTiles]),
     lights: lit,
-    attach(a) { api = a; lit.attach(a); },   // saved puzzle state is read in story(), once the save has arrived
+    attach(a) { api = a; lit.attach(a); mgTiles.attach(a); },   // saved puzzle state is read in story(), once the save has arrived
     onCheckpoint(i, sv) { loadState(sv); },
     debug: () => ({ st, gateK, doorK, exitK, liftY, bridgeK, shadowX, shadowOn }),
     story(ctx, t) {
@@ -585,6 +605,7 @@ export function buildCh2Day(root, scene) {
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      mgTiles.update(dt, serverMs, t);
       const p = P();
       // 1. Moon's gate
       // a hold-down plate: Moon's gate is open only while Sun stands on it

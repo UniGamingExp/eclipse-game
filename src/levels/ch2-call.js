@@ -13,6 +13,7 @@ import { mat, add, rbox, islandMeshes, sign, hangSign, cloud, sky, makeStar, spi
 import { createLights } from './light.js';
 import { lane, checkpoint, plate, approach } from './play.js';
 import { memoryMist } from '../memory.js';
+import { createMinigame, starsGame, withMinigames } from './minigame.js';
 
 const LZ = -32;                    // the cable's side-view plane (and the storm cord's base line)
 const CK = { x: 206, z: -32, y: 4, r: 14 };   // the clock island
@@ -66,7 +67,8 @@ export function buildCh2Call(root, scene) {
 
   // ================================================================ 1. THE SWITCHBOARD (7:13 PM)
   box(-12, 12, -24, 4, 0, -1.2, floorM, { col: { safe: true, surface: 'wood' } });
-  for (const [x0, x1, z0, z1] of [[-13, -12, -24, 4], [12, 13, -24, 4], [-13, 13, 4, 5]]) box(x0, x1, z0, z1, 8, 0, wallM, { col: { noGrab: true } });
+  for (const [x0, x1, z0, z1] of [[-13, -12, -24, 0.4], [12, 13, -24, 4], [-13, 13, 4, 5], [-13, -12, 2.8, 4]]) box(x0, x1, z0, z1, 8, 0, wallM, { col: { noGrab: true } });
+  box(-13, -12, 0.4, 2.8, 8, 3.2, wallM, { col: { noGrab: true } });   // over the little side door to the balcony
   // back wall with the doorway (x −1.6…1.6) to the cable
   box(-13, -1.6, -25, -24, 8, 0, wallM, { col: { noGrab: true } });
   box(1.6, 13, -25, -24, 8, 0, wallM, { col: { noGrab: true } });
@@ -125,6 +127,22 @@ export function buildCh2Call(root, scene) {
   const bulbs = [];
   for (let i = 0; i < 4; i++) bulbs.push(add(world, new THREE.SphereGeometry(0.28, 16, 10), new THREE.MeshStandardMaterial({ color: 0x554466, emissive: 0xffc46b, emissiveIntensity: 0 }), -1.35 + i * 0.9, 4.4, -23.7, { cast: false }));
   hangSign(world, 0, 4.2, -2.6, ['☎ Sun dials, Moon knows the number:', 'only her screen shows it. Talk!'], { w: 3.6 });
+
+  // ---------------------------------------------------------------- hidden minigame: Falling Stars
+  // the operators' balcony, through a little door hidden behind a curtain of cords in the left wall
+  for (let i = 0; i < 9; i++) {
+    const z = 0.6 + i * 0.27, pts = [new THREE.Vector3(-12.5, 3.15, z), new THREE.Vector3(-12.55 + Math.sin(i) * 0.06, 1.6, z + 0.05), new THREE.Vector3(-12.5, 0.15, z)];
+    add(world, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 10, 0.035, 5), mat([0xff8fb8, 0xffd27a, 0xa98bff][i % 3]), 0, 0, 0, { cast: false }).userData.noHide = true;
+  }
+  hangSign(world, -11.6, 3.7, 1.6, ['Staff only ☕'], { rotY: Math.PI / 2, w: 1.6 });
+  box(-28, -13, -8, 6, 0, -1.2, floorM, { col: { safe: true, surface: 'wood' } });
+  for (const [x0, x1, z0, z1] of [[-28.6, -28, -8, 6], [-28.6, -13, -8.6, -8], [-28.6, -13, 6, 6.6]]) box(x0, x1, z0, z1, 1.0, 0, brass, { col: { noGrab: true } });
+  for (let i = 0; i < 6; i++) add(world, new THREE.SphereGeometry(0.2, 12, 8), bulbM, -27 + i * 2.8, 2.6, 6.3, { cast: false });
+  const mgStars = createMinigame(world, colliders, {
+    id: 'c2call', title: 'Falling Stars', rules: ['Catch the most falling stars!', 'Big golden ones count 3 ✨'],
+    at: { x: -20.5, y: 0, z: -6.9 }, face: 0, pads: { sun: [-24, -6.6], moon: [-17, -6.6] }, dur: 36000,
+    game: starsGame({ cx: -20.5, cz: 0.2, y: 0, half: 4.6 }),
+  });
 
   // ================================================================ 2. INSIDE THE CABLE (8:00 PM, side view)
   // the passage from the hall into the cable
@@ -320,11 +338,11 @@ export function buildCh2Call(root, scene) {
     checkpoints: cps,
     portal: new THREE.Vector3(CK.x, HUB, CK.z + 1.4),
     respawnNearPartner: true,
-    killAt: (p) => (p.x > 25 && p.x < 92 && Math.abs(p.z - LZ) < 3.5 && p.y < 3 && !(p.x > 74 && p.y > 2)) || (p.x > 92 && p.y < -4),
+    killAt: (p) => (p.x < -13 && p.y < -4) || (p.x > 25 && p.x < 92 && Math.abs(p.z - LZ) < 3.5 && p.y < 3 && !(p.x > 74 && p.y > 2)) || (p.x > 92 && p.y < -4),
     intro: { all: ['Part 2 · The Four-Hour Call', '7:13 PM. "Call you here or on Discord?" "Doesn\'t matter."', 'First, the call has to go through…'] },
-    abilities: lit.abilities,
+    abilities: withMinigames(lit.abilities, [mgStars]),
     lights: lit,
-    attach(a) { api = a; lit.attach(a); },
+    attach(a) { api = a; lit.attach(a); mgStars.attach(a); },
     onCheckpoint() {},
     debug: () => ({ st, dialLocal, openK }),
     story(ctx, t) {
@@ -344,6 +362,7 @@ export function buildCh2Call(root, scene) {
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      mgStars.update(dt, serverMs, t);
       const P = lit.state.P;
       // ---- 1. dialling (counted on Sun's phone; the progress is shared through the save)
       const c2 = api?.save?.ch2?.c2 || {};

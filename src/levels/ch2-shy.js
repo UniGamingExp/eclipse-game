@@ -19,6 +19,7 @@ import { mat, add, rbox, islandMeshes, sign, hangSign, cloud, sky, makeStar, spi
 import { lane, checkpoint, approach } from './play.js';
 import { memoryMist } from '../memory.js';
 import { createLights, FLARE_R } from './light.js';
+import { createMinigame, sumoGame } from './minigame.js';
 
 const AR = 13;                                  // the boss arena (origin, y 0)
 const PADS = { sun: new THREE.Vector3(-7, 0, -1), moon: new THREE.Vector3(7, 0, -1) };
@@ -332,6 +333,24 @@ export function buildCh2Shy(root, scene) {
   wave.visible = false;
   wave.userData.noHide = true;
 
+  // ---------------------------------------------------------------- hidden minigame: Cloud Sumo
+  // a round cloud west of the arena, reached by a trail of little clouds behind the heart lanterns
+  const SU = { x: -26, z: -2.5, r: 4.6 };
+  const cloudM = mat(0xfff4fb, { roughness: 0.95, emissive: 0xffc8e6, emissiveIntensity: 0.2 });
+  add(world, new THREE.CylinderGeometry(SU.r, SU.r - 0.6, 0.9, 40), cloudM, SU.x, -0.45, SU.z);
+  for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; add(world, SPH, cloudM, SU.x + Math.cos(a) * SU.r, -0.35, SU.z + Math.sin(a) * SU.r, { cast: false }).scale.set(0.9, 0.55, 0.9); }
+  colliders.push({ type: 'cyl', x: SU.x, z: SU.z, r: SU.r, top: 0, bottom: -0.9, surface: 'carpet' });
+  for (let i = 0; i < 7; i++) {
+    const x = -13.2 - i * 1.25;
+    add(world, SPH, cloudM, x, -0.3, SU.z + Math.sin(i * 1.3) * 0.15, { cast: false }).scale.set(0.8, 0.45, 0.9);
+    colliders.push({ type: 'box', x0: x - 0.62, x1: x + 0.62, z0: SU.z - 0.75, z1: SU.z + 0.75, top: 0, bottom: -0.6, surface: 'carpet' });
+  }
+  const mgSumo = createMinigame(world, colliders, {
+    id: 'c2shy', title: 'Cloud Sumo', rules: ['Dash into each other to push', 'the other off the cloud. First to 2!'],
+    at: { x: SU.x - 3.6, y: 0, z: SU.z }, face: Math.PI / 2, pads: { sun: [SU.x, SU.z - 2.6], moon: [SU.x, SU.z + 2.6] }, dur: 120000,
+    game: sumoGame({ cx: SU.x, cz: SU.z, y: 0, R: SU.r }),
+  });
+
   // clouds and the memory's soft edges
   for (const [x, y, z, w] of [[-22, -3, 8, 5], [21, -4, -8, 6], [-8, -3, -22, 5], [-26, GG - 3, 40, 6], [26, GG - 4, 58, 7], [-24, GG - 4, 80, 6], [22, -18, 16, 5]]) cloud(world, x, y, z, w, w * 0.8, x * z + 3);
   {
@@ -470,6 +489,7 @@ export function buildCh2Shy(root, scene) {
     label: lit.abilities.label,
     use: lit.abilities.use,
     onEvent(e) {
+      if (mgSumo.onEvent(e)) return true;
       if (e.type === 'shy') {
         if (!authority() && Array.isArray(e.p)) e.p.forEach(([x, z], i) => { if (SH[i]) { SH[i].tx = x; SH[i].tz = z; } });
         return true;
@@ -521,7 +541,7 @@ export function buildCh2Shy(root, scene) {
     intro: { all: ['Part 3 · "Kann ich mit dir flirten?"', 'After the call, one thing was still unsaid…', 'The words are hiding in the garden. They\'re shy.'] },
     abilities,
     lights: lit,
-    attach(a) { api = a; lit.attach(a); },
+    attach(a) { api = a; lit.attach(a); mgSumo.attach(a); },
     onCheckpoint() {},
     _sh: SH, _steps: STEPS,
     debug: () => ({ SH: SH.map((s) => [s.x, s.z, s.fear]), mask: maskOf(), steps: STEPS.map((s) => [s.owner, s.c, s.i, +s.x.toFixed(2), +s.y.toFixed(2), !s.col.disabled]) }),
@@ -571,6 +591,7 @@ export function buildCh2Shy(root, scene) {
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      mgSumo.update(dt, serverMs, t);
       hearts.forEach((h, i) => { h.rotation.y = t * 0.8 + i; h.position.y = 2.5 + Math.sin(t * 1.5 + i) * 0.12; });
       paperHearts.forEach((p) => { p.h.rotation.y = Math.sin(t * 0.8 + p.ph) * 0.5; p.h.position.y = p.y + Math.sin(t * 1.3 + p.ph) * 0.1; });
       if (!api) return;
