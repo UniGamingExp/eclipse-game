@@ -297,11 +297,13 @@ export function makeCharacter(kind, { kid = false } = {}) {
       } else if (mode === MODE.wall) {
         lax = -2.2; rax = -1.6; laz = -0.4; raz = 0.5; llx = 0.6; rlx = 0.2; lean = -0.1;
       } else if (mode === MODE.carry) {
-        lax = rax = -2.9; laz = -0.38; raz = 0.38;
+        lax = rax = -2.95; laz = 0.28; raz = -0.28;   // hands up and close together, under what he holds
         if (grounded) { llx = s * 0.7 * run; rlx = -llx; }
         headX = -0.15;
       } else if (mode === MODE.carried) {
-        lax = rax = -0.4; laz = -1.1; raz = 1.1; llx = 1.25; rlx = 1.05; lean = -0.15;
+        // standing tall on the partner's raised hands, arms up in a happy "ta-da" (legs stay inside the dress)
+        lax = rax = -0.15; laz = -2.35 + Math.sin(t * 3) * 0.08; raz = 2.35 - Math.sin(t * 3) * 0.08;
+        llx = 0.04; rlx = -0.04; lean = Math.sin(t * 1.7) * 0.03; headX = -0.12;
       } else if (mode === MODE.dash) {
         lax = rax = 0.95; laz = -0.35; raz = 0.35; llx = -0.7; rlx = 0.5; lean = 0.55; headX = -0.25;
       } else if (mode === MODE.glide) {
@@ -348,7 +350,7 @@ export function makeCharacter(kind, { kid = false } = {}) {
 
       // skirt/hair sway (Moon)
       if (P.extra.skirt) {
-        const flare = mode === MODE.glide ? 1.18 : !grounded ? 1.08 : 1 + run * 0.04;
+        const flare = mode === MODE.glide ? 1.18 : mode === MODE.carried ? 1.04 + Math.sin(t * 2.2) * 0.02 : !grounded ? 1.08 : 1 + run * 0.04;
         const f = damp(P.extra.skirt.scale.x, flare, 8, dt);
         P.extra.skirt.scale.set(f, 1, f);
         P.extra.backHair.rotation.x = damp(P.extra.backHair.rotation.x, run * 0.25 + (!grounded ? -0.15 : 0), 6, dt);

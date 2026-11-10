@@ -973,11 +973,12 @@ function sunAction() {
   }
   return false;
 }
+const LIFT_UP = 0.24;
 function carriedUpdate(ctl, wantJump) {
   const b = ctl.body;
   const carrier = G.kind === 'solo' ? bodies.sun.pos : (G.track.has && G.net.status.partnerOnline ? G.track.pos : null);
   if (!carrier) { release(ctl, new THREE.Vector3(0, 4, 0)); return; }
-  b.pos.set(carrier.x, carrier.y + sizeOf('sun').h + 0.02, carrier.z);
+  b.pos.set(carrier.x, carrier.y + sizeOf('sun').h + LIFT_UP, carrier.z);   // on his raised hands
   b.vel.set(0, 0, 0); b.grounded = true; b.ground = null;
   ctl.anim = MODE.carried;
   chars[ctl.role].setYaw(chars.sun.yaw);

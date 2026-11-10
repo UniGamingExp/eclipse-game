@@ -102,7 +102,7 @@ export function makeHero(kind, { kid = false } = {}) {
   // the root bone carries walk motion forward: keep the figure on the spot (the physics moves it)
   const rootBone = bone('root');
   let oneShot = null, oneT = 0, yaw = 0, spinT = 0, t = 0, loco = 'Idle_Loop';
-  const ov = { up: 0, out: 0, hold: 0, holdSide: 1 };
+  const ov = { up: 0, out: 0, hold: 0, holdSide: 1, tada: 0 };
   const fire = (n, timeScale = 1, dur = null) => {
     const a = act[n];
     if (!a) return;
@@ -123,8 +123,8 @@ export function makeHero(kind, { kid = false } = {}) {
       const { speed, grounded, vy } = st;
       const mode = st.mode || 0;
       // which clip, and the arm poses on top
-      let want = 'Idle_Loop', ts = 1, up = 0, out = 0, hold = 0;
-      if (mode === MODE.carried) want = 'Sitting_Idle_Loop';
+      let want = 'Idle_Loop', ts = 1, up = 0, out = 0, hold = 0, tada = 0;
+      if (mode === MODE.carried) { want = 'Idle_Loop'; tada = 1; ts = 0.8; }   // standing tall on his hands, arms up (sitting made the legs poke through the dress)
       else if (mode === MODE.hang) { want = 'Jump_Loop'; up = 1; ts = 0.4; }
       else if (mode === MODE.climb) want = 'Jump_Loop';
       else if (mode === MODE.glide) { want = 'Jump_Loop'; out = 1; ts = 0.6; }
@@ -158,7 +158,7 @@ export function makeHero(kind, { kid = false } = {}) {
       if (rootBone) { rootBone.position.x = 0; rootBone.position.z = 0; }
 
       // arm poses on top of the clip
-      ov.up = damp(ov.up, up, 14, dt); ov.out = damp(ov.out, out, 10, dt); ov.hold = damp(ov.hold, hold, 10, dt);
+      ov.up = damp(ov.up, up, 14, dt); ov.tada = damp(ov.tada, tada, 10, dt); ov.out = damp(ov.out, out, 10, dt); ov.hold = damp(ov.hold, hold, 10, dt);
       model.updateMatrixWorld(true);
       const q = root.getWorldQuaternion(_pq.clone());
       const side = (k) => new THREE.Vector3(k, 0, 0).applyQuaternion(q);
@@ -167,6 +167,10 @@ export function makeHero(kind, { kid = false } = {}) {
         if (ov.up > 0.01) {
           const d = new THREE.Vector3(k * 0.18, 1, 0.12).applyQuaternion(q);
           aim(B.ua[sd], B.la[sd], d, ov.up); aim(B.la[sd], B.hand[sd], d, ov.up);
+        }
+        if (ov.tada > 0.01) {   // a happy "ta-da": both arms up in a V, waving a little
+          const d = side(k * (0.75 + Math.sin(t * 3 + k) * 0.12)).add(new THREE.Vector3(0, 1, 0.08).applyQuaternion(q));
+          aim(B.ua[sd], B.la[sd], d, ov.tada); aim(B.la[sd], B.hand[sd], d, ov.tada);
         }
         if (ov.out > 0.01) {
           const d = side(k).add(new THREE.Vector3(0, 0.15 + Math.sin(t * 6) * 0.08, 0));
@@ -178,7 +182,7 @@ export function makeHero(kind, { kid = false } = {}) {
         }
       }
       if (dress) {
-        const flare = mode === MODE.glide ? 1.18 : !grounded ? 1.08 : 1 + Math.min(1, speed / 5.6) * 0.05;
+        const flare = mode === MODE.glide ? 1.18 : mode === MODE.carried ? 1.03 + Math.sin(t * 2.2) * 0.02 : !grounded ? 1.08 : 1 + Math.min(1, speed / 5.6) * 0.05;
         const f = damp(dress.scale.x, flare, 8, dt);
         dress.scale.set(f, 1, f);
       }
