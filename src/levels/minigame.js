@@ -373,6 +373,28 @@ export function sumoGame({ cx, cz, y, R = 4.6, to = 2 }) {
   };
 }
 
+/** 3.1 · Eddy Race: hop the spinning rafts to your buoy; first one there wins (fall in → back to your pad) */
+export function raceGame({ finish, y, fallY, r = 1.4 }) {
+  let winner = null, sent = {};
+  return {
+    start() { winner = null; sent = {}; },
+    update(dt, sNow, c) {
+      for (const role of c.api.mine()) {
+        const p = c.api.bodies[role].pos, f = finish[role];
+        if (p.y < fallY) { c.toPad(role); c.api.sound.play('bounce'); continue; }
+        if (!sent[role] && Math.hypot(p.x - f[0], p.z - f[1]) < r && Math.abs(p.y - y) < 1.2) {
+          sent[role] = true;
+          c.api.fx.sparks(p.clone().setY(p.y + 1), 0xffffff, 24, 4);
+          c.report('fin', { from: role });
+        }
+      }
+    },
+    onEvent(e, c) { if (e.k === 'fin' && c.auth && !winner) winner = e.from; },
+    done: () => !!winner,
+    score() { return { sun: winner === 'sun' ? 1 : 0, moon: winner === 'moon' ? 1 : 0 }; },
+  };
+}
+
 /** a level's abilities with the minigame(s) listening to 'mg' events first */
 export function withMinigames(abilities, games) {
   return {

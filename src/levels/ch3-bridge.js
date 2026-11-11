@@ -1,12 +1,19 @@
 // Chapter 3 · Regensburg · Part 1 "The Stone Bridge".
 // Autumn 2025: Sun still lives in Regensburg and the moving boxes for Halle are already out.
-// North bank (Stadtamhof) → the old Stone Bridge over the swirling Danube → the river island → the bridge
-// tower → the old town by the Wurstkuchl, with the cathedral's twin spires behind.
-//  1. The bridge deck starts 6.8 m above the bank: Sun stacks two moving boxes against the wall to climb up.
-//  2. A broken arch (14 m): Moon tapes the two posts → a sticky tape bridge.
-//  3. The island: stack boxes against the terrace house, climb to the roof terrace, Moon tapes a zipline over
-//     the main channel and both zip across.
-// Stars: on the bank (a two-box stack and a jump), out on a river pillar (side tape), on the zipline.
+// v2 (11 Nov, to the playtest-2 rules): Sun's street in Stadtamhof → over the canal → the bank → the old Stone
+// Bridge over the swirling Danube → the river island → the bridge tower → the old town by the Wurstkuchl.
+//  1. Moving morning: Sun's street (packed houses, the moving van). The canal (24 m) cuts it off: Sun stacks the
+//     two boxes under a balcony (5.6 m), both climb up, Moon tapes a tape bridge across to the balcony opposite.
+//  2. The bank: the bridge deck is 6.8 m up (no ledge to grab). Four boxes in one stack, and stacks of three or more
+//     wobble and crash unless Moon tapes them ("Tape stack").
+//  3. The deck: a broken arch (14 m), Moon tapes the gap; the Bruckmandl.
+//  4. The island: four taped boxes up to the roof terrace (7 m, no grabbing), Moon tapes a zipline over the main
+//     channel, both zip across.
+//  5. Over the last span, through the bridge tower into the old town.
+//  🎮 Hidden minigame "Eddy Race": steps down from the bank (east of the bridge) to a jetty; two lanes of rafts
+//     spinning in the eddies, first to their buoy wins.
+// Stars: on the moving van, on the bank (stack + jump), out on a river pillar (side tape), on the zipline, on the
+// Bruckmandl's hat.
 import * as THREE from 'three';
 import { skyU } from '../gfx.js';
 import { mat, add, rbox, sign, sky, makeStar, spinStars, lights, cloud } from './common.js';
@@ -14,6 +21,9 @@ import { kit, nature } from '../nature.js';
 import { house, gateTower } from './medieval.js';
 import { createMoving, BOX } from './moving.js';
 import { townspeople } from '../npc.js';
+import { checkpoint, platform } from './play.js';
+import { memoryMist } from '../memory.js';
+import { createMinigame, raceGame, withMinigames } from './minigame.js';
 
 const DY = 6.8;        // bridge deck height above the bank
 const WATER = -3.6;    // Danube surface
@@ -175,8 +185,8 @@ export function buildCh3Bridge(root, scene) {
 
   // ---------- the river ----------
   const waterM = waterMaterial();
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(520, 260, 1, 1).rotateX(-Math.PI / 2), waterM);
-  water.position.set(0, WATER, -55);
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(520, 360, 1, 1).rotateX(-Math.PI / 2), waterM);
+  water.position.set(0, WATER, -40);
   water.userData.noHide = true;
   world.add(water);
   anims.push((t) => { waterM.uniforms.time.value = t; });
@@ -195,7 +205,7 @@ export function buildCh3Bridge(root, scene) {
     K.scatter(world, 'Floor_UnevenBrick', items, { receive: true });
   }
   // the river wall along the bank, open only where the bridge starts
-  for (const [x0, x1] of [[-40, -3.4], [3.4, 40]]) {
+  for (const [x0, x1] of [[-40, -3.4], [3.4, 18], [21.4, 40]]) {
     add(world, worldUV(new THREE.BoxGeometry(x1 - x0, 0.9, 0.5), 1.5), stone, (x0 + x1) / 2, 0.45, 1.25);
     colliders.push({ type: 'box', x0, x1, z0: 1, z1: 1.5, top: 0.9, bottom: 0, noGrab: true });
   }
@@ -216,7 +226,57 @@ export function buildCh3Bridge(root, scene) {
     add(world, new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.7, 1.1) }), x, 3.3, z, { cast: false });
     colliders.push({ type: 'cyl', x, z, r: 0.12, top: 3.3, bottom: 0, noGrab: true });
   }
-  sign(world, 3.6, 4.2, -0.35, ['🚧 Bridge too high?', 'Stack the boxes! 📦📦']);
+  sign(world, 3.6, 4.2, -0.35, ['🚧 Bridge too high? Stack the boxes', 'high, and Moon tapes the stack ✦']);
+
+  // ---------- 1. Sun's street in Stadtamhof, and the canal ----------
+  bank(-12, 12, 58, 104, 0);
+  colliders.push({ type: 'box', x0: -12, x1: 12, z0: 58, z1: 104, top: 0, bottom: -3, safe: true, surface: 'concrete' });
+  if (K.has('Floor_UnevenBrick')) {
+    const items = [];
+    for (let x = -3; x <= 3; x += 2) for (let z = 61; z <= 95; z += 2) items.push({ x, y: 0.005, z });
+    K.scatter(world, 'Floor_UnevenBrick', items, { receive: true });
+  }
+  // two rows of houses along the street and one across its end
+  const ROW = [[60, 66, 6, 3], [66, 70, 4, 2], [70, 76, 6, 3], [76, 80, 4, 2], [80, 86, 6, 2], [86, 90, 4, 3], [90, 96, 6, 2]];
+  ROW.forEach(([z0, z1, w, f], i) => {
+    for (const s of [-1, 1]) {
+      const fl = s > 0 ? 5 - f : f;
+      house(world, s * 7, 0, (z0 + z1) / 2, { w, d: 6, floors: fl, rotY: s < 0 ? Math.PI / 2 : -Math.PI / 2, seed: 50 + i * 2 + (s > 0), style: ['mixed', 'plaster', 'brick'][(i + (s > 0)) % 3] });
+      colliders.push({ type: 'box', x0: s < 0 ? -10 : 4, x1: s < 0 ? -4 : 10, z0, z1, top: fl * 3.12 + 4, bottom: 0, noGrab: true });
+    }
+  });
+  for (const x of [-3, 3]) house(world, x, 0, 99, { w: 6, d: 6, floors: 3, rotY: Math.PI, seed: 70 + x, style: 'plaster' });
+  colliders.push({ type: 'box', x0: -10, x1: 10, z0: 96, z1: 104, top: 13.4, bottom: 0, noGrab: true });
+  for (const s of [-1, 1]) {
+    add(world, worldUV(new THREE.BoxGeometry(2, 2.2, 46), 1.6), stone, s * 11, 1.1, 81);
+    colliders.push({ type: 'box', x0: s < 0 ? -12 : 10, x1: s < 0 ? -10 : 12, z0: 58, z1: 104, top: 2.2, bottom: 0, noGrab: true });
+  }
+  // low walls along both sides of the canal
+  for (const [z0, z1, top] of [[33.6, 34, 0.9], [58, 58.4, 0.9]]) {
+    const x0 = z0 > 50 ? -12 : -40, x1 = z0 > 50 ? 12 : 40;
+    add(world, worldUV(new THREE.BoxGeometry(x1 - x0, top, z1 - z0), 1.5), stone, (x0 + x1) / 2, top / 2, (z0 + z1) / 2);
+    colliders.push({ type: 'box', x0, x1, z0, z1, top, bottom: 0, noGrab: true });
+  }
+  // the moving van
+  const vanM = mat(0xf4efe6, { roughness: 0.6 }), vanStripe = mat(0x6a8fd8, { roughness: 0.5 });
+  add(world, rbox(2.6, 2.7, 5.5, 0.15), vanM, 2.5, 1.65, 68.75);
+  add(world, rbox(2.62, 0.4, 5.52, 0.05), vanStripe, 2.5, 1.5, 68.75, { cast: false });
+  add(world, rbox(2.4, 1.8, 2.0, 0.3), vanStripe, 2.5, 1.2, 72.5);
+  for (const [z, x] of [[66.6, 1.25], [66.6, 3.75], [70.6, 1.25], [70.6, 3.75], [72.7, 1.35], [72.7, 3.65]]) add(world, new THREE.CylinderGeometry(0.42, 0.42, 0.3, 16).rotateZ(Math.PI / 2), mat(0x2b2b33), x, 0.42, z);
+  colliders.push({ type: 'box', x0: 1.2, x1: 3.8, z0: 66, z1: 71.5, top: 3.0, bottom: 0, noGrab: true, surface: 'wood' });
+  colliders.push({ type: 'box', x0: 1.3, x1: 3.7, z0: 71.5, z1: 73.5, top: 2.1, bottom: 0, noGrab: true });
+  // the balconies either side of the canal (the tape runs between them at 5.6 m)
+  const BAL_Y = 5.6, woodM = mat(0x8a5a3a, { roughness: 0.8 });
+  for (const [z0, z1] of [[60.2, 63.8], [29.6, 33.4]]) {
+    add(world, rbox(2.6, 0.3, z1 - z0, 0.06), woodM, -2.7, BAL_Y - 0.15, (z0 + z1) / 2);
+    colliders.push({ type: 'box', x0: -4, x1: -1.4, z0, z1, top: BAL_Y, bottom: BAL_Y - 0.3, surface: 'wood' });
+    for (const z of [z0 + 0.2, z1 - 0.2]) { add(world, new THREE.CylinderGeometry(0.08, 0.1, BAL_Y - 0.3, 8), woodM, -1.6, (BAL_Y - 0.3) / 2, z); colliders.push({ type: 'cyl', x: -1.6, z, r: 0.1, top: BAL_Y - 0.3, bottom: 0, noGrab: true, noStep: true }); }
+    for (let i = 0; i < 3; i++) add(world, new THREE.SphereGeometry(0.22, 10, 8), mat([0xff7a8a, 0xffd27a, 0xffffff][i]), -3.7, BAL_Y + 0.15, z0 + 0.8 + i * 0.9, { cast: false });
+  }
+  house(world, -7, 0, 31.5, { w: 4, d: 6, floors: 2, rotY: Math.PI / 2, seed: 77, style: 'plaster' });
+  colliders.push({ type: 'box', x0: -10, x1: -4, z0: 29.5, z1: 33.5, top: 10.3, bottom: 0, noGrab: true });
+  sign(world, 2.4, 88.6, 0.15, ['Moving day! 📦', 'Sun ✦ carries · Moon ✦ tapes']);
+  sign(world, 6.6, 61.2, -0.5, ['The canal! Two boxes under the', 'balcony, then tape it across ✦']);
 
   // ---------- the Stone Bridge ----------
   // deck segments
@@ -228,7 +288,7 @@ export function buildCh3Bridge(root, scene) {
       for (let z = z0 - 1; z > z1; z -= 2) for (const x of [-2, 0, 2]) items.push({ x, y: DY + 0.005, z });
       K.scatter(world, 'Floor_UnevenBrick', items);
     } else add(world, new THREE.BoxGeometry(6.0, 0.06, len - 0.1), deckTop, 0, DY + 0.0, cz, { cast: false }).receiveShadow = true;
-    colliders.push({ type: 'box', x0: -3.3, x1: 3.3, z0: z1, z1: z0, top: DY, bottom: z0 === 2 ? WATER - 1 : DY - 1.0, safe: true, surface: 'concrete' });
+    colliders.push({ type: 'box', x0: -3.3, x1: 3.3, z0: z1, z1: z0, top: DY, bottom: z0 === 2 ? WATER - 1 : DY - 1.0, safe: true, surface: 'concrete', noGrab: z0 === 2 });
   }
   // the bank end: a solid wall from the square up to the deck (the climb)
   add(world, worldUV(new THREE.BoxGeometry(6.6, DY - WATER, 1.6), 2.2), stone, 0, (DY + WATER) / 2, 1.0);
@@ -280,7 +340,7 @@ export function buildCh3Bridge(root, scene) {
   house(world, TH.x, DY, TH.z, { w: 4, d: 4, floors: 2, s: 1.12, roof: false, rotY: -Math.PI / 2, seed: 21, style: 'mixed' });
   const tTop = DY + 2 * 3.12 * 1.12;
   add(world, rbox(4.7, 0.3, 4.7, 0.08), mat(0xb9876a, { roughness: 0.8 }), TH.x, tTop - 0.12, TH.z);
-  colliders.push({ type: 'box', x0: TH.x - 2.3, x1: TH.x + 2.3, z0: TH.z - 2.3, z1: TH.z + 2.3, top: tTop + 0.03, bottom: DY });
+  colliders.push({ type: 'box', x0: TH.x - 2.3, x1: TH.x + 2.3, z0: TH.z - 2.3, z1: TH.z + 2.3, top: tTop + 0.03, bottom: DY, noGrab: true });
   // a little fence on the river side of the terrace
   if (K.has('Prop_WoodenFence_Single')) for (const z of [-1.2, 1.2]) K.place(world, 'Prop_WoodenFence_Single', TH.x + 2.1, tTop + 0.03, TH.z + z, { rotY: Math.PI / 2 });
   colliders.push({ type: 'box', x0: TH.x + 2.0, x1: TH.x + 2.3, z0: TH.z - 2.3, z1: TH.z + 2.3, top: tTop + 0.85, bottom: tTop, noGrab: true });
@@ -288,7 +348,7 @@ export function buildCh3Bridge(root, scene) {
   colliders.push({ type: 'box', x0: -9, x1: -3, z0: -59, z1: -55, top: DY + 10.3, bottom: DY, noGrab: true });
   if (nature.has('CommonTree_2')) nature.place(world, 'CommonTree_2', -1.5, DY, -61.6, { s: 0.9 });
   colliders.push({ type: 'cyl', x: -1.5, z: -61.6, r: 0.35, top: DY + 3, bottom: DY, noGrab: true });
-  sign(world, 1.6, -51.2, 0.2, ['Up to the terrace!', 'Then: tape a zipline ✦']).position.y = DY;
+  sign(world, 1.6, -51.2, 0.2, ['Up to the terrace: a tall stack,', 'taped ✦ Then: tape a zipline ✦']).position.y = DY;
 
   // ---------- the side pillar (bonus star) ----------
   add(world, worldUV(new THREE.CylinderGeometry(1.8, 2.1, DY - WATER + 1, 14), 1.6), stone, 13.6, (DY + WATER - 1) / 2, -40, { cast: false });
@@ -331,11 +391,14 @@ export function buildCh3Bridge(root, scene) {
   const moving = createMoving(world, colliders, {
     key: 'ch3',
     killY: -1,
+    wobble: true,
     boxes: [
+      { id: 'b0a', x: -1.4, y: 0, z: 76 }, { id: 'b0b', x: 0.6, y: 0, z: 78.2 }, { id: 'b8', x: 3.6, y: 0, z: 12.6 }, { id: 'b7', x: -7.2, y: DY, z: -61.4 },
       { id: 'b1', x: -5.2, y: 0, z: 5.6 }, { id: 'b2', x: -6.4, y: 0, z: 10.2 }, { id: 'b3', x: -3.2, y: 0, z: 11.2 },
       { id: 'b4', x: -1.6, y: DY, z: -53.4 }, { id: 'b5', x: 1.8, y: DY, z: -60.4 }, { id: 'b6', x: -4.6, y: DY, z: -52.2 },
     ],
     tapes: [
+      { id: 't0', kind: 'walk', a: [-2.4, 5.6, 60.4], b: [-2.4, 5.6, 31.8], pa: [-3.4, 5.6, 61.2], pb: [-3.4, 5.6, 31.0] },
       { id: 't1', kind: 'walk', a: [0, DY, -16.8], b: [0, DY, -31.2], pa: [2.2, DY, -16.2], pb: [2.2, DY, -31.8] },
       { id: 't2', kind: 'walk', a: [3.3, DY, -40], b: [12.2, DY, -40], pa: [2.4, DY, -41.6], pb: [13.6, DY, -41.2] },
       { id: 't3', kind: 'zip', a: zipA, b: zipB },
@@ -347,6 +410,54 @@ export function buildCh3Bridge(root, scene) {
   stars.push(makeStar(world, 'c3-tape', 13.6, DY + 1.3, -40, 1));
   const zu = 0.5, zp = new THREE.Vector3(...zipA).lerp(new THREE.Vector3(...zipB), zu);
   stars.push(makeStar(world, 'c3-zip', zp.x, zp.y - 0.5 - 1.45 - 0.4 + 0.9, zp.z, 2));
+  stars.push(makeStar(world, 'c3-street', 2.5, 4.7, 68.8, 3));       // on the moving van
+  stars.push(makeStar(world, 'c3-mandl', -2.3, DY + 3.9, -87, 4));   // over the Bruckmandl's hat
+
+  // ---------- 🎮 hidden minigame: Eddy Race ----------
+  // steps down through a gap in the river wall east of the bridge to a jetty; two lanes of rafts spinning in eddies
+  const RX = { sun: 17.5, moon: 21.9 }, RAFT_Y = -3.0;
+  for (let i = 0; i < 6; i++) {
+    const za = 1.0 - 0.5 * i, top = -0.43 * (i + 1);
+    add(world, worldUV(new THREE.BoxGeometry(3.4, top - WATER + 0.5, 0.5), 1.4), stone, 19.7, (top + WATER - 0.5) / 2, za - 0.25, { cast: false });
+    colliders.push({ type: 'box', x0: 18, x1: 21.4, z0: za - 0.5, z1: za, top, bottom: WATER - 0.5, surface: 'concrete' });
+  }
+  add(world, rbox(9, 0.4, 4, 0.08), woodM, 19.75, -2.8, -3.5);
+  colliders.push({ type: 'box', x0: 15.25, x1: 24.25, z0: -5.5, z1: -1.5, top: -2.6, bottom: -3.0, surface: 'wood', safe: true });
+  for (const x of [15.6, 23.9]) for (const z of [-1.8, -5.2]) add(world, new THREE.CylinderGeometry(0.14, 0.16, 2.2, 8), woodM, x, -3.3, z);
+  const raftM = mat(0xb07a4e, { roughness: 0.85 }), RAFTS = [];
+  for (const r of ['sun', 'moon']) {
+    for (let i = 0; i < 7; i++) {
+      const P = platform(world, colliders, { w: 2.0, h: 0.35, d: 2.0, material: raftM, x: RX[r], y: RAFT_Y, z: -8.5 - 4.6 * i, surface: 'wood' });
+      P.m.userData.noHide = true;
+      RAFTS.push({ P, x: RX[r], z: -8.5 - 4.6 * i, i });
+    }
+    // the buoy at the end, with a little flag in your colour
+    add(world, new THREE.CylinderGeometry(1.3, 1.1, 0.6, 20), mat(0xf4efe6), RX[r], RAFT_Y - 0.3, -41);
+    colliders.push({ type: 'cyl', x: RX[r], z: -41, r: 1.3, top: RAFT_Y, bottom: RAFT_Y - 0.6, surface: 'wood' });
+    add(world, new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), mat(0x3a3150), RX[r], RAFT_Y + 1.1, -41.6);
+    add(world, new THREE.PlaneGeometry(0.9, 0.6), new THREE.MeshStandardMaterial({ color: r === 'sun' ? 0xffc94d : 0xa98bff, side: THREE.DoubleSide, emissive: r === 'sun' ? 0xffa21f : 0x7a4dff, emissiveIntensity: 0.4 }), RX[r] + 0.45, RAFT_Y + 1.9, -41.6, { cast: false });
+  }
+  const mgRace = createMinigame(world, colliders, {
+    id: 'c3race', title: 'Eddy Race', rules: ['Hop the spinning rafts to your', 'flag. First one there wins!'],
+    at: { x: 23.4, y: -2.6, z: -2.3 }, face: -0.9, pads: { sun: [RX.sun, -4.3], moon: [RX.moon, -4.3] }, dur: 60000,
+    game: raceGame({ finish: { sun: [RX.sun, -41], moon: [RX.moon, -41] }, y: RAFT_Y, fallY: RAFT_Y - 0.55 }),
+  });
+  const inRace = (p) => p.x > 14.5 && p.x < 25.5 && p.z < 1.2 && p.z > -44;
+
+  // ---------- checkpoints ----------
+  const cps = [
+    checkpoint(world, { x: 3.2, y: 0, z: 88.4, r: 2.6, sun: [-1.5, 0, 90], moon: [1.5, 0, 90], yaw: 0 }),
+    checkpoint(world, { x: 1.6, y: 0, z: 29.5, r: 3.2, sun: [-0.8, 0, 29], moon: [0.8, 0, 29], yaw: 0, label: 'Across the canal: the bank' }),
+    checkpoint(world, { x: 2.2, y: DY, z: -5, r: 3, sun: [-1, DY, -5], moon: [1, DY, -5], yaw: 0, label: 'The Stone Bridge' }),
+    checkpoint(world, { x: 2.2, y: DY, z: -52.5, r: 3, sun: [-1, DY, -52.5], moon: [1, DY, -52.5], yaw: 0, label: 'The river island' }),
+    checkpoint(world, { x: 2.2, y: DY, z: -84, r: 3, sun: [-1, DY, -84], moon: [1, DY, -84], yaw: 0, label: 'Almost across' }),
+  ];
+  {
+    const P = [], R = ((sd) => () => ((sd = (sd * 16807) % 2147483647) / 2147483647))(5);
+    for (let z = 58; z <= 104; z += 4) for (const s of [-1, 1]) P.push([s * (13.5 + R() * 2), -1 + R() * 2, z]);
+    for (let x = -12; x <= 12; x += 4) P.push([x, 0 + R() * 2, 106 + R() * 2]);
+    memoryMist(world, P, { size: 9, color: 0xffe0c8, opacity: 0.32 });
+  }
 
   for (const [x, z, w] of [[-34, -30, 7], [30, -70, 8], [-28, -84, 6], [36, -20, 6]]) cloud(world, x, 22, z, w, w * 0.7, x * z);
 
@@ -380,20 +491,24 @@ export function buildCh3Bridge(root, scene) {
     colliders,
     stars,
     movers: {},
-    spawn: { sun: new THREE.Vector3(-1.6, 0, 13), moon: new THREE.Vector3(1.6, 0, 13) },
+    spawn: { sun: new THREE.Vector3(-1.5, 0, 90), moon: new THREE.Vector3(1.5, 0, 90) },
     camYaw: { sun: 0, moon: 0 },
-    lobbyCam: { cx: 0, cz: -50, r: 70, h: 32 },
-    killY: -1.5,
+    lobbyCam: { cx: 0, cz: -10, r: 90, h: 36 },
+    killY: -8,
+    killAt: (p) => (p.y < -1.5 && !inRace(p)) || p.y < -4.3,
+    checkpoints: cps,
+    camZones: [{ x0: -4, x1: 4, z0: 60, z1: 96, y1: 8, yaw: 0, spread: 0.6, pitchMin: 0.32 }],
     respawnNearPartner: true,
     portal: new THREE.Vector3(0, DY, -112),
     intro: {
-      all: ['Chapter 3 · Regensburg', 'Autumn 2025: Sun still lives here… and the moving boxes for Halle are already out. 📦'],
+      all: ['Chapter 3 · Regensburg', 'Autumn 2025: Sun still lives here… and the moving boxes for Halle are already out. 📦', 'Goodbye is in the air. But first: one last walk over the Stone Bridge.'],
       sun: 'Strongman ✦ pick up a box, put it down next to another to stack them',
-      moon: 'Tape gun ✦ stand by a glowing post and tape it to its partner',
+      moon: 'Tape gun ✦ tape a glowing post to its partner, or tape a stack of boxes so it holds',
     },
-    abilities: moving.abilities,
+    abilities: withMinigames(moving.abilities, [mgRace]),
     moving,
-    attach(a) { api = a; moving.attach(a); },
+    attach(a) { api = a; moving.attach(a); mgRace.attach(a); },
+    onCheckpoint() {},
     story(ctx, t) {
       const st = ctx.save.ch3 || {};
       const P = [ctx.pos.sun, ctx.pos.moon].filter(Boolean);
@@ -401,6 +516,9 @@ export function buildCh3Bridge(root, scene) {
       if (moving.boxes.some((o) => !o.by && o.rest.y > 0.5 && o.rest.y < 1.5)) once('stack', ctx, 'A stack! Climb it like stairs 📦📦');
       if (P.some((p) => p.y > DY - 0.5 && p.z < -3 && p.z > -12)) once('deck', ctx, 'The Stone Bridge: almost 900 years old, and still standing. 🌉');
       if (!st.t?.t1 && P.some((p) => p.y > DY - 0.5 && p.z < -12 && p.z > -18)) once('gap', ctx, 'A broken arch! Moon: tape the two glowing posts together ✦');
+      if (P.some((p) => p.z < 66 && p.z > 58 && p.y < 2)) once('canal', ctx, 'The canal! Sun: stack the two boxes under the balcony 📦📦 · Moon: climb up and tape across ✦', 5200);
+      if (st.t?.t0) once('taped0', ctx, 'A tape bridge over the canal 💜 Don\'t look down!', 3400);
+      if (P.some((p) => p.z < 28 && p.z > 3 && p.y < 1)) once('bank', ctx, 'The bridge starts way up there. Stack the boxes high, and Moon tapes the stack so it doesn\'t wobble.', 5200);
       if (st.t?.t1) once('taped', ctx, 'Sticky, but it holds. Walk across! 💜', 3200);
       if (P.some((p) => p.z < -50 && p.z > -63 && p.y > DY - 0.5)) once('island', ctx, 'The river island. Up to the terrace: from there, a zipline goes over the water 🧗');
       if (st.t?.t3) once('zip', ctx, 'Stand by the post on the terrace and press Zip! ✦', 3600);
@@ -418,6 +536,11 @@ export function buildCh3Bridge(root, scene) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
       crowd?.update(dt);
+      // the rafts spin in their eddies (same clock on both phones)
+      const sT = serverMs / 1000;
+      for (const R of RAFTS) { const w = R.i % 2 ? -1 : 1, a = sT * 0.9 * w + R.i * 1.1; R.P.set(R.x + Math.cos(a) * 0.8, RAFT_Y + Math.sin(sT * 1.7 + R.i) * 0.06, R.z + Math.sin(a) * 0.8); }
+      mgRace.update(dt, serverMs, t);
+      if (api) { const cpi = api.save?.cp?.l === 'ch3-bridge' ? api.save.cp.i : 0; cps.forEach((c, i) => c.setOn(i <= cpi, t)); }
       // the sun's shadow box follows the player (the level is long)
       if (api) {
         const p = api.bodies[api.active].pos;

@@ -4,7 +4,10 @@
 //  • Moon tapes glowing posts together (ability near a post). A "walk" tape becomes a sticky tape bridge
 //    straight across a gap; a "zip" tape runs from a high post down to a low one: stand at the top and press
 //    the ability ("Zip!") to slide down it, hanging on with both hands (jump lets go).
-// Shared state lives in the save (save.<key>.b.<boxId> = [x,y,z] | 'sun', save.<key>.t.<tapeId> = 1);
+//  • Stacks taller than two boxes wobble: stand on the third box or higher and the stack crashes (the boxes go
+//    back where they came from), unless Moon has taped the stack (ability next to it: "Tape stack").
+// Shared state lives in the save (save.<key>.b.<boxId> = [x,y,z] | 'sun', save.<key>.t.<tapeId> = 1,
+// save.<key>.tb.<boxId> = 1 for taped boxes);
 // only Sun's phone moves boxes and only Moon's phone tapes, so the two phones never fight over a value.
 import * as THREE from 'three';
 import { add, rbox, mat } from './common.js';
@@ -45,12 +48,13 @@ function tapeTex() {
  * tapes: [{ id, a: [x,y,z], b: [x,y,z], kind: 'walk' | 'zip' }]  (a, b = where the tape is fixed, at post tops;
  *         'walk' tapes must be level and run along x or z; 'zip' runs from the high end a to the low end b)
  */
-export function createMoving(world, colliders, { boxes = [], tapes = [], key = 'ch3', killY = -20 } = {}) {
+export function createMoving(world, colliders, { boxes = [], tapes = [], key = 'ch3', killY = -20, wobble = false } = {}) {
   let api = null;
   const st = () => (api?.save?.[key]) || {};
   const label = labelTex(), tapeT = tapeTex();
   const cardboard = mat(0xd09a5e, { roughness: 0.85 }), stripe = mat(0xe8c983, { roughness: 0.5 });
   const labelM = new THREE.MeshStandardMaterial({ map: label, roughness: 0.8 });
+  const tapeBandM = new THREE.MeshStandardMaterial({ map: tapeT, roughness: 0.35, emissive: 0x5a3aa0, emissiveIntensity: 0.3 });
 
   // ---------- boxes ----------
   const B = boxes.map((b) => {
@@ -62,11 +66,15 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
       const l = add(g, new THREE.PlaneGeometry(0.62, 0.31), labelM, 0, BOX * 0.45, s * (BOX / 2 + 0.006), { cast: false });
       if (s < 0) l.rotation.y = Math.PI;
     }
+    const band = new THREE.Group();   // Moon's tape, wrapped round the box when the stack is taped
+    for (const r of [0, Math.PI / 2]) { const m = add(band, new THREE.BoxGeometry(0.2, BOX + 0.03, BOX + 0.03), tapeBandM, 0, BOX / 2, 0, { cast: false }); m.rotation.y = r; }
+    band.visible = false;
+    g.add(band);
     g.position.set(b.x, b.y, b.z);
     world.add(g);
     const col = { type: 'box', x0: 0, x1: 0, z0: 0, z1: 0, top: 0, bottom: 0, surface: 'wood', box: true };
     colliders.push(col);
-    const o = { id: b.id, home: new THREE.Vector3(b.x, b.y, b.z), rest: new THREE.Vector3(b.x, b.y, b.z), by: null, g, col, shownY: b.y, pend: null };
+    const o = { id: b.id, home: new THREE.Vector3(b.x, b.y, b.z), rest: new THREE.Vector3(b.x, b.y, b.z), by: null, g, col, shownY: b.y, pend: null, band, tpend: 0 };
     setCol(o);
     return o;
   });
@@ -153,6 +161,21 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
     return best;
   }
   const carried = () => B.find((o) => o.by === 'sun');
+  const taped = (o) => !!st().tb?.[o.id] || performance.now() - o.tpend < 2500;
+  /** the boxes standing in the same column as o, bottom first */
+  const column = (o) => restingBoxes().filter((q) => Math.abs(q.rest.x - o.rest.x) < 0.3 && Math.abs(q.rest.z - o.rest.z) < 0.3).sort((a, b) => a.rest.y - b.rest.y);
+  function nearStack(P) {
+    let best = null, bd = 1e9;
+    for (const o of restingBoxes()) {
+      const col = column(o);
+      if (col.length < 2 || col[0] !== o || col.every(taped)) continue;
+      const d = flat(P, o.rest);
+      if (d > BOX / 2 + 1.4 || P.y < o.rest.y - 1.0 || P.y > col[col.length - 1].rest.y + BOX + 0.6) continue;
+      if (d < bd) { bd = d; best = col; }
+    }
+    return best;
+  }
+  let crashCd = 0;
   function nearPost(P) {
     for (const t of T) {
       if (tapeOn(t)) continue;
@@ -195,12 +218,12 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
     first(who) {
       const P = api.bodies[who].pos;
       if (who === 'sun') return !!carried() || !!nearZip(P) || !!nearBox(P);
-      return !!nearPost(P) || !!nearZip(P);
+      return !!nearPost(P) || !!nearZip(P) || !!nearStack(P);
     },
     label(who) {
       const P = api.bodies[who].pos;
       if (who === 'sun') return carried() ? 'Put down' : nearZip(P) ? 'Zip!' : nearBox(P) ? 'Pick up' : 'Strongman';
-      return nearZip(P) ? 'Zip!' : nearPost(P) ? 'Tape!' : 'Tape gun';
+      return nearZip(P) ? 'Zip!' : nearPost(P) ? 'Tape!' : nearStack(P) ? 'Tape stack' : 'Tape gun';
     },
     use(who) {
       const ctl = api.ctls[who], P = api.bodies[who].pos;
@@ -237,17 +260,34 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
         const o = nearBox(P);
         if (!o) return false;
         setBox(o, 'sun');
+        if (st().tb?.[o.id]) api.setSave(`${key}/tb/${o.id}`, null);   // picked up: its tape comes off
         api.sound.play('jump2');
         return true;
       }
       const t = nearPost(P);
-      if (!t) { api.sound.play('no'); return true; }
+      if (!t) {
+        const col = nearStack(P);
+        if (col) {
+          for (const o of col) { o.tpend = performance.now(); api.setSave(`${key}/tb/${o.id}`, 1); }
+          api.sound.play('pin');
+          api.fx.sparks(new THREE.Vector3(col[0].rest.x, col[0].rest.y + col.length * BOX * 0.5, col[0].rest.z), 0xc9a4ff, 22, 3);
+          api.toast('Taped! 💜 This stack won\'t wobble now');
+          return true;
+        }
+        api.sound.play('no'); return true;
+      }
       t.pend = performance.now();
       api.setSave(`${key}/t/${t.id}`, 1);
       api.sound.play('pin');
       return true;
     },
-    /** drives a body that is sliding down a zipline (called from control() while state === 'ride') */
+    onEvent(e) {
+      if (e.type !== 'crash') return false;
+      api.sound.play('bounce');
+      api.toast('Wobble… CRASH! 📦 Stacks of 3 or more need Moon\'s tape');
+      return true;
+    },
+        /** drives a body that is sliding down a zipline (called from control() while state === 'ride') */
     ride(ctl, dt, wantJump) {
       const t = T.find((x) => x.id === ctl.rideId), b = ctl.body;
       if (!t) { ctl.state = 'free'; return; }
@@ -289,6 +329,26 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
         }
       }
       if (api.mine().includes('sun')) api.ctls.sun.boxCarry = !!carried();
+      for (const o of B) o.band.visible = !o.by && taped(o);
+      // tall untaped stacks wobble and crash when someone stands on the third box or higher (Sun's phone decides)
+      crashCd -= dt;
+      if (wobble && api.mine().includes('sun') && crashCd <= 0) {
+        for (const r of ['sun', 'moon']) {
+          const P = posOf(r);
+          if (!P) continue;
+          const under = restingBoxes().find((o) => flat(P, o.rest) < BOX / 2 + 0.15 && Math.abs(P.y - (o.rest.y + BOX)) < 0.3);
+          if (!under) continue;
+          const col = column(under), lvl = col.indexOf(under);
+          if (lvl < 2 || taped(under)) continue;
+          crashCd = 1.2;
+          for (const o of col.slice(1)) setBox(o, null);
+          api.sound.play('bounce');
+          api.fx.sparks(new THREE.Vector3(under.rest.x, under.rest.y + BOX, under.rest.z), 0xd09a5e, 24, 4);
+          api.send?.('crash', {});
+          api.toast('Wobble… CRASH! 📦 Stacks of 3 or more need Moon\'s tape');
+          break;
+        }
+      }
       // tapes
       for (const tp of T) {
         const on = tapeOn(tp);
