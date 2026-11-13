@@ -66,6 +66,20 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
       const l = add(g, new THREE.PlaneGeometry(0.62, 0.31), labelM, 0, BOX * 0.45, s * (BOX / 2 + 0.006), { cast: false });
       if (s < 0) l.rotation.y = Math.PI;
     }
+    // a box that won't close: two lid flaps that keep popping up until Moon tapes it shut
+    const flaps = [];
+    if (b.open) {
+      for (const sd of [1, -1]) {
+        const hinge = new THREE.Group();
+        hinge.position.set(0, BOX, sd * BOX / 2);
+        add(hinge, new THREE.BoxGeometry(BOX - 0.02, 0.03, BOX / 2).translate(0, 0, -sd * BOX / 4), cardboard, 0, 0, 0, { cast: false });
+        hinge.userData.sd = sd;
+        g.add(hinge);
+        flaps.push(hinge);
+      }
+    }
+    const shutTape = b.open ? add(g, new THREE.BoxGeometry(0.24, 0.025, BOX + 0.04), tapeBandM, 0, BOX + 0.02, 0, { cast: false }) : null;
+    if (shutTape) shutTape.visible = false;
     const band = new THREE.Group();   // Moon's tape, wrapped round the box when the stack is taped
     for (const r of [0, Math.PI / 2]) { const m = add(band, new THREE.BoxGeometry(0.2, BOX + 0.03, BOX + 0.03), tapeBandM, 0, BOX / 2, 0, { cast: false }); m.rotation.y = r; }
     band.visible = false;
@@ -74,7 +88,7 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
     world.add(g);
     const col = { type: 'box', x0: 0, x1: 0, z0: 0, z1: 0, top: 0, bottom: 0, surface: 'wood', box: true };
     colliders.push(col);
-    const o = { id: b.id, home: new THREE.Vector3(b.x, b.y, b.z), rest: new THREE.Vector3(b.x, b.y, b.z), by: null, g, col, shownY: b.y, pend: null, band, tpend: 0 };
+    const o = { id: b.id, home: new THREE.Vector3(b.x, b.y, b.z), rest: new THREE.Vector3(b.x, b.y, b.z), by: null, g, col, shownY: b.y, pend: null, band, tpend: 0, open: !!b.open, flaps, shutTape, spend: 0 };
     setCol(o);
     return o;
   });
@@ -161,6 +175,11 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
     return best;
   }
   const carried = () => B.find((o) => o.by === 'sun');
+  const isShut = (o) => !o.open || !!st().shut?.[o.id] || performance.now() - o.spend < 2500;
+  function nearOpen(P) {
+    for (const o of restingBoxes()) if (!isShut(o) && flat(P, o.rest) < BOX / 2 + 1.4 && Math.abs(P.y - o.rest.y) < 1.8) return o;
+    return null;
+  }
   const taped = (o) => !!st().tb?.[o.id] || performance.now() - o.tpend < 2500;
   /** the boxes standing in the same column as o, bottom first */
   const column = (o) => restingBoxes().filter((q) => Math.abs(q.rest.x - o.rest.x) < 0.3 && Math.abs(q.rest.z - o.rest.z) < 0.3).sort((a, b) => a.rest.y - b.rest.y);
@@ -218,12 +237,12 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
     first(who) {
       const P = api.bodies[who].pos;
       if (who === 'sun') return !!carried() || !!nearZip(P) || !!nearBox(P);
-      return !!nearPost(P) || !!nearZip(P) || !!nearStack(P);
+      return !!nearPost(P) || !!nearZip(P) || !!nearStack(P) || !!nearOpen(P);
     },
     label(who) {
       const P = api.bodies[who].pos;
-      if (who === 'sun') return carried() ? 'Put down' : nearZip(P) ? 'Zip!' : nearBox(P) ? 'Pick up' : 'Strongman';
-      return nearZip(P) ? 'Zip!' : nearPost(P) ? 'Tape!' : nearStack(P) ? 'Tape stack' : 'Tape gun';
+      if (who === 'sun') { const nb = nearBox(P); return carried() ? 'Put down' : nearZip(P) ? 'Zip!' : nb ? (isShut(nb) ? 'Pick up' : 'Won\'t close!') : 'Strongman'; }
+      return nearZip(P) ? 'Zip!' : nearPost(P) ? 'Tape!' : nearOpen(P) ? 'Tape shut' : nearStack(P) ? 'Tape stack' : 'Tape gun';
     },
     use(who) {
       const ctl = api.ctls[who], P = api.bodies[who].pos;
@@ -259,12 +278,21 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
       if (who === 'sun') {
         const o = nearBox(P);
         if (!o) return false;
+        if (!isShut(o)) { api.sound.play('no'); api.toast('It won\'t close! 📦 Moon: tape it shut ✦'); return true; }
         setBox(o, 'sun');
         if (st().tb?.[o.id]) api.setSave(`${key}/tb/${o.id}`, null);   // picked up: its tape comes off
         api.sound.play('jump2');
         return true;
       }
       const t = nearPost(P);
+      const ob = !t && nearOpen(P);
+      if (ob) {
+        ob.spend = performance.now();
+        api.setSave(`${key}/shut/${ob.id}`, 1);
+        api.sound.play('pin');
+        api.fx.sparks(new THREE.Vector3(ob.rest.x, ob.rest.y + BOX, ob.rest.z), 0xc9a4ff, 16, 2.5);
+        return true;
+      }
       if (!t) {
         const col = nearStack(P);
         if (col) {
@@ -329,7 +357,13 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
         }
       }
       if (api.mine().includes('sun')) api.ctls.sun.boxCarry = !!carried();
-      for (const o of B) o.band.visible = !o.by && taped(o);
+      for (const o of B) {
+        o.band.visible = !o.by && taped(o);
+        if (!o.open) continue;
+        const shut = isShut(o);
+        if (o.shutTape) o.shutTape.visible = shut;
+        o.flaps.forEach((f, i) => { const want = shut ? 0 : f.userData.sd * (0.9 + Math.sin(t * 6 + i * 2 + o.home.x) * 0.5); f.rotation.x += (want - f.rotation.x) * Math.min(1, dt * 10); });
+      }
       // tall untaped stacks wobble and crash when someone stands on the third box or higher (Sun's phone decides)
       crashCd -= dt;
       if (wobble && api.mine().includes('sun') && crashCd <= 0) {

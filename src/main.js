@@ -307,6 +307,7 @@ function chooseLevel(id) {
   if (id === 'ch2-call') { G.net.setSave('ch2/call', null); G.net.setSave('ch2/callDone', null); G.net.setSave('ch2/call2', null); G.net.setSave('ch2/c2', null); }
   if (id === 'ch2-shy') { G.net.setSave('ch2/shy2', null); G.net.setSave('ch2/shyOpen2', null); G.net.setSave('ch2/s3', null); }
   if (id === 'ch3-bridge') G.net.setSave('ch3', null);
+  if (id === 'ch3-moving') G.net.setSave('ch3m', null);
   G.net.setSave('cp', null);
   if (G.save) G.save.cp = null;
   G.net.setSave('level', id);

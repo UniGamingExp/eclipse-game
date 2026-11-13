@@ -225,7 +225,8 @@ export function createMinigame(parent, colliders, def) {
 // ================================================================ the games
 
 /** 2.1 · Day & Night Tiles: paint the square in your colour by running over it; most tiles after 30 s wins */
-export function tilesGame({ cx, cz, y, n = 5, size = 2.2 }) {
+export function tilesGame({ cx, cz, y, n = 5, size = 2.2, bubbles = false }) {
+  // bubbles: a sheet of bubble wrap instead: every bubble pops once, for whoever steps on it first
   const owner = new Array(n * n).fill(0), tiles = [];
   const code = { sun: 1, moon: 2 };
   const mats = [mat(0xded2c4, { roughness: 0.8 }), mat(0xffc94d, { emissive: 0xffa21f, emissiveIntensity: 0.55, roughness: 0.5 }), mat(0xa98bff, { emissive: 0x7a4dff, emissiveIntensity: 0.6, roughness: 0.5 })];
@@ -234,12 +235,19 @@ export function tilesGame({ cx, cz, y, n = 5, size = 2.2 }) {
     const i = Math.floor((p.x - x0) / size), j = Math.floor((p.z - z0) / size);
     return i >= 0 && j >= 0 && i < n && j < n && Math.abs(p.y - y) < 0.4 ? j * n + i : -1;
   };
-  const paint = (i, v) => { if (owner[i] === v) return; owner[i] = v; tiles[i].material = mats[v]; tiles[i].scale.y = 2.2; };
+  const paint = (i, v, force = false) => {
+    if (owner[i] === v || (bubbles && v && owner[i] && !force)) return;
+    owner[i] = v; tiles[i].material = bubbles ? bubM[v] : mats[v];
+    if (bubbles) tiles[i].scale.y = v ? 0.12 : 1; else tiles[i].scale.y = 2.2;
+  };
+  const bubM = [new THREE.MeshStandardMaterial({ color: 0xe8f4ff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.55 }), mats[1], mats[2]];
   let sendT = 0;
   return {
     build(g) {
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-        const m = add(g, rbox(size - 0.16, 0.07, size - 0.16, 0.03), mats[0], x0 + (i + 0.5) * size, y + 0.04, z0 + (j + 0.5) * size, { cast: false });
+        const m = bubbles
+          ? add(g, new THREE.SphereGeometry(size * 0.42, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), bubM[0], x0 + (i + 0.5) * size, y + 0.02, z0 + (j + 0.5) * size, { cast: false })
+          : add(g, rbox(size - 0.16, 0.07, size - 0.16, 0.03), mats[0], x0 + (i + 0.5) * size, y + 0.04, z0 + (j + 0.5) * size, { cast: false });
         m.userData.noHide = true;
         tiles.push(m);
       }
@@ -248,14 +256,14 @@ export function tilesGame({ cx, cz, y, n = 5, size = 2.2 }) {
     update(dt, sNow, c) {
       for (const r of c.api.mine()) {
         const i = idx(c.api.bodies[r].pos);
-        if (i >= 0 && owner[i] !== code[r]) { paint(i, code[r]); c.report('paint', { i, from: r }); }
+        if (i >= 0 && owner[i] !== code[r] && !(bubbles && owner[i])) { paint(i, code[r]); c.report('paint', { i, from: r }); if (bubbles) c.api.sound.play('pop', { vol: 0.5 }); }
       }
-      tiles.forEach((m) => { m.scale.y += (1 - m.scale.y) * Math.min(1, dt * 8); });
+      if (!bubbles) tiles.forEach((m) => { m.scale.y += (1 - m.scale.y) * Math.min(1, dt * 8); });
       if (c.auth) { sendT -= dt; if (sendT <= 0) { sendT = 0.25; c.broadcast('st', { o: owner.join('') }); } }
     },
     onEvent(e, c) {
       if (e.k === 'paint' && c.auth && e.i >= 0 && e.i < owner.length) paint(e.i, code[e.from] || 0);
-      if (e.k === 'st' && !c.auth && typeof e.o === 'string') [...e.o].forEach((v, i) => paint(i, +v));
+      if (e.k === 'st' && !c.auth && typeof e.o === 'string') [...e.o].forEach((v, i) => paint(i, +v, true));
     },
     score() { let s = 0, m = 0; for (const v of owner) { if (v === 1) s++; else if (v === 2) m++; } return { sun: s, moon: m }; },
   };
@@ -397,10 +405,8 @@ export function raceGame({ finish, y, fallY, r = 1.4 }) {
 
 /** a level's abilities with the minigame(s) listening to 'mg' events first */
 export function withMinigames(abilities, games) {
-  return {
-    get label() { return abilities.label; },
-    use: (...a) => abilities.use?.(...a),
-    update: (...a) => abilities.update?.(...a),
-    onEvent: (e) => games.some((g) => g.onEvent(e)) || !!abilities.onEvent?.(e),
-  };
+  // everything else (label, use, update, ride, first…) comes from the level's own abilities
+  const w = Object.create(abilities);
+  w.onEvent = (e) => games.some((g) => g.onEvent(e)) || !!abilities.onEvent?.(e);
+  return w;
 }
