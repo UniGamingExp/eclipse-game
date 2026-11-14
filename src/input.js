@@ -174,7 +174,104 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
   });
   window.addEventListener('blur', () => { keys.clear(); st.jumpHeld = false; st.move.x = st.move.y = 0; });
 
+  // ---- controller (Xbox / PlayStation / any "standard" gamepad), polled every frame ----
+  // left stick / d-pad move · right stick camera · A jump · X or RT power · B or LT dash · Y lift · RB heart ·
+  // LB switch (practice) · Start menu. In menus: d-pad / stick moves a highlight, A presses it, B goes back.
+  const PAD = { jump: 0, dash: 1, ability: 2, lift: 3, swap: 4, heart: 5, dash2: 6, ability2: 7, back: 8, start: 9, up: 12, down: 13, left: 14, right: 15 };
+  let padOn = false, padMoved = false, prev = [], navHeld = 0, focusEl = null;
+  const dead = (v, d = 0.18) => (Math.abs(v) < d ? 0 : (v - Math.sign(v) * d) / (1 - d));
+  const setPad = (v, gp) => {
+    if (padOn === v) return;
+    padOn = v; st.gamepad = v;
+    document.body.classList.toggle('gamepad', v);
+    if (v) {
+      const id = gp?.id || '', ps = /dualsense|dualshock|054c|playstation|wireless controller/i.test(id) && !/xbox|xinput|045e/i.test(id);
+      document.body.classList.toggle('pad-ps', ps);
+      if (document.pointerLockElement) document.exitPointerLock?.();
+    } else setFocus(null);
+  };
+  function setFocus(el) {
+    if (focusEl === el) return;
+    focusEl?.classList.remove('pad-focus');
+    focusEl = el;
+    el?.classList.add('pad-focus');
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }
+  const visible = (el) => {
+    if (el.disabled || el.hidden || el.closest('[hidden]') || el.classList.contains('act')) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return false;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.pointerEvents === 'none' || +cs.opacity < 0.05) return false;
+    const top = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)));
+    return !!top && (el === top || el.contains(top) || top.contains(el));
+  };
+  const targets = () => [...document.querySelectorAll('button, [role=button], .role, a[href], input, select, .sb-part, .sb-ch')].filter(visible);
+  function nav(dx, dy) {
+    const list = targets();
+    if (!list.length) return;
+    if (!focusEl || !list.includes(focusEl)) { setFocus(list[0]); return; }
+    const a = focusEl.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+    let best = null, bs = 1e9;
+    for (const el of list) {
+      if (el === focusEl) continue;
+      const r = el.getBoundingClientRect(), x = r.left + r.width / 2 - ax, y = r.top + r.height / 2 - ay;
+      const along = x * dx + y * dy, across = Math.abs(x * dy) + Math.abs(y * dx);
+      if (along < 4) continue;
+      const score = along + across * 2.5;
+      if (score < bs) { bs = score; best = el; }
+    }
+    if (best) setFocus(best);
+  }
+  function poll(dt) {
+    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((g) => g && g.connected && g.buttons.length >= 10) : [];
+    const gp = pads.find((g) => g.mapping === 'standard') || pads[0];
+    if (!gp) { if (padOn) { setPad(false); if (padMoved) { st.move.x = st.move.y = 0; padMoved = false; } st.jumpHeld = false; } return; }
+    const B = gp.buttons.map((b) => b.pressed || b.value > 0.5);
+    const hit = (i) => B[i] && !prev[i];
+    let lx = dead(gp.axes[0] || 0), ly = dead(gp.axes[1] || 0);
+    const rx = dead(gp.axes[2] || 0, 0.14), ry = dead(gp.axes[3] || 0, 0.14);
+    if (B[PAD.left]) lx = -1; if (B[PAD.right]) lx = 1; if (B[PAD.up]) ly = -1; if (B[PAD.down]) ly = 1;
+    const any = B.some(Boolean) || lx || ly || rx || ry;
+    if (any && !padOn) { setPad(true, gp); setDesktop(false); unlockAudio(); }
+    if (!padOn) { prev = B; return; }
+    if (st.enabled) {
+      setFocus(null);
+      const m = Math.hypot(lx, ly);
+      if (m > 0) { const k = Math.min(1, m) / m; st.move.x = lx * k; st.move.y = -ly * k; padMoved = true; }
+      else if (padMoved) { st.move.x = st.move.y = 0; padMoved = false; }
+      // the stick turns faster the further it's pushed (finer aim near the centre)
+      st.camDX += Math.sign(rx) * rx * rx * 520 * dt;
+      st.camDY += Math.sign(ry) * ry * ry * 300 * dt;
+      if (hit(PAD.jump)) press('jump');
+      st.jumpHeld = B[PAD.jump];
+      if (hit(PAD.ability) || hit(PAD.ability2)) press('ability');
+      if (hit(PAD.dash) || hit(PAD.dash2)) press('dash');
+      if (hit(PAD.lift)) press('lift');
+      if (hit(PAD.heart)) press('heart');
+      if (hit(PAD.swap)) press('swap');
+      if (hit(PAD.start)) document.querySelector('#menu-btn')?.click();
+    } else {
+      // menus, the lobby, the storybook, films: move a highlight and press it
+      if (padMoved) { st.move.x = st.move.y = 0; padMoved = false; }
+      st.jumpHeld = false;
+      const dx = Math.abs(lx) > 0.5 ? Math.sign(lx) : 0, dy = Math.abs(ly) > 0.5 ? Math.sign(ly) : 0;
+      if (dx || dy) { navHeld -= dt; if (navHeld <= 0) { nav(dx, dx ? 0 : dy); navHeld = navHeld < -0.5 ? 0.34 : 0.2; } } else navHeld = -1;
+      if (hit(PAD.jump)) { const list = targets(); if (focusEl && list.includes(focusEl)) { if (focusEl.tagName === 'INPUT') focusEl.focus(); else focusEl.click(); } else if (list.length) setFocus(list[0]); }
+      if (hit(PAD.dash) || hit(PAD.start)) {
+        const back = ['#intro-skip', '#sb-close', '[data-pad-back]', '.close', '#conn-start'].map((q) => document.querySelector(q)).find((el) => el && visible(el));
+        if (back) back.click();
+      }
+    }
+    prev = B;
+  }
+  window.addEventListener('gamepaddisconnected', () => poll(0));
+  // keyboard, mouse or touch take over again
+  window.addEventListener('keydown', () => setPad(false));
+  window.addEventListener('pointerdown', () => setPad(false), { capture: true, passive: true });
+
   return {
+    poll,
     state: st,
     consume(name) { const had = st.pressed.has(name); st.pressed.delete(name); return had; },
     takeZoom() { const z = st.zoom; st.zoom = 1; return z; },

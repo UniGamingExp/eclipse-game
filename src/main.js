@@ -1263,6 +1263,7 @@ function frame(nowMs) {
   last = nowMs;
   const dt = Math.min(0.05, Math.max(0.001, rawDt));
   G.t += dt;
+  input.poll(dt);
   const sNow = serverNow();
   world.update(sNow, G.t, dt);
 
