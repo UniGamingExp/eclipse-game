@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preload" href="assets/fonts/fredoka.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/nunito.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=bf5ec8097b">
+<link rel="stylesheet" href="style.css?v=3e9524e371">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -171,12 +171,14 @@
     <div id="mem-lock">
       <p class="who">These are locked. Type your password to open them.</p>
       <label class="word"><span>Password</span>
-        <input id="mem-pw" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="80">
+        <input id="mem-pw" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="80">
       </label>
+      <label class="mem-rem"><input id="mem-remember" type="checkbox"> Remember on this device (only on your own phone or laptop)</label>
       <button id="mem-open" class="primary">Unlock</button>
       <p id="mem-err" class="err"></p>
     </div>
     <div id="mem-grid" hidden></div>
+    <button id="mem-lockbtn" class="link" hidden>🔒 Lock again on this device</button>
     <button id="mem-close" class="link">Close</button>
   </div>
 </div>
@@ -203,6 +205,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=bf5ec8097b"></script>
+<script type="module" src="build/game.js?v=3e9524e371"></script>
 </body>
 </html>

@@ -268,9 +268,9 @@ export function buildCh3Bridge(root, scene) {
   // the balconies either side of the canal (the tape runs between them at 5.6 m)
   const BAL_Y = 5.6, woodM = mat(0x8a5a3a, { roughness: 0.8 });
   for (const [z0, z1] of [[60.2, 63.8], [29.6, 33.4]]) {
-    add(world, rbox(2.6, 0.3, z1 - z0, 0.06), woodM, -2.7, BAL_Y - 0.15, (z0 + z1) / 2);
+    add(world, rbox(2.6, 0.3, z1 - z0, 0.06), woodM, -2.7, BAL_Y - 0.15, (z0 + z1) / 2).userData.noHide = true;   // (the camera's see-through logic made it blink)
     colliders.push({ type: 'box', x0: -4, x1: -1.4, z0, z1, top: BAL_Y, bottom: BAL_Y - 0.3, surface: 'wood' });
-    for (const z of [z0 + 0.2, z1 - 0.2]) { add(world, new THREE.CylinderGeometry(0.08, 0.1, BAL_Y - 0.3, 8), woodM, -1.6, (BAL_Y - 0.3) / 2, z); colliders.push({ type: 'cyl', x: -1.6, z, r: 0.1, top: BAL_Y - 0.3, bottom: 0, noGrab: true, noStep: true }); }
+    for (const z of [z0 + 0.2, z1 - 0.2]) { add(world, new THREE.CylinderGeometry(0.08, 0.1, BAL_Y - 0.3, 8), woodM, -1.6, (BAL_Y - 0.3) / 2, z).userData.noHide = true; colliders.push({ type: 'cyl', x: -1.6, z, r: 0.1, top: BAL_Y - 0.3, bottom: 0, noGrab: true, noStep: true }); }
     for (let i = 0; i < 3; i++) add(world, new THREE.SphereGeometry(0.22, 10, 8), mat([0xff7a8a, 0xffd27a, 0xffffff][i]), -3.7, BAL_Y + 0.15, z0 + 0.8 + i * 0.9, { cast: false });
   }
   house(world, -7, 0, 31.5, { w: 4, d: 6, floors: 2, rotY: Math.PI / 2, seed: 77, style: 'plaster' });

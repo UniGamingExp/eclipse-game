@@ -387,3 +387,6 @@ body.gamepad .act[data-pad]::after { content: attr(data-pad); position: absolute
   background: #3b2a66; color: #fff; font: 700 10px/1.3 Fredoka, sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 body.gamepad.pad-ps .act[data-pad]::after { content: attr(data-ps); }
 .pad-focus { outline: 3px solid #ffd76a !important; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(255, 215, 106, 0.28), 0 0 22px rgba(255, 200, 90, 0.6) !important; border-radius: 12px; }
+
+.mem-rem { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 4px 0 10px; font: 600 13px/1.3 Nunito, sans-serif; opacity: .8; }
+.mem-rem input { width: 18px; height: 18px; }

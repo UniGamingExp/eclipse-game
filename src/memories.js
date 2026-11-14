@@ -12,7 +12,7 @@ async function fetchBundle() {
 }
 
 /** Returns the list of memories, or throws 'wrong-password' / 'unsupported' / 'missing'. */
-export async function unlockMemories(password) {
+export async function unlockMemories(password, remember = false) {
   if (cache) return cache;
   if (!crypto?.subtle) throw new Error('unsupported');
   const buf = await fetchBundle();
@@ -29,9 +29,15 @@ export async function unlockMemories(password) {
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return { ...it, data: undefined, url: URL.createObjectURL(new Blob([bytes], { type: it.mime })) };
   });
-  store.set('memPw', password);
+  if (remember) store.set('memPw', password);   // only if asked: the password then stays in this browser
   return cache;
 }
 
 export const savedPassword = () => store.get('memPw', '');
 export const forgetPassword = () => store.set('memPw', '');
+/** Lock again: throw away the opened photos and the remembered password on this device. */
+export function lockMemories() {
+  for (const m of cache || []) URL.revokeObjectURL(m.url);
+  cache = null;
+  forgetPassword();
+}

@@ -135,7 +135,7 @@ export function createTrexTable(opts) {
       finishedShown = true;
       const won = r.totals.us > r.totals.them, tie = r.totals.us === r.totals.them;
       $('.t-end h3').textContent = won ? 'You two win! 🏆' : tie ? "It's a draw 🤝" : 'The bots win this time 🤖';
-      $('.t-end p').innerHTML = r.roundScores.map((s, i) => `${CONTRACTS[MATCH[i]].name}: ☀️🌙 ${s.us} · 🤖 ${s.them}`).join('<br>') + `<br><b>Total: ☀️🌙 ${r.totals.us} · 🤖 ${r.totals.them}</b>`;
+      $('.t-end p').innerHTML = r.roundScores.map((s, i) => `${CONTRACTS[MATCH[i]].name}: ☀️🌙 ${+s.us || 0} · 🤖 ${+s.them || 0}`).join('<br>') + `<br><b>Total: ☀️🌙 ${r.totals.us} · 🤖 ${r.totals.them}</b>`;
       $('.t-end').hidden = false;
       sound.play(won ? 'win' : 'respawn');
       opts.onFinish?.({ ...r.totals, won });
