@@ -390,3 +390,7 @@ body.gamepad.pad-ps .act[data-pad]::after { content: attr(data-ps); }
 
 .mem-rem { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 4px 0 10px; font: 600 13px/1.3 Nunito, sans-serif; opacity: .8; }
 .mem-rem input { width: 18px; height: 18px; }
+
+.code-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: -2px 0 8px; }
+.hint { margin: 0 0 10px; font: 600 13px/1.35 Nunito, sans-serif; color: #2f7a4a; text-align: center; }
+#conn-code b { letter-spacing: 2px; }

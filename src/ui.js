@@ -10,6 +10,42 @@ export function createUI({ onJoin, onSolo, onStart, onRetry, onLeave, onResetSta
   wordEl.value = store.get('word', '');
   $('#ver').textContent = 'version ' + __BUILD__;
 
+  // ---- room codes: the host makes one, the partner types it or just opens the invite link.
+  // A code is simply the room's secret word, so progress is saved under it: keep using the same one.
+  const hint = (m) => { const h = $('#code-hint'); h.textContent = m; h.hidden = !m; };
+  const ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no 0/O, 1/I/L
+  const newCode = () => { const a = new Uint32Array(6); crypto.getRandomValues(a); return [...a].map((n) => ABC[n % ABC.length]).join(''); };
+  const inviteUrl = () => `${location.origin}${location.pathname}?room=${encodeURIComponent(wordEl.value.trim())}${role ? `&as=${otherRole(role)}` : ''}`;
+  async function shareInvite() {
+    const url = inviteUrl(), text = `Come play Eclipse with me ☀️🌙 Room code: ${wordEl.value.trim()}`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'Eclipse', text, url });
+      else { await navigator.clipboard.writeText(`${text}\n${url}`); toast('Invite copied: paste it to your partner'); }
+    } catch { /* closed the share sheet */ }
+  }
+  const paintShare = () => { $('#code-share').hidden = wordEl.value.trim().length < 2; };
+  $('#code-new').addEventListener('click', () => {
+    if (wordEl.value.trim() && !confirm('Make a new room code? A new code starts a new story from the beginning. (Your old code keeps its progress.)')) return;
+    wordEl.value = newCode();
+    store.set('word', wordEl.value);
+    paintShare();
+    hint('Your code is ready. Send the invite to your partner, pick Sun or Moon, then "Play together".');
+  });
+  $('#code-share').addEventListener('click', shareInvite);
+  $('#conn-share').addEventListener('click', shareInvite);
+  wordEl.addEventListener('input', paintShare);
+  {
+    const q = new URLSearchParams(location.search), room = (q.get('room') || '').trim().slice(0, 40), as = q.get('as');
+    if (room.length >= 2) {
+      wordEl.value = room;
+      store.set('word', room);
+      if (!store.get('role', null) && (as === 'sun' || as === 'moon')) { role = as; store.set('role', as); }
+      hint(`Invite code ${room} filled in ✓ Pick ${as === 'sun' ? 'Sun' : as === 'moon' ? 'Moon' : 'your character'} and press "Play together".`);
+      history.replaceState(null, '', location.pathname);   // keep the code out of the address bar / screenshots
+    }
+  }
+  paintShare();
+
   const roleBtns = [...document.querySelectorAll('.role')];
   const paintRoles = () => roleBtns.forEach((b) => b.classList.toggle('sel', b.dataset.role === role));
   paintRoles();
@@ -53,6 +89,8 @@ export function createUI({ onJoin, onSolo, onStart, onRetry, onLeave, onResetSta
   function renderStatus(st, myRole, kind) {
     const other = otherRole(myRole);
     const P = `${ROLE_EMOJI[other]} ${ROLE_NAME[other]}`;
+    $('#conn-code').hidden = kind !== 'online' && kind !== 'local';
+    $('#conn-code-val').textContent = wordEl.value.trim();
     $('#conn-who').textContent = kind === 'solo'
       ? 'Practice alone: you control both.'
       : `You are ${ROLE_EMOJI[myRole]} ${ROLE_NAME[myRole]}` + (kind === 'local' ? ' (two-tab test)' : '');

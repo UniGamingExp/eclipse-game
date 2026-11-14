@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preload" href="assets/fonts/fredoka.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/nunito.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=83d5cf1379">
+<link rel="stylesheet" href="style.css?v=a1d40914d8">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -57,9 +57,14 @@
       <button class="role" data-role="moon"><span class="emoji">🌙</span><b>Moon</b><small>Tide</small></button>
     </div>
     <label class="word">
-      <span>Secret word</span>
-      <input id="word" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="the same word for both of you">
+      <span>Room code</span>
+      <input id="word" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="type your partner's code (or your secret word)">
     </label>
+    <div class="code-row">
+      <button id="code-new" class="link">✨ Host: make a new code</button>
+      <button id="code-share" class="link" hidden>📨 Send invite</button>
+    </div>
+    <p id="code-hint" class="hint" hidden></p>
     <button id="join" class="primary">Play together</button>
     <button id="solo" class="link">Practice alone</button>
     <button id="lobby-mem" class="link mem-link">📷 Our memories</button>
@@ -76,6 +81,7 @@
     <div class="row" id="row-partner"><span class="ic"></span><div class="txt"><b>Partner</b><small></small></div><span class="ms"></span></div>
     <div class="row" id="row-delay"><span class="ic"></span><div class="txt"><b>Delay between you</b><small></small></div><span class="ms"></span></div>
     <button class="row quiz-row" id="row-quiz" hidden><span class="ic">✍️</span><div class="txt"><b>Your quiz questions</b><small></small></div><span class="ms">Write ›</span></button>
+    <p class="who" id="conn-code" hidden>Room code: <b id="conn-code-val"></b> · <button id="conn-share" class="link small">📨 Send invite</button></p>
     <p id="conn-msg" class="err"></p>
     <div class="btns">
       <button id="conn-start" class="primary">Start playing</button>
@@ -205,6 +211,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=83d5cf1379"></script>
+<script type="module" src="build/game.js?v=a1d40914d8"></script>
 </body>
 </html>
