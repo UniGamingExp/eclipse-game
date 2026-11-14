@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { mat, add, rbox, islandMeshes, sign, cloud, sky, makeStar, spinStars, lights, meadow, decorate } from './common.js';
 import { createBubbles, bubbleAbilities } from './bubbles.js';
+import { createMinigame, raceGame, withMinigames } from './minigame.js';
 
 const P1 = { x0: -3, x1: 3, z0: -29, z1: -25, top: 3.2 };      // before the bubble bridge
 // after it: 9.8 m up, above anyone's reach from one bubble (4.45 + 5.2 with a ledge grab) but within reach
@@ -81,6 +82,31 @@ export function buildCh1Plane(root, scene) {
   sign(world, -2.8, 1.6, 0.4, ['8 October 2025', 'a private message…']);
   meadow(world, [{ x: 0, z: 0, r: 6, flowers: 40 }], [[0, 3, 1.4], [-2.8, 1.6, 0.7], [0, -4.5, 1.6]]);
   decorate(world, [{ x: 0, z: 0, r: 6, n: 0.6 }], [[0, 3, 1.6], [-2.8, 1.6, 0.9], [-1.5, -6, 1.5, 6], [-2, 2, -6, -2]], { seed: 21, mushrooms: false });
+
+  // ---------- 🎮 hidden minigame: First Reply, east of the start (a plank, then two lanes of message stones) ----------
+  const RX = { sun: 15.6, moon: 19.4 };
+  add(world, rbox(5.4, 0.2, 1.4, 0.05), mat(0x9a6a4a, { roughness: 0.8 }), 8.5, -0.1, 0);
+  colliders.push({ type: 'box', x0: 5.6, x1: 11.4, z0: -0.7, z1: 0.7, top: 0, bottom: -0.2, surface: 'wood' });
+  islandMeshes(world, 17.5, 1.5, 6.6, 0, 5, 0x9ad877, 0xe0a67c, 0x8f6c9c);
+  colliders.push({ type: 'cyl', x: 17.5, z: 1.5, r: 6.55, top: 0, bottom: -1.2, safe: true });
+  const stoneM = { sun: mat(0xffe2a8, { roughness: 0.6 }), moon: mat(0xd9c8ff, { roughness: 0.6 }) };
+  for (const r of ['sun', 'moon']) {
+    for (let i = 0; i < 6; i++) {
+      const z = -7.2 - i * 3.5, x = RX[r] + (i % 2 ? 0.7 : -0.7);
+      add(world, rbox(1.9, 0.3, 1.5, 0.12), stoneM[r], x, -0.15, z);
+      colliders.push({ type: 'box', x0: x - 0.95, x1: x + 0.95, z0: z - 0.75, z1: z + 0.75, top: 0, bottom: -0.3 });
+    }
+    add(world, new THREE.CylinderGeometry(1.5, 1.3, 0.5, 20), mat(0xf4efe6), RX[r], -0.25, -29);
+    colliders.push({ type: 'cyl', x: RX[r], z: -29, r: 1.5, top: 0, bottom: -0.5 });
+    add(world, new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), mat(0x3a3150), RX[r], 1.1, -29.8);
+    add(world, new THREE.PlaneGeometry(0.9, 0.6), new THREE.MeshStandardMaterial({ color: r === 'sun' ? 0xffc94d : 0xa98bff, side: THREE.DoubleSide, emissive: r === 'sun' ? 0xffa21f : 0x7a4dff, emissiveIntensity: 0.4 }), RX[r] + 0.45, 1.9, -29.8, { cast: false });
+  }
+  const mgReply = createMinigame(world, colliders, {
+    id: 'c1reply', title: 'First Reply', rules: ['Hop the messages to your flag.', 'Who replies first? 💬'],
+    at: { x: 22.4, y: 0, z: 2.6 }, face: -Math.PI * 0.6, pads: { sun: [RX.sun, -2.6], moon: [RX.moon, -2.6] }, dur: 60000,
+    game: raceGame({ finish: { sun: [RX.sun, -29], moon: [RX.moon, -29] }, y: 0, fallY: -3.5 }),
+  });
+  stars.push(makeStar(world, 'c1-reply', 17.5, 1.4, 5.6, 3));
 
   // ---------- section A: chat messages as stepping stones ----------
   const cards = [
@@ -178,9 +204,9 @@ export function buildCh1Plane(root, scene) {
     killY: -14,
     portal: new THREE.Vector3(-2.4, 0, -63.5),   // where the end-of-part portal opens
     intro: { all: ['Part 3 · 8 October', 'Out of all the noise… a paper plane. A private message. Catch it!'] },
-    abilities: ab.abilities,
+    abilities: withMinigames(ab.abilities, [mgReply]),
     bubbles: bub,
-    attach(a) { api = a; ab.attach(a); },
+    attach(a) { api = a; ab.attach(a); mgReply.attach(a); },
     story(ctx, t) {
       const st = ctx.save.ch1 || {};
       const k = st.plane || 0;
@@ -207,6 +233,7 @@ export function buildCh1Plane(root, scene) {
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      mgReply.update(dt, serverMs, t);
       // moving chat messages (from the shared clock, so they match on both phones)
       for (const m of msgs) {
         let x = m.x, y = m.y;

@@ -7,6 +7,7 @@ import { mat, add, rbox, islandMeshes, sign, cloud, sky, makeStar, spinStars, li
 import { createBubbles, bubbleAbilities } from './bubbles.js';
 import { createTrexTable } from '../trex-ui.js';
 import { SUIT_SYM } from '../trex.js';
+import { createMinigame, tilesGame, withMinigames } from './minigame.js';
 
 const FELT_R = 11.5;
 const DECK = { x0: -3.6, x1: 3.6, z0: -10, z1: -3.2, top: 7.2 };   // the giant deck the table stands on
@@ -227,6 +228,22 @@ export function buildCh1Cards(root, scene) {
 
   for (const [x, z, w] of [[-18, 12, 5], [17, -14, 4], [-8, -22, 6], [14, 20, 5]]) cloud(world, x, -2.5, z, w, w * 0.8, x - z);
 
+  // ---------- 🎮 hidden minigame: Chip Flip, on a side table east of the felt (three card steps lead over) ----------
+  const CH = { x: 22, z: 0, r: 7.5 };
+  islandMeshes(world, CH.x, CH.z, CH.r, 0, 6, 0x8a3b4a, 0xb07a52, 0x6e4d7a);
+  colliders.push({ type: 'cyl', x: CH.x, z: CH.z, r: CH.r - 0.05, top: 0, bottom: -1.2, safe: true, surface: 'carpet' });
+  for (const [i, x] of [12.3, 13.6, 14.6].entries()) {
+    const c = add(world, rbox(1.5, 0.12, 2.2, 0.05), mat([0xffffff, 0xf4efe6, 0xffffff][i]), x, -0.06, (i - 1) * 0.5);
+    c.rotation.y = (i - 1) * 0.25;
+    colliders.push({ type: 'box', x0: x - 0.8, x1: x + 0.8, z0: -1.4, z1: 1.4, top: 0, bottom: -0.12, surface: 'wood' });
+  }
+  const mgChips = createMinigame(world, colliders, {
+    id: 'c1chip', title: 'Chip Flip', rules: ['Run over the chips to flip them', 'to your colour. Most in 30 s!'],
+    at: { x: 28.2, y: 0, z: 0 }, face: -Math.PI / 2, pads: { sun: [26.6, -2.8], moon: [26.6, 2.8] }, dur: 30000,
+    game: tilesGame({ cx: 21, cz: 0, y: 0, n: 4, size: 2.2 }),
+  });
+  stars.push(makeStar(world, 'c1-side', 17.2, 1.4, -4.6, 3));
+
   // ---------- abilities (same as the rest of Chapter 1) ----------
   const bub = createBubbles(world, colliders);
   const ab = bubbleAbilities(bub);
@@ -283,10 +300,10 @@ export function buildCh1Cards(root, scene) {
     killY: -14,
     portal: new THREE.Vector3(-2.2, DECK.top, -8.9),   // where the end-of-part portal opens
     intro: { all: ['Part 2 · The Card Tables', 'Late nights in #card-tables: Trex, as partners.'] },
-    abilities: ab.abilities,
+    abilities: withMinigames(ab.abilities, [mgChips]),
     bubbles: bub,
     trex: { matchOf, newMatch, open: () => { ensureTable().open(); } },
-    attach(a) { api = a; ab.attach(a); },
+    attach(a) { api = a; ab.attach(a); mgChips.attach(a); },
     story(ctx, t) {
       const st = ctx.save.ch1 || {};
       const a = ctx.pos.sun, b = ctx.pos.moon;
@@ -318,6 +335,7 @@ export function buildCh1Cards(root, scene) {
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      mgChips.update(dt, serverMs, t);
       for (const f of flippers) {
         const ang = flipAngle(serverMs, f.off);
         f.pivot.rotation.z = ang;

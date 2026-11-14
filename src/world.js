@@ -16,8 +16,8 @@ import { buildCh3Moving } from './levels/ch3-moving.js';
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue', music: 'woods', ch: 0, n: 1, name: 'Two Skies', stars: ['pro-sun', 'pro-moon'] },
   'ch1-square': { build: buildCh1Square, title: 'Chapter 1 · The Town Square', chip: '💬 Ch.1 Town Square', music: 'town', ch: 1, n: 1, name: 'The Town Square', stars: ['c1-sun', 'c1-moon', 'c1-debate', 'c1-memes'] },
-  'ch1-cards': { build: buildCh1Cards, title: 'Chapter 1 · The Card Tables', chip: '🃏 Ch.1 Card Tables', music: 'paws', ch: 1, n: 2, name: 'The Card Tables', stars: ['c1-card', 'c1-chips', 'c1-trex'] },
-  'ch1-plane': { build: buildCh1Plane, title: 'Chapter 1 · 8 October', chip: '✈️ Ch.1 8 October', music: 'lonely', ch: 1, n: 3, name: '8 October', stars: ['c1-msg', 'c1-bridge', 'c1-tower'] },
+  'ch1-cards': { build: buildCh1Cards, title: 'Chapter 1 · The Card Tables', chip: '🃏 Ch.1 Card Tables', music: 'paws', ch: 1, n: 2, name: 'The Card Tables', stars: ['c1-card', 'c1-chips', 'c1-trex', 'c1-side'] },
+  'ch1-plane': { build: buildCh1Plane, title: 'Chapter 1 · 8 October', chip: '✈️ Ch.1 8 October', music: 'lonely', ch: 1, n: 3, name: '8 October', stars: ['c1-msg', 'c1-bridge', 'c1-tower', 'c1-reply'] },
   'ch2-day': { build: buildCh2Day, title: 'Chapter 2 · Night & Day', chip: '🌗 Ch.2 Night & Day', music: 'mystic', ch: 2, n: 1, name: 'Night & Day', stars: ['c2-sun', 'c2-moon', 'c2-tower', 'c2-flare', 'c2-run'], kits: ['medieval'] },
   'ch2-call': { build: buildCh2Call, title: 'Chapter 2 · The Four-Hour Call', chip: '📞 Ch.2 The Call', music: 'hideout', ch: 2, n: 2, name: 'The Four-Hour Call', stars: ['c2-dial', 'c2-wave', 'c2-storm', 'c2-gust', 'c2-hands'] },
   'ch2-shy': { build: buildCh2Shy, title: 'Chapter 2 · Kann ich mit dir flirten?', chip: '💜 Ch.2 Shyness', music: 'devil', ch: 2, n: 3, name: '"Kann ich mit dir flirten?"', stars: ['c2-garden', 'c2-kann', 'c2-mit', 'c2-flirten', 'c2-brave'] },
