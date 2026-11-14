@@ -2,10 +2,14 @@
 // The Discord server as a floating evening plaza. Sun starts in #general, Moon in #gaming, each learning
 // their new power (Megaphone / Reply pin). They meet in the noisy #politics square, among the debating
 // crowd, and need each other to reach the door to #card-tables on top of the stage building.
+// On the roof the NOISE (the chapter's helper: a spiky ball of "!!!" that never listens) hangs in the door.
+// It calms down when someone is finally heard: Sun shouts at it, Moon pins his words so they stay. Three times.
+// 🎮 Hidden minigame "Reaction Rain": a plank behind the #politics sign leads south to the little #memes island.
 import * as THREE from 'three';
 import { mat, add, rbox, islandMeshes, tree, sign, cloud, sky, makeStar, spinStars, lights, meadow, decorate } from './common.js';
 import { createBubbles, bubbleAbilities } from './bubbles.js';
 import { nature } from '../nature.js';
+import { createMinigame, starsGame, withMinigames } from './minigame.js';
 
 const SQ_R = 12;
 const ROOF = 8;                       // stage building roof (the exit)
@@ -303,6 +307,7 @@ export function buildCh1Square(root, scene) {
 
   // the debate star, high above the stage: pin the speakers' bubbles to get there
   stars.push(makeStar(world, 'c1-debate', 0, 7.2, 3, 2));
+  stars.push(makeStar(world, 'c1-memes', -4.6, 1.4, 20.2, 3));   // on the hidden #memes island
 
   // greenery
   meadow(world, [
@@ -312,6 +317,47 @@ export function buildCh1Square(root, scene) {
   decorate(world, [{ x: SUN_X, z: 0, r: ISL_R, n: 0.8 }], [...clear(sw0 - 0.6, sw1), [SUN_X, -4.2, 1.3], [SUN_X - 3.2, -3.4, 1.3], [SUN_X - 1.2, 2.4, 0.8], [SUN_X + 2.6, -2.2, 0.8], [SUN_X - 3.5, 0, 1.2]], { seed: 11, mushrooms: false });
   decorate(world, [{ x: MOON_X, z: 0, r: ISL_R, n: 0.8 }], [...clear(mw0, mw1 + 2.6), [MOON_X + 0.5, 4.4, 2.4], [MOON_X + 1.2, -2.4, 0.8], [MOON_X + 2.8, 2.2, 0.8], [MOON_X + 3.5, 0, 1.2], [MOON_X + 3.5, -3.8, 1.2], [MOON_X - 1, -4.6, 1.2]], { seed: 12, mushrooms: false });
   for (const [x, z, w] of [[-20, 14, 5], [22, -13, 4], [-6, -24, 6], [8, 22, 5]]) cloud(world, x, -2.5, z, w, w * 0.8, x + z);
+
+  // ---------- the Noise (hangs in the door on the roof until someone is heard three times) ----------
+  const NOISE = new THREE.Vector3(0, ROOF + 2.9, -13.4);
+  const noise = new THREE.Group();
+  noise.position.copy(NOISE);
+  noise.userData.noHide = true;
+  world.add(noise);
+  const noiseM = new THREE.MeshStandardMaterial({ color: 0x5a3a7a, emissive: 0xc4452d, emissiveIntensity: 0.5, roughness: 0.6, flatShading: true });
+  const spikes = new THREE.Group();
+  noise.add(spikes);
+  add(spikes, new THREE.IcosahedronGeometry(0.95, 0), noiseM, 0, 0, 0);
+  for (let i = 0; i < 14; i++) {
+    const v = new THREE.Vector3().setFromSphericalCoords(1, Math.acos(1 - 2 * (i + 0.5) / 14), i * 2.4);
+    const c = add(spikes, new THREE.ConeGeometry(0.26, 1.0 + (i % 3) * 0.3, 5), noiseM, v.x * 1.1, v.y * 1.1, v.z * 1.1, { cast: false });
+    c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v);
+  }
+  const eyeW = new THREE.MeshBasicMaterial({ color: 0xffffff }), eyeB = new THREE.MeshBasicMaterial({ color: 0x1a1024 });
+  for (const sd of [-1, 1]) { add(noise, new THREE.SphereGeometry(0.2, 12, 8), eyeW, sd * 0.33, 0.12, 0.86, { cast: false }); add(noise, new THREE.SphereGeometry(0.09, 8, 6), eyeB, sd * 0.33, 0.12, 1.03, { cast: false }); }
+  const yell = ['!!!', '???', '#@%!', 'NO!', 'WRONG', 'LOUDER'].map((w, i) => {
+    const tex = canvasTex(256, 128, (g2) => { g2.font = '700 76px Fredoka, sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.lineWidth = 10; g2.strokeStyle = '#2b1a40'; g2.strokeText(w, 128, 66); g2.fillStyle = ['#ff6a5a', '#ffd76a', '#ffffff'][i % 3]; g2.fillText(w, 128, 66); });
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.scale.set(1.5, 0.75, 1);
+    sp.userData.noHide = true;
+    noise.add(sp);
+    return sp;
+  });
+  const heard = new Set();
+  let noiseK = 1, noiseShown = -1, noiseHint = false;
+
+  // ---------- 🎮 hidden minigame: Reaction Rain, on the little #memes island south of the square ----------
+  const MEME = { x: 0, z: 22.5, r: 7 };
+  islandMeshes(world, MEME.x, MEME.z, MEME.r, 0, 6, 0x9ad0a0, 0xd9a58a, 0x7d6aa6);
+  colliders.push({ type: 'cyl', x: MEME.x, z: MEME.z, r: MEME.r - 0.05, top: 0, bottom: -1.2, safe: true });
+  add(world, rbox(1.5, 0.22, 5.2, 0.06), mat(0x9a6a4a, { roughness: 0.8 }), 0, -0.11, 13.6);
+  colliders.push({ type: 'box', x0: -0.75, x1: 0.75, z0: 11, z1: 16.2, top: 0, bottom: -0.22, surface: 'wood' });
+  sign(world, 3.4, 18.4, Math.PI + 0.5, ['# memes', 'react fastest! 😂']);
+  const mgRain = createMinigame(world, colliders, {
+    id: 'c1rain', title: 'Reaction Rain', rules: ['Catch the most reactions!', 'Big golden ones count 3 ✨'],
+    at: { x: 0, y: 0, z: 28.4 }, face: Math.PI, pads: { sun: [-2.8, 27.0], moon: [2.8, 27.0] }, dur: 32000,
+    game: starsGame({ cx: 0, cz: 21.6, y: 0, half: 4.0, count: 56 }),
+  });
 
   // ---------- the bubbles ----------
   const bub = createBubbles(world, colliders);
@@ -355,7 +401,9 @@ export function buildCh1Square(root, scene) {
     },
     onPop(id, sNow) { if (id === FIXED.id) fixedBackAt = sNow + 3000; },
   });
-  const abilities = ab.abilities;
+  const abilities = withMinigames(ab.abilities, [mgRain]);
+  let api = null;
+  const authority = () => api && (api.kind === 'solo' || api.role === 'sun');
 
   // ---------- story ----------
   let metShown = false, entered = { sun: false, moon: false }, doneT = -1, hintAt = 0;
@@ -376,7 +424,7 @@ export function buildCh1Square(root, scene) {
     intro: { all: ['Chapter 1 · Syria Unfiltered', 'The Sky Between: every island here is a memory you share.', 'The grey fog is the Distance. It eats memories… so bring the colours back, together.', 'The first memory: a Syrian server. Politics, games… and a lot of shouting.'], sun: 'Sun joined #general', moon: 'Moon joined #gaming' },
     abilities,
     bubbles: bub,   // for tests
-    attach(a) { ab.attach(a); },
+    attach(a) { api = a; ab.attach(a); mgRain.attach(a); },
     story(ctx, t) {
       const st = ctx.save.ch1 || {};
       for (const r of ctx.roles) {
@@ -397,7 +445,27 @@ export function buildCh1Square(root, scene) {
         if (st.hinted) ctx.caption('Tip: Sun shouts a bubble by the wall, Moon pins it… and pops it with someone on top!', 5200);
         else ctx.setSave('ch1/hinted', true);
       }
-      if (onRoof(a) && onRoof(b) && !st.square) ctx.setSave('ch1/square', true);
+      // the Noise: every word of Sun's that gets pinned near it is one time someone was heard
+      const nz = st.noise || 0;
+      if (nz < 3 && authority()) {
+        for (const q of bub.slots) {
+          if (!q.active || !q.pinned || q.kind !== 'sun' || heard.has(q.id) || q.pos.distanceTo(NOISE) > 6.5) continue;
+          heard.add(q.id);
+          ctx.setSave('ch1/noise', nz + 1);
+          break;
+        }
+      }
+      if (noiseShown >= 0 && nz > noiseShown) {
+        api?.sound.play('pin');
+        api?.fx.sparks(NOISE.clone(), 0xffd76a, 26, 4);
+        ctx.caption(nz >= 3 ? 'The Noise: "…oh. Someone is actually listening." 🤫 It drifts away. The door is free!' : ['The Noise: "WHAT?! …you heard that?"', 'The Noise: "hm. go on…"'][nz - 1], nz >= 3 ? 4600 : 2600);
+      }
+      noiseShown = nz;
+      if (nz < 3 && !noiseHint && (onRoof(a) || onRoof(b))) {
+        noiseHint = true;
+        ctx.caption('The NOISE hangs in the door! It never listens… Sun: shout at it ✦ · Moon: pin his words so they stay 📌 (3 times)', 6500);
+      }
+      if (nz >= 3 && onRoof(a) && onRoof(b) && !st.square) ctx.setSave('ch1/square', true);
       if (st.square && doneT < 0) {
         doneT = t;
         ctx.caption('Up and through, together.', 2800);
@@ -407,6 +475,16 @@ export function buildCh1Square(root, scene) {
     update(serverMs, t, dt) {
       spinStars(stars, t);
       for (const a of anims) a(t, dt);
+      mgRain.update(dt, serverMs, t);
+      // the Noise: shakes and yells; shrinks each time someone is heard, then drifts off
+      const nz = api?.save?.ch1?.noise || 0, want = nz >= 3 ? 0 : 1 - nz * 0.22;
+      noiseK += (want - noiseK) * Math.min(1, dt * 1.5);
+      noise.visible = noiseK > 0.03;
+      noise.scale.setScalar(Math.max(0.001, noiseK));
+      noise.position.set(NOISE.x + Math.sin(t * 23) * 0.05 * want, NOISE.y + Math.sin(t * 2) * 0.15 + (nz >= 3 ? (1 - noiseK) * 5 : 0), NOISE.z);
+      spikes.rotation.set(t * 0.7, t * 1.1, 0);
+      yell.forEach((sp, i) => { const a = t * 1.6 + i * 1.05, r = 2.0 + Math.sin(t * 3 + i) * 0.3; sp.position.set(Math.cos(a) * r, Math.sin(a * 1.3 + i) * 0.9, Math.sin(a) * r); sp.material.opacity = 0.55 + Math.sin(t * 5 + i * 2) * 0.4; });
+      portal.material.color.setRGB(...(nz >= 3 ? [1.4, 1.1, 2.0] : [0.5, 0.4, 0.6]));
       // crowd walks and bobs
       for (const c of crowd) {
         const prev = c.g.position.clone();
