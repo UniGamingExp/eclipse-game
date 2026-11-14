@@ -308,6 +308,7 @@ function chooseLevel(id) {
   if (id === 'ch2-shy') { G.net.setSave('ch2/shy2', null); G.net.setSave('ch2/shyOpen2', null); G.net.setSave('ch2/s3', null); }
   if (id === 'ch3-bridge') G.net.setSave('ch3', null);
   if (id === 'ch3-moving') G.net.setSave('ch3m', null);
+  if (id === 'ch3-train') G.net.setSave('ch3t', null);
   G.net.setSave('cp', null);
   if (G.save) G.save.cp = null;
   G.net.setSave('level', id);
