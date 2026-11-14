@@ -394,3 +394,6 @@ body.gamepad.pad-ps .act[data-pad]::after { content: attr(data-ps); }
 .code-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: -2px 0 8px; }
 .hint { margin: 0 0 10px; font: 600 13px/1.35 Nunito, sans-serif; color: #2f7a4a; text-align: center; }
 #conn-code b { letter-spacing: 2px; }
+
+#hint-btn { animation: hintwob 1.6s ease-in-out infinite; box-shadow: 0 0 0 3px rgba(255, 215, 106, .8), 0 0 18px rgba(255, 200, 90, .7); }
+@keyframes hintwob { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) scale(1.08); } }

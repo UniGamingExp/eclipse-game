@@ -379,6 +379,7 @@ export function createMoving(world, colliders, { boxes = [], tapes = [], key = '
           api.sound.play('bounce');
           api.fx.sparks(new THREE.Vector3(under.rest.x, under.rest.y + BOX, under.rest.z), 0xd09a5e, 24, 4);
           api.send?.('crash', {});
+          api.shake?.(0.8);
           api.toast('Wobble… CRASH! 📦 Stacks of 3 or more need Moon\'s tape');
           break;
         }

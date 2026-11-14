@@ -209,6 +209,7 @@ export function createMinigame(parent, colliders, def) {
         h.s.textContent = `☀ ${res.sun}`; h.m.textContent = `${res.moon} ☾`; h.t.textContent = '';
         bigText(h, res.win === 'tie' ? 'A tie! 💞' : `${ROLE[res.win]} wins! 👑`, true);
         api.sound.play('star');
+        api.shake?.(0.35);
         if (res.win !== 'tie') { crownRole = res.win; crownT = 12; const p = posOf(res.win); if (p) api.fx.sparks(p.clone().setY(p.y + 1.6), COL[res.win], 40, 4); }
         game.end?.(c);
         setTimeout(() => { if (h.owner === id) { bigText(h, ''); h.el.style.display = 'none'; h.owner = null; } }, 3200);

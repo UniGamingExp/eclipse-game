@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preload" href="assets/fonts/fredoka.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/nunito.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=a1d40914d8">
+<link rel="stylesheet" href="style.css?v=819286d86d">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -24,6 +24,7 @@
   <button id="status-pill" class="pill"><span class="dot"></span><span id="status-text">…</span></button>
   <div id="top-right">
     <div id="stars" class="pill">⭐ <span id="star-count">0</span>/<span id="star-total">3</span></div>
+    <button id="hint-btn" class="round" aria-label="Hint from Dr. Bata" hidden>🦆</button>
     <button id="menu-btn" class="round" aria-label="Menu">☰</button>
   </div>
 
@@ -92,6 +93,9 @@
       <button id="opt-sound" class="chip">🔊 Sound on</button>
       <button id="opt-music" class="chip">🎵 Music on</button>
       <button id="opt-full" class="chip" hidden>⛶ Full screen</button>
+      <button id="opt-cam" class="chip">🎥 Camera: normal</button>
+      <button id="opt-inv" class="chip">↕ Look: normal</button>
+      <button id="opt-rumble" class="chip">📳 Rumble on</button>
       <button id="opt-stars" class="chip">⭐ Reset stars</button>
       <button id="opt-mem" class="chip">📷 Memories</button>
       <button id="opt-quiz" class="chip">✍️ My quiz</button>
@@ -211,6 +215,6 @@
 </div>
 
 <div id="fade"></div>
-<script type="module" src="build/game.js?v=a1d40914d8"></script>
+<script type="module" src="build/game.js?v=819286d86d"></script>
 </body>
 </html>

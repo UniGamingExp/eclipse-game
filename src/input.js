@@ -1,5 +1,6 @@
 // Touch controls (floating joystick on the left, buttons on the right, drag anywhere else to look)
 // plus keyboard + mouse for testing on a computer.
+import { store } from './util.js';
 import { unlockAudio } from './sound.js';
 
 export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
@@ -270,8 +271,20 @@ export function createInput({ canvas, joyZone, joyBase, joyKnob, buttons }) {
   window.addEventListener('keydown', () => setPad(false));
   window.addEventListener('pointerdown', () => setPad(false), { capture: true, passive: true });
 
+  /** a short buzz: on a controller, or (strong ones only) on a phone */
+  function rumble(strength = 0.5, ms = 120) {
+    if (store.get('rumble', true) === false) return;
+    try {
+      if (padOn) {
+        const gp = [...navigator.getGamepads()].find((g) => g && g.connected && g.vibrationActuator);
+        gp?.vibrationActuator.playEffect?.('dual-rumble', { duration: ms, strongMagnitude: Math.min(1, strength), weakMagnitude: Math.min(1, strength * 0.6) });
+      } else if (strength >= 0.6 && !document.body.classList.contains('desktop')) navigator.vibrate?.(18);
+    } catch { /* no haptics here */ }
+  }
+
   return {
     poll,
+    rumble,
     state: st,
     consume(name) { const had = st.pressed.has(name); st.pressed.delete(name); return had; },
     takeZoom() { const z = st.zoom; st.zoom = 1; return z; },

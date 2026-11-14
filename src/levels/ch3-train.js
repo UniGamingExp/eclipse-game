@@ -252,6 +252,7 @@ export function buildCh3Train(root, scene) {
     killAt: (p) => p.x > -11.5 && p.y < 2.2,
     lanes: [tracks],
     checkpoints: cps,
+    hints: ["The barrier only stays open while someone stands on a pink plate. One holds it, the other walks through and stands on the plate on the far side.", "Sun stacks three pieces of luggage next to the signal bridge; Moon tapes the open one shut and tapes the stack ✦. Up on the bridge, Moon tapes the zipline to the train.", "Jump the red signal arms. At the missing wagon, Moon tapes ✦ across from the glowing post.", "Stack the three cases from the roof rack at the very front of this carriage, right before the tall one. Moon tapes one shut and tapes the stack ✦.", "Jump the arms, drop down to the locomotive, and each stand on your own plate."],
     respawnNearPartner: (pp) => !!pp && (pp.x < -12 || pp.y > RY - 0.6) && !(pp.x > 79),   // (past the gap: back to the checkpoint, each climb is done together)
     portal: new THREE.Vector3(126.8, RY, 0),
     intro: {

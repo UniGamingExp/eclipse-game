@@ -497,6 +497,7 @@ export function buildCh3Bridge(root, scene) {
     killY: -8,
     killAt: (p) => (p.y < -1.5 && !inRace(p)) || p.y < -4.3,
     checkpoints: cps,
+    hints: ["Sun: carry both boxes under the wooden balcony and stack them (put one down right next to the other). Climb up; Moon tapes ✦ the glowing post across the canal.", "The bridge is too high for two boxes. Stack three or four in one place; Moon stands next to the stack and uses \"Tape stack\" ✦ so it won't crash.", "Moon: stand by the glowing post at the broken arch and tape ✦ it across.", "Stack the boxes by the terrace house and tape the stack. On the roof terrace, Moon tapes the zipline; then both press ✦ at its post to ride.", "Just walk on through the bridge tower into the old town, together."],
     camZones: [{ x0: -4, x1: 4, z0: 60, z1: 96, y1: 8, yaw: 0, spread: 0.6, pitchMin: 0.32 }],
     respawnNearPartner: true,
     portal: new THREE.Vector3(0, DY, -112),

@@ -178,9 +178,11 @@ const levelApi = {
   respawn: (r) => respawn(ctls[r]),
   setSave: (k, v) => G.net?.setSave(k, v),
   /** throw one of our own bodies into the air (bubble pops, bouncy things…) */
+  shake(strength = 0.5) { feel(strength); },
   launch(r, vy, vx = 0, vz = 0) {
     const ctl = ctls[r];
     if (ctl.state === 'carried') return;
+    if (r === G.active && (vx || vz)) feel(0.6);
     if (ctl.state !== 'free') { ctl.state = 'free'; ctl.anim = MODE.normal; }
     release(ctl, new THREE.Vector3(vx, vy, vz));
     ctl.jumps = 1; ctl.airDashUsed = false;
@@ -638,6 +640,19 @@ function startLevelStory() {
 
 // a soft click for menu buttons (not the game buttons, they make their own sounds)
 document.addEventListener('click', (e) => { const btn = e.target.closest('button'); if (btn && !btn.closest('#hud')) sound.play('click'); });
+{ // camera speed, inverted look, rumble
+  const SPEEDS = [[0.7, 'slow'], [1, 'normal'], [1.4, 'fast'], [1.9, 'very fast']];
+  const cam = $('#opt-cam'), inv = $('#opt-inv'), rum = $('#opt-rumble');
+  const paint = () => {
+    cam.textContent = '🎥 Camera: ' + (SPEEDS.find(([v]) => v === store.get('camSpeed', 1)) || SPEEDS[1])[1];
+    inv.textContent = '↕ Look: ' + (store.get('invY', false) ? 'inverted' : 'normal');
+    rum.textContent = store.get('rumble', true) === false ? '📳 Rumble off' : '📳 Rumble on';
+  };
+  cam.addEventListener('click', () => { const i = SPEEDS.findIndex(([v]) => v === store.get('camSpeed', 1)); store.set('camSpeed', SPEEDS[(i + 1) % SPEEDS.length][0]); paint(); });
+  inv.addEventListener('click', () => { store.set('invY', !store.get('invY', false)); paint(); });
+  rum.addEventListener('click', () => { store.set('rumble', store.get('rumble', true) === false); paint(); input.rumble(0.7, 160); });
+  paint();
+}
 const musicBtn = $('#opt-music');
 const paintMusic = () => { musicBtn.textContent = music.enabled ? '🎵 Music on' : '🎵 Music off'; };
 paintMusic();
@@ -812,6 +827,7 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
       chars[role].land(10);
     } else if (landed.impact > 7) {
       sound.play('land', { vol: Math.min(1, 0.35 + (landed.impact - 7) / 14) }); fx.dust(b.pos, 6); chars[role].land(landed.impact);
+      if (landed.impact > 12 && role === G.active) feel(Math.min(0.7, (landed.impact - 12) / 14 + 0.2));
     } else chars[role].land(landed.impact);
   }
 
@@ -868,6 +884,31 @@ function pinToLane(b, l, dt) {
 // ---------------------------------------------------------------- checkpoints
 // world.checkpoints: [{ x, y, z, r, spawn: { sun: Vector3, moon: Vector3 }, yaw?, label? }]. Reaching one saves
 // cp = { l: level, i } for both; loading the level (or reloading the page) starts there.
+/** camera shake + a buzz in the controller (strength 0…1) */
+function feel(strength) {
+  G.shake = Math.max(G.shake || 0, strength);
+  input.rumble(strength, 90 + strength * 160);
+}
+
+// ---- Dr. Bata's hints: after a few minutes in the same section a duck button appears; tapping it shows the hint
+const hintBtn = document.querySelector('#hint-btn');
+let hintT = 0, hintTold = false, hintLv = null;
+function hintReset() { hintT = 0; hintTold = false; hintBtn.hidden = true; }
+function hintText() {
+  const i = G.save?.cp?.l === world.id ? G.save.cp.i : 0;
+  return world.hints?.[Math.min(i, (world.hints?.length || 1) - 1)] || null;
+}
+function hintUpdate(dt) {
+  if (world.id !== hintLv) { hintLv = world.id; hintReset(); }
+  if (G.mode !== 'play' || !world.hints) { if (!hintBtn.hidden && !world.hints) hintBtn.hidden = true; return; }
+  hintT += dt;
+  if (hintT > 200 && hintBtn.hidden && hintText()) {
+    hintBtn.hidden = false;
+    if (!hintTold) { hintTold = true; ui.toast('🦆 Dr. Bata has a hint for you: tap the duck (top right)'); sound.play('pin'); }
+  }
+}
+hintBtn.addEventListener('click', () => { const h = hintText(); if (h) caption('🦆 Dr. Bata: ' + h, 11000); hintBtn.blur(); });
+
 function checkpointUpdate() {
   const C = world.checkpoints;
   if (!C || G.mode !== 'play' || !G.net) return;
@@ -880,6 +921,7 @@ function checkpointUpdate() {
       if (G.save) G.save.cp = { l: world.id, i };
       for (const r of ROLES) ctls[r].safe.copy(c.spawn[r]);
       caption(`✦ Checkpoint${c.label ? ': ' + c.label : ''}`, 2200);
+      hintReset();
       sound.play('star', { vol: 0.5 });
       break;
     }
@@ -1104,8 +1146,9 @@ function updateCamera(dt) {
     c.pitch = damp(c.pitch, ln.pitch ?? 0.14, 4, dt);
     c.lastDrag = G.t;
   } else if (d.x || d.y) {
-    c.yaw -= d.x * 0.0065;
-    c.pitch = clamp(c.pitch + d.y * 0.0045, -0.2, 1.2);
+    const cs = store.get('camSpeed', 1), inv = store.get('invY', false) ? -1 : 1;
+    c.yaw -= d.x * 0.0065 * cs;
+    c.pitch = clamp(c.pitch + d.y * 0.0045 * cs * inv, -0.2, 1.2);
     c.lastDrag = G.t;
   }
   const b = bodies[G.active];
@@ -1156,6 +1199,11 @@ function updateCamera(dt) {
   camera.position.copy(c.target).addScaledVector(_dir, c.cur);
   if (camera.position.y < c.target.y - 1.0) camera.position.y = c.target.y - 1.0;
   camera.lookAt(c.target);
+  if (G.shake > 0.01) {   // a little shake on hard landings, knocks and crashes
+    const k = G.shake * 0.22;
+    camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.position.z += (Math.random() - 0.5) * k;
+    G.shake *= Math.exp(-dt * 7);
+  }
   hideOccluders();
 }
 
@@ -1265,6 +1313,7 @@ function frame(nowMs) {
   const dt = Math.min(0.05, Math.max(0.001, rawDt));
   G.t += dt;
   input.poll(dt);
+  hintUpdate(dt);
   const sNow = serverNow();
   world.update(sNow, G.t, dt);
 
@@ -1480,7 +1529,7 @@ function frame(nowMs) {
 requestAnimationFrame(frame);
 
 // for automated tests
-window.__eclipse = { gfx, composer, camHit: (o, d, m) => camHit(o, d, m), camera,
+window.__eclipse = { hintNow: () => { hintT = 999; }, gfx, composer, camHit: (o, d, m) => camHit(o, d, m), camera,
   townspeople, scene, G, bodies, chars, get world() { return world; }, input, pcols, ctls, switchLevel, setHold, music, sound,
   THREE,
   /** Dr. Bata for stills / cutscenes: bata([x,y,z], yaw, scale, talking) or bata(null) to remove */

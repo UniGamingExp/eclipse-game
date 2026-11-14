@@ -268,6 +268,7 @@ export function buildCh3Moving(root, scene) {
     killY: -6,
     lanes: [stairs],
     checkpoints: cps,
+    hints: ["Boxes with flapping lids won't lift: Moon stands next to one and uses \"Tape shut\" ✦. Then Sun carries all six up the ramp into the van.", "No stairs: Sun stacks three boxes under the hole in the ceiling (far left), Moon tapes one shut and tapes the stack ✦. Climb.", "Moon tapes ✦ across the light well. The two boxes on the far side need taping shut; carry them back and build a taped stack of three under the next hole.", "Walk through the opening in the back wall into the flat.", "Go up to Goodbye in the balcony door hand in hand ♥. Then Moon tapes the zipline from the balcony; ride it down to the van."],
     respawnNearPartner: (pp) => !!pp && !inWell(pp),
     portal: new THREE.Vector3(12, 0, 12),
     intro: {

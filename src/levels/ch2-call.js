@@ -336,6 +336,7 @@ export function buildCh2Call(root, scene) {
     killY: -16,
     lanes: [lane([-4, LZ], [92, LZ], { half: 3.2, y0: -3, y1: 17, dist: 14, pitch: 0.16 })],
     checkpoints: cps,
+    hints: ["Only Moon's screen shows the number. Moon reads it out, Sun steps on the digits in that order. A wrong digit starts over.", "Lilac steps and waves need Moon's light, golden ones Sun's. The flickering floor: wait for it to come back, then run.", "Hold hands (♥) and the wind can't push you. Pink tiles need both glows together.", "Keep holding hands in the gusts. On the day/night tiles, go one after the other and light each other's way.", "The clock hands are stairs: golden steps need Sun near, lilac steps Moon. Ride them round and climb to the brass centre together."],
     portal: new THREE.Vector3(CK.x, HUB, CK.z + 1.4),
     respawnNearPartner: true,
     killAt: (p) => (p.x < -13 && p.y < -4) || (p.x > 25 && p.x < 92 && Math.abs(p.z - LZ) < 3.5 && p.y < 3 && !(p.x > 74 && p.y > 2)) || (p.x > 92 && p.y < -4),

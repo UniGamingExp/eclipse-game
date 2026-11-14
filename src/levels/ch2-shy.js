@@ -534,6 +534,7 @@ export function buildCh2Shy(root, scene) {
     killY: -48,
     lanes: [lane([-TX, TZ], [TX, TZ], { half: 3.6, y0: GY - 2, y1: -0.7, dist: 14, pitch: 0.18 })],
     checkpoints: cps,
+    hints: ["A shy word only goes into the lantern while it's inside BOTH your glows. Come at it from two sides and walk it to the lantern at the north hedge.", "Your own colour never holds you. Stand back (about 4 steps) and flare ✦ so your partner's steps become solid, then they light yours from above.", "Same again, but the steps sway: the helper follows them from a distance and keeps flaring ✦.", "The last flight is the shyest: stay even further away (4.5 m) while you flare ✦.", "Jump the pink rings. Both flare ✦ close to Shyness at the same moment. When it hides: each on your own pad. At the end: walk up to it hand in hand ♥."],
     portal: new THREE.Vector3(0, 0, -1),   // where the end-of-part portal opens
     // you come back next to your partner, except into the tower (each floor has to be climbed together)
     respawnNearPartner: (pp) => !!pp && !inTower(pp),
@@ -564,6 +565,7 @@ export function buildCh2Shy(root, scene) {
       const hits = (ctx.save.ch2 || {}).shy2 || 0;
       if (lastHits >= 0 && hits > lastHits && hits <= 5) {
         hitAnimT = 1.2;
+        api.shake?.(0.6);
         ctx.caption(`Shyness: "${LINES[Math.min(hits - 1, LINES.length - 1)]}"`, 2600);
         api.sound.play('pop');
         api.fx.sparks(bossPos.clone(), 0xff8fbf, 30, 4);

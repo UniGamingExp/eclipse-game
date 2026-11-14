@@ -581,6 +581,7 @@ export function buildCh2Day(root, scene) {
     camZones: [{ x0: -9, x1: 4.6, z0: -66, z1: 10, y1: 12, yaw: 0, spread: 0.32, pitchMin: 0.42 }],
     lanes: [lane([-10.7, TZ], [10.7, TZ], { half: 5.6, y0: -2, y1: 40, dist: 14, pitch: 0.2 })],
     checkpoints: cps,
+    hints: ["Sun: stand on the round plate to hold Moon's gate open. Walls and gaps need the OTHER one's light: stand close, or flare ✦ from further away.", "Golden gears and steps need Sun close by, lilac ones need Moon. At the very top, each of you stands on your own plate.", "Three lamps: Sun shines on the sunflower so Moon rides up to the violet lamp; Moon stands at the jasmine's root so Sun can cross to the gold lamp; then both flare ✦ at the pink lamp together.", "Golden tiles appear near Sun, lilac ones near Moon, pink ones only where both glows overlap. If the shadow gets close, flare ✦ to push it back.", "The pink tiles need both glows at once: walk side by side, slowly, to the phone."],
     portal: new THREE.Vector3(PH.x - 2.5, PH.y, PH.z),
     // the split street: never respawn next to the partner across the time wall
     respawnNearPartner: (pp) => !(pp && pp.z > -66 && pp.x > -12 && pp.x < 12 && pp.y < 6),
