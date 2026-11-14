@@ -9,6 +9,7 @@ import { buildCh1Plane } from './levels/ch1-plane.js';
 import { buildCh2Day } from './levels/ch2-day.js';
 import { buildCh2Call } from './levels/ch2-call.js';
 import { buildCh2Shy } from './levels/ch2-shy.js';
+import { batchKit } from './levels/medieval.js';
 import { buildCh3Bridge } from './levels/ch3-bridge.js';
 import { buildCh3Moving } from './levels/ch3-moving.js';
 
@@ -48,6 +49,7 @@ export function loadLevel(scene, id) {
   const root = new THREE.Group();
   scene.add(root);
   const w = def.build(root, scene);
+  batchKit(root);
   w.id = id in LEVELS ? id : 'playground';
   w.music = def.music || null;
   w.amb = def.amb || null;          // ambience loop (assets/amb/<id>.mp3) under the music

@@ -21,6 +21,7 @@ export function house(parent, x, y, z, { w = 4, d = 4, floors = 2, rotY = 0, sty
   g.position.set(x, y, z);
   g.rotation.y = rotY;
   g.scale.setScalar(s);
+  g.userData.kitStatic = true;   // batched after the level is built (batchKit)
   parent.add(g);
   const put = (name, px, py, pz, ry = 0) => K.place(g, name, px, py, pz, { rotY: ry });
   // the four sides: [centre offset along the side normal, side length, rotation so the outer face points out]
@@ -84,6 +85,7 @@ export function gateTower(parent, x, y, z, { floors = 4, rotY = 0, s = 1 } = {})
   g.position.set(x, y, z);
   g.rotation.y = rotY;
   g.scale.setScalar(s);
+  g.userData.kitStatic = true;   // batched after the level is built (batchKit)
   parent.add(g);
   const put = (name, px, py, pz, ry = 0) => K.place(g, name, px, py, pz, { rotY: ry });
   const W = 6;
@@ -109,3 +111,44 @@ export function gateTower(parent, x, y, z, { floors = 4, rotY = 0, s = 1 } = {})
 }
 
 export const FLOOR = FLOOR_H;
+
+/**
+ * Houses and towers are built from hundreds of little kit pieces: far too many draw calls for a phone
+ * (the Stone Bridge had 13,000 per frame). After a level is built, collect every piece of every house and draw
+ * each distinct piece once, instanced. The pieces share geometry, so this costs no extra memory.
+ */
+const CELL = 40;
+export function batchKit(root) {
+  root.updateWorldMatrix(true, true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const buckets = new Map(), groups = [];
+  root.traverse((o) => { if (o.userData.kitStatic) groups.push(o); });
+  const wp = new THREE.Vector3();
+  for (const g of groups) {
+    g.getWorldPosition(wp);
+    const cell = `${Math.floor(wp.x / CELL)},${Math.floor(wp.z / CELL)}`;   // batched per 40 m block, so far blocks are still culled
+    g.traverse((m) => {
+      if (!m.isMesh || m.isInstancedMesh || m.isSkinnedMesh || Array.isArray(m.material) || !m.visible) return;
+      if (m.matrixWorld.determinant() < 0) return;   // mirrored pieces keep their own mesh
+      const key = `${cell}|${m.geometry.uuid}|${m.material.uuid}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}`;
+      let b = buckets.get(key);
+      if (!b) buckets.set(key, (b = []));
+      b.push(m);
+    });
+  }
+  let saved = 0;
+  const mtx = new THREE.Matrix4();
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const src = list[0];
+    const im = new THREE.InstancedMesh(src.geometry, src.material, list.length);
+    list.forEach((m, i) => { im.setMatrixAt(i, mtx.multiplyMatrices(inv, m.matrixWorld)); m.removeFromParent(); });
+    im.instanceMatrix.needsUpdate = true;
+    im.castShadow = src.castShadow; im.receiveShadow = src.receiveShadow;
+    im.userData.noHide = true;
+    im.computeBoundingSphere();
+    root.add(im);
+    saved += list.length - 1;
+  }
+  return saved;
+}
