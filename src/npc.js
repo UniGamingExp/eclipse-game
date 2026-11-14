@@ -197,11 +197,20 @@ export function townspeople(parent, people) {
     const rootBone = o.getObjectByName('root');
     list.push({ o, mixer, q, rootBone, u: Math.random(), dir: 1 });
   }
+  let tick = 0;
   return {
     list,
     update(dt) {
-      for (const n of list) {
-        n.mixer.update(Math.min(dt, 0.1));
+      const cam = window.__eclipse?.camera?.position;
+      tick++;
+      for (const [i, n] of list.entries()) {
+        // far people aren't drawn or animated; middle-distance ones drop their shadow and animate every other frame
+        const d = cam ? Math.hypot(cam.x - n.o.position.x, cam.z - n.o.position.z) : 0;
+        const vis = d < 60;
+        if (n.o.visible !== vis) n.o.visible = vis;
+        const sh = d < 30;
+        if (n.sh !== sh) { n.sh = sh; n.o.traverse((c) => { if (c.isMesh) c.castShadow = sh; }); }
+        if (vis && (sh || (tick + i) % 2 === 0)) n.mixer.update(Math.min(sh ? dt : dt * 2, 0.1));
         if (n.rootBone) { n.rootBone.position.x = 0; n.rootBone.position.z = 0; }
         const P = n.q.path;
         if (P) {
