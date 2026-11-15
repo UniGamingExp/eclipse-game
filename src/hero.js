@@ -71,6 +71,7 @@ export function makeHero(kind, { kid = false } = {}) {
   };
   // toy-ish proportions: a bigger head (more for the kid versions), then fit the height of the physics body
   if (B.head) B.head.scale.setScalar(kid ? 1.75 : 1.3);
+  if (kid) model.traverse((o) => { if (/beard/i.test(o.name)) o.visible = false; });   // little Sun has no beard yet
   model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model, true);
   const s = (H * (kid ? 1.04 : 1.13)) / Math.max(0.5, box.max.y - Math.min(0, box.min.y));
