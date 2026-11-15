@@ -585,7 +585,11 @@ export function buildCh2Shy(root, scene) {
           ['Chapter 2 complete ✨', 2800],
         ];
         let at = 0;
-        for (const [l, ms] of lines) { setTimeout(() => ctx.caption(l, ms), at); at += ms + 150; }
+        const film = !api.filmSeen?.('bata-4');   // Dr. Bata's scene right after "Babeee" (once per phone)
+        for (const [l, ms] of lines) {
+          setTimeout(() => ctx.caption(l, ms), at); at += ms + 150;
+          if (film && l.includes('Babeee')) { setTimeout(() => api.film('bata-4'), at); at += 31500; }
+        }
         api.fx.hearts?.(bossPos.clone());
         setTimeout(() => ctx.finish(), at + 300);
       }

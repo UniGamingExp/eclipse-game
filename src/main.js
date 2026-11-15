@@ -188,6 +188,9 @@ const levelApi = {
     ctl.jumps = 1; ctl.airDashUsed = false;
   },
   finish: () => onLevelFinished(),
+  /** play a story scene now (once per phone) */
+  film(id) { if (!FILMS[id] || filmSeen(id)) return false; playFilm(id); return true; },
+  filmSeen: (id) => !FILMS[id] || filmSeen(id),
   /** true while Sun and Moon hold hands */
   get holding() { return !!G.hold; },
   /** give the team one of this level's stars (e.g. for winning a minigame) */
@@ -595,7 +598,8 @@ function enterPlay() {
 // ---------------------------------------------------------------- intro film
 // films: the intro and Dr. Bata's story scenes. Played one after another (queue), skippable,
 // each remembered per phone once seen.
-const FILMS = { intro: 'assets/intro.mp4', 'bata-1': 'assets/cut/bata-1.mp4', 'bata-2': 'assets/cut/bata-2.mp4' };
+const FILMS = { intro: 'assets/intro.mp4', wish: 'assets/cut/wish.mp4' };
+for (let i = 1; i <= 5; i++) FILMS['bata-' + i] = `assets/cut/bata-${i}.mp4`;
 const filmQueue = [];
 let filmNow = null;
 const filmSeen = (id) => (id === 'intro' ? store.get('introSeen', false) : store.get('film.' + id, false));
@@ -639,7 +643,8 @@ function nextFilm() {
 const playIntro = (then) => playFilm('intro', then);
 /** story scenes that belong at the start of a level (each phone plays the ones it hasn't seen) */
 function levelFilms(id) {
-  if (id === 'ch1-square') return ['bata-1', 'bata-2'].filter((f) => !filmSeen(f));
+  const m = { 'ch1-square': ['wish', 'bata-1', 'bata-2'], 'ch2-day': ['bata-3'], 'ch3-bridge': ['bata-5'] }[id];
+  if (m) return m.filter((f) => !filmSeen(f));
   return [];
 }
 function startLevelStory() {
@@ -673,7 +678,7 @@ $('#credits-close').addEventListener('click', () => { $('#credits').hidden = tru
 $('#lobby-credits').addEventListener('click', () => openCredits($('#lobby')));
 $('#opt-credits').addEventListener('click', () => openCredits($('#conn')));
 $('#opt-intro').addEventListener('click', () => { if (G.mode === 'menu') enterPlay(); playIntro(); });
-$('#opt-bata').addEventListener('click', () => { if (G.mode === 'menu') enterPlay(); playFilm('bata-1'); playFilm('bata-2'); });
+$('#opt-bata').addEventListener('click', () => { if (G.mode === 'menu') enterPlay(); for (const f of ['wish', 'bata-1', 'bata-2', 'bata-3', 'bata-4', 'bata-5']) playFilm(f); });
 
 // auto-rejoin after "Try again"
 if (sessionStorage.getItem('eclipse.autojoin') && store.get('role') && store.get('word')) {
