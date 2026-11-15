@@ -244,6 +244,7 @@ export function buildPrologue(root, scene) {
     title: 'Prologue · Two Skies',
     kid: true,
     colliders,
+    hints: ["Walk to the glowing spots and try each button once: jump, double jump, dash. At the end, find each other and hold hands ♥."],
     stars,
     movers: {},
     spawn: { sun: new THREE.Vector3(-CX - 6.5, 0, 0), moon: new THREE.Vector3(CX + 6.5, 0, 0) },

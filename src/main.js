@@ -1110,8 +1110,11 @@ function resolveBase(id, out) {
 // ---------------------------------------------------------------- camera
 /** what the camera is looking at (sharp, and the centre of the shadows), and how "story-like" the moment is */
 const _focus = new THREE.Vector3();
+/** the title screen (wide screens only; a tall phone keeps the old view from above) */
+const coverOn = () => G.mode === 'lobby' && !G.photo && !G.intro && camera.aspect >= 1.25 && !!world.spawn?.sun;
 function lookFocus() {
   if (G.photo) return { focus: _focus.set(...G.photo.look), story: G.photo.dof || 0 };
+  if (coverOn()) return { focus: _focus.set(world.spawn.sun.x, world.spawn.sun.y + 1.1, world.spawn.sun.z), story: 0.75 };
   if (G.mode === 'lobby' || G.mode === 'connecting') {
     const L = world.lobbyCam || { cx: 6, cz: -2 };
     return { focus: _focus.set(L.cx, 0.5, L.cz), story: 1 };
@@ -1129,6 +1132,26 @@ function updateCamera(dt) {
     camera.position.set(...G.photo.pos);
     if (G.photo.fov && camera.fov !== G.photo.fov) { camera.fov = G.photo.fov; camera.updateProjectionMatrix(); }
     camera.lookAt(...G.photo.look);
+    return;
+  }
+  const cover = coverOn();
+  document.body.classList.toggle('cover', cover);
+  if (!cover && camera.view) camera.clearViewOffset();
+  if (cover) {
+    // the title screen: Sun and Moon side by side, turned to the camera, the level behind them; they stand in the
+    // left part of the picture (the frustum is shifted) so the join card has the right
+    const base = world.spawn.sun, yaw = (world.camYaw?.sun ?? 0) + Math.sin(G.t * 0.25) * 0.22 + 0.3;
+    const dx = Math.sin(yaw), dz = Math.cos(yaw), px = Math.cos(world.camYaw?.sun ?? 0), pz = -Math.sin(world.camYaw?.sun ?? 0);
+    const D = camera.aspect > 1.9 ? 3.5 : 4.2;
+    camera.position.set(base.x + dx * D, base.y + 1.55, base.z + dz * D);
+    for (const [r, s] of [['sun', -0.52], ['moon', 0.52]]) {
+      const root = chars[r].root;
+      root.position.set(base.x + px * s, base.y, base.z + pz * s);
+      chars[r].setYaw(Math.atan2(camera.position.x - root.position.x, camera.position.z - root.position.z) - s * 0.25);
+    }
+    camera.lookAt(base.x, base.y + (world.kid ? 0.8 : 1.12), base.z);
+    const W = renderer.domElement.width, H = renderer.domElement.height;
+    camera.setViewOffset(W, H, Math.round(W * 0.21), Math.round(-H * 0.03), W, H);
     return;
   }
   if (G.mode === 'lobby' || G.mode === 'connecting') {

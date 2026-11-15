@@ -414,6 +414,7 @@ export function buildCh1Square(root, scene) {
     id: 'ch1-square',
     title: 'Chapter 1 · Syria Unfiltered — The Town Square',
     colliders,
+    hints: ["Sun shouts ✦ to make word-bubbles you can stand on; Moon pins 📌 them so they stay, or pops them to bounce up. Get to the stage roof together, then shout at the Noise and pin the words (3 times)."],
     stars,
     movers: {},
     spawn: { sun: new THREE.Vector3(SUN_X - 3.5, 0, 0), moon: new THREE.Vector3(MOON_X + 3.5, 0, 0) },

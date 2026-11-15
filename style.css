@@ -397,3 +397,27 @@ body.gamepad.pad-ps .act[data-pad]::after { content: attr(data-ps); }
 
 #hint-btn { animation: hintwob 1.6s ease-in-out infinite; box-shadow: 0 0 0 3px rgba(255, 215, 106, .8), 0 0 18px rgba(255, 200, 90, .7); }
 @keyframes hintwob { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) scale(1.08); } }
+
+/* ---------- the title screen: Sun and Moon on the left, the title over them, the join card on the right ---------- */
+#cover-title { display: none; }
+body.cover #lobby { justify-content: flex-end; background: linear-gradient(90deg, rgba(42, 35, 80, 0) 45%, rgba(42, 35, 80, 0.38)); padding-right: calc(var(--sr) + 3.5vw); }
+body.cover #cover-title { display: block; position: absolute; left: calc(var(--sl) + 4.5vw); top: calc(var(--st) + 5vh); color: #fff; text-align: left; pointer-events: none;
+  text-shadow: 0 3px 18px rgba(60, 30, 110, .75), 0 1px 2px rgba(40, 20, 80, .6); }
+body.cover #cover-title b { display: block; font: 700 clamp(40px, 7.2vw, 104px)/1 Fredoka, sans-serif; letter-spacing: .01em; }
+body.cover #cover-title .sunc { color: #ffc94d; } body.cover #cover-title .moonc { color: #c9b4ff; }
+body.cover #cover-title small { display: block; margin-top: .4em; font: 600 clamp(15px, 1.9vw, 26px)/1.2 Nunito, sans-serif; opacity: .95; }
+body.cover #lobby .card { width: min(380px, 44vw); display: block; background: rgba(255, 250, 246, .93); backdrop-filter: blur(8px); }
+body.cover #lobby h1, body.cover #lobby .sub { display: none; }
+@media (orientation: landscape) and (max-height: 500px) {
+  body.cover #lobby .card { padding: 10px 14px; }
+  body.cover #lobby .roles { margin: 0 0 8px; gap: 8px; }
+  body.cover #lobby .role { padding: 7px 6px; }
+  body.cover #lobby .role .emoji { font-size: 22px; }
+  body.cover #lobby .word { margin-bottom: 4px; }
+  body.cover #lobby .word input { padding: 9px 12px; }
+  body.cover #lobby .code-row { margin: 0 0 4px; }
+  body.cover #lobby #join { padding: 10px; }
+  body.cover #lobby #solo, body.cover #lobby .mem-link { display: inline-block; margin: 4px 8px 0; padding: 2px; }
+  body.cover #lobby .ver { margin: 4px 0 0; }
+  body.cover #lobby .hint { margin-bottom: 4px; font-size: 12px; }
+}

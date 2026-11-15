@@ -292,6 +292,7 @@ export function buildCh1Cards(root, scene) {
     id: 'ch1-cards',
     title: 'Chapter 1 · Syria Unfiltered — The Card Tables',
     colliders,
+    hints: ["Follow the giant cards across the felt. Sun's bubbles make steps, Moon pins them. Sit down on the two cushions at the table to play Trex."],
     stars,
     movers: {},
     spawn: { sun: new THREE.Vector3(-1.2, 0, 27.5), moon: new THREE.Vector3(1.2, 0, 27.5) },

@@ -196,6 +196,7 @@ export function buildCh1Plane(root, scene) {
     id: 'ch1-plane',
     title: 'Chapter 1 · Syria Unfiltered — 8 October',
     colliders,
+    hints: ["Chase the paper plane: hop the message stones, Sun shouts bubbles over the gaps and Moon pins them. On the tower, Moon can pop a bubble under you to launch you up."],
     stars,
     movers: {},
     spawn: { sun: new THREE.Vector3(-1.2, 0, 3.2), moon: new THREE.Vector3(1.2, 0, 3.2) },
