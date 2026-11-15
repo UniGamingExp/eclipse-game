@@ -13,7 +13,7 @@ import { loadHeroes, heroesReady, makeHero } from './hero.js';
 import { makeBata } from './bata.js';
 import { makePortal } from './portal.js';
 import { runFrameHooks } from './levels/hooks.js';
-import { loadLevel, LEVELS, nextLevel, partsOf, CHAPTERS } from './world.js';
+import { loadLevel, LEVELS, nextLevel, partsOf, CHAPTERS, ORDER } from './world.js';
 import { makeCharacter, MODE, SIZES, KID_SIZES } from './characters.js';
 import { Body, moveBody, findLedge, playerCollider, syncPlayerCollider } from './physics.js';
 import { createInput } from './input.js';
@@ -342,6 +342,7 @@ function portalUpdate(dt) {
   if (!P.sent && meIn && partnerIn && performance.now() > P.readyAt && (G.kind === 'solo' || G.role === 'sun')) {
     P.sent = true;
     sound.play('star');
+    G.net?.setSave(`done/${P.from}`, 1);   // remembered for the golden threads in the storybook
     G.net?.setSave('level', P.next);
   }
 }
@@ -411,12 +412,21 @@ const BLURBS = {
 };
 let sbPage = 0, sbBusy = false;
 const chapterIds = Object.keys(CHAPTERS).map(Number).sort((a, b) => a - b);
+/** a part counts as finished if its portal was taken, or the story has already moved past it */
+const partDone = (id) => {
+  if (G.save?.done?.[id]) return true;
+  const at = G.save?.level ?? 'prologue';
+  return LEVELS[at]?.ch == null ? at !== 'prologue' : ORDER.indexOf(id) < ORDER.indexOf(at);   // (in the Playground: everything is behind you)
+};
+const threadTied = (ch) => ch >= 1 && partsOf(ch).length > 0 && partsOf(ch).every(partDone);
 function sbFill() {
   const ch = chapterIds[sbPage], C = CHAPTERS[ch], parts = partsOf(ch);
   const got = (id) => (LEVELS[id].stars || []).filter((x) => G.starsMap[x]).length;
   const all = parts.reduce((n, id) => n + (LEVELS[id].stars || []).length, 0), have = parts.reduce((n, id) => n + got(id), 0);
   $('#sb-left').innerHTML = `<div class="sb-icon">${C.icon}</div><p class="sb-kicker">${C.title}</p><h2 class="sb-title">${C.name}</h2>`
-    + (parts.length ? `<p class="sb-total">⭐ ${have} / ${all}</p>` : '') + `<p class="sb-blurb">${BLURBS[ch] || ''}</p>`;
+    + (parts.length ? `<p class="sb-total">⭐ ${have} / ${all}</p>` : '') + `<p class="sb-blurb">${BLURBS[ch] || ''}</p>`
+    + (ch >= 1 ? `<p class="sb-thread ${threadTied(ch) ? 'on' : ''}">${threadTied(ch) ? '🧵 Golden thread tied ✨' : '🧵 Thread not tied yet'}</p>` : '')
+    + `<p class="sb-threads" title="golden threads">${chapterIds.filter((c) => c >= 1).map((c) => `<i class="${threadTied(c) ? 'on' : ''}"></i>`).join('')}</p>`;
   const right = $('#sb-right');
   right.innerHTML = '';
   if (!parts.length) right.innerHTML = '<p class="sb-soon">✍️ This page is still being written…<br>Coming soon</p>';

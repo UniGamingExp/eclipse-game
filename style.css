@@ -421,3 +421,10 @@ body.cover #lobby h1, body.cover #lobby .sub { display: none; }
   body.cover #lobby .ver { margin: 4px 0 0; }
   body.cover #lobby .hint { margin-bottom: 4px; font-size: 12px; }
 }
+
+.sb-thread { margin: 8px 0 0; font-size: 13px; font-weight: 800; opacity: .45; }
+.sb-thread.on { opacity: 1; color: #b8860b; text-shadow: 0 0 10px rgba(255, 200, 80, .7); }
+.sb-threads { margin: 8px 0 0; display: flex; gap: 0; align-items: center; }
+.sb-threads i { width: 20px; height: 3px; border-radius: 2px; background: #e6d8c0; position: relative; margin-right: 9px; }
+.sb-threads i::after { content: ""; position: absolute; right: -8px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: #e6d8c0; }
+.sb-threads i.on, .sb-threads i.on::after { background: linear-gradient(90deg, #ffc94d, #ffb347); box-shadow: 0 0 8px rgba(255, 190, 70, .9); }
