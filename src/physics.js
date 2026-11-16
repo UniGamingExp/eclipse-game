@@ -72,7 +72,7 @@ function step(b, colliders, dt) {
   b.pos.x += b.vel.x * dt;
   b.pos.z += b.vel.z * dt;
   for (const c of colliders) {
-    if (c.owner === b || c.disabled) continue;
+    if (c.owner === b || c.disabled || (c.isPlayer && b.ghost > 0)) continue;   // (ghost: just launched side by side, don't bump into the partner)
     const feet = b.pos.y, head = feet + b.h;
     if (feet >= c.top - 1e-3 || head <= c.bottom + 1e-3) continue;
     if (!overlap(b.pos.x, b.pos.z, b.r, c)) continue;
@@ -101,7 +101,7 @@ function step(b, colliders, dt) {
   b.ground = null;
   let best = null;
   for (const c of colliders) {
-    if (c.owner === b || c.disabled) continue;
+    if (c.owner === b || c.disabled || (c.isPlayer && b.ghost > 0)) continue;   // (ghost: just launched side by side, don't bump into the partner)
     if (!overlap(b.pos.x, b.pos.z, b.r, c)) continue;
     if (b.vel.y <= 0) {
       if (prevY >= c.top - 0.25 && b.pos.y <= c.top && (!best || c.top > best.top)) best = c;

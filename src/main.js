@@ -179,13 +179,14 @@ const levelApi = {
   setSave: (k, v) => G.net?.setSave(k, v),
   /** throw one of our own bodies into the air (bubble pops, bouncy things…) */
   shake(strength = 0.5) { feel(strength); },
-  launch(r, vy, vx = 0, vz = 0) {
+  launch(r, vy, vx = 0, vz = 0, lock = 0) {
     const ctl = ctls[r];
     if (ctl.state === 'carried') return;
     if (r === G.active && (vx || vz)) feel(0.6);
     if (ctl.state !== 'free') { ctl.state = 'free'; ctl.anim = MODE.normal; }
     release(ctl, new THREE.Vector3(vx, vy, vz));
     ctl.jumps = 1; ctl.airDashUsed = false;
+    if (lock) { ctl.wjLock = lock; ctl.body.ghost = lock + 0.4; }   // a long throw carries you all the way
   },
   finish: () => onLevelFinished(),
   /** play a story scene now (once per phone) */
@@ -314,6 +315,7 @@ function chooseLevel(id) {
   if (id === 'ch3-bridge') G.net.setSave('ch3', null);
   if (id === 'ch3-moving') G.net.setSave('ch3m', null);
   if (id === 'ch3-train') G.net.setSave('ch3t', null);
+  if (id === 'ch4-markt') G.net.setSave('ch4m', null);
   G.net.setSave('cp', null);
   if (G.save) G.save.cp = null;
   G.net.setSave('level', id);
@@ -758,6 +760,7 @@ function control(ctl, mv, wantJump, jumpHeld, dt, wantDash = false) {
   }
   ctl.regrab = Math.max(0, ctl.regrab - dt);
   ctl.wjLock = Math.max(0, ctl.wjLock - dt);
+  if (ctl.body.ghost > 0) ctl.body.ghost -= dt;
 
   const forced = ctl.forceJump;
   if (forced) { wantJump = true; ctl.forceJump = false; }
