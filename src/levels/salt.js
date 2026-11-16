@@ -114,7 +114,7 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
   const authority = () => api && (api.kind === 'solo' || api.role === 'sun');
   const mask = (k) => api?.save?.[key]?.[k] || 0;
   const bellRung = (id) => !!(mask('b') & (1 << bellById[id].i));
-  const active = (s) => !s.need || bellRung(s.need);
+  const active = (s) => !s.need || (typeof s.need === 'function' ? s.need() : bellRung(s.need));
   const grown = (s, sNow) => s.until > sNow;
 
   function grow(s, t) {
@@ -147,7 +147,7 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
     if (b.pair) {
       const o = bellById[b.pair];
       if (sNow - o.last < 8000) api.setSave(`${key}/b`, mask('b') | (1 << b.i) | (1 << o.i));
-      else api.caption?.('One bell… it fades. Ring BOTH within 8 seconds 🔔🔔', 3600);
+      else b.fadeAt = sNow + 900;   // (say so only if the other one doesn't ring in the same breath)
     } else api.setSave(`${key}/b`, mask('b') | (1 << b.i));
   }
   /** her song rings out from p */
@@ -185,7 +185,7 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
           if (d < bd && Math.abs(s.y - p.y) < 3.2 && !grown(s, sNow)) { bd = d; best = s; }
         }
         if (!best) { api.sound.play('no'); api.caption?.('Salt only grows at a brine spring (the white rings) 🧂', 2600); cd.sun = sNow + 500; return true; }
-        if (!active(best)) { api.sound.play('no'); api.caption?.('This spring is dry. A bell has to wake it first 🔔', 2800); cd.sun = sNow + 500; return true; }
+        if (!active(best)) { api.sound.play('no'); api.caption?.(best.dry || 'This spring is dry. A bell has to wake it first 🔔', 2800); cd.sun = sNow + 500; return true; }
         cd.sun = sNow + 700;
         grow(best, sNow);
         api.send('grow', { i: best.i, t: Math.round(sNow) });
@@ -240,6 +240,7 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
         const rung = !!(bm & (1 << b.i));
         if (rung && !b.rung) { b.rung = true; onRing?.(b.id); }
         if (!rung) b.rung = false;
+        if (b.fadeAt && sNow > b.fadeAt) { b.fadeAt = 0; if (!rung && authority()) api.caption?.('One bell… it fades. Ring BOTH within 8 seconds 🔔🔔', 3600); }
         b.swing = Math.max(0, b.swing - dt * 0.35);
         if (rung) b.swing = Math.max(b.swing, 0.25);
         b.g.rotation.z = Math.sin(t * 5.5 + b.i) * 0.5 * b.swing;

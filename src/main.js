@@ -316,6 +316,7 @@ function chooseLevel(id) {
   if (id === 'ch3-moving') G.net.setSave('ch3m', null);
   if (id === 'ch3-train') G.net.setSave('ch3t', null);
   if (id === 'ch4-markt') G.net.setSave('ch4m', null);
+  if (id === 'ch4-neustadt') G.net.setSave('ch4n', null);
   G.net.setSave('cp', null);
   if (G.save) G.save.cp = null;
   G.net.setSave('level', id);

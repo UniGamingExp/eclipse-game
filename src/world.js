@@ -14,6 +14,7 @@ import { buildCh3Bridge } from './levels/ch3-bridge.js';
 import { buildCh3Moving } from './levels/ch3-moving.js';
 import { buildCh3Train } from './levels/ch3-train.js';
 import { buildCh4Markt } from './levels/ch4-markt.js';
+import { buildCh4Neustadt } from './levels/ch4-neustadt.js';
 
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue', music: 'woods', ch: 0, n: 1, name: 'Two Skies', stars: ['pro-sun', 'pro-moon'] },
@@ -27,11 +28,12 @@ export const LEVELS = {
   'ch3-moving': { build: buildCh3Moving, title: 'Chapter 3 · Moving Day', chip: '📦 Ch.3 Moving Day', music: 'winter', ch: 3, n: 2, name: 'Moving Day', stars: ['c3m-tree', 'c3m-van', 'c3m-well', 'c3m-wardrobe', 'c3m-yard'], kits: ['medieval', 'npc'] },
   'ch3-train': { build: buildCh3Train, title: 'Chapter 3 · The Last Train', chip: '🚆 Ch.3 The Last Train', music: 'winter', ch: 3, n: 3, name: 'The Last Train', stars: ['c3t-kiosk', 'c3t-bridge', 'c3t-arms', 'c3t-gap', 'c3t-loco'] },
   'ch4-markt': { build: buildCh4Markt, title: 'Chapter 4 · Marktplatz', chip: '🔔 Ch.4 Marktplatz', music: 'town', ch: 4, n: 1, name: 'Marktplatz', stars: ['c4-tram', 'c4-statue', 'c4-wall', 'c4-fly', 'c4-ridge'], kits: ['medieval'] },
+  'ch4-neustadt': { build: buildCh4Neustadt, title: 'Chapter 4 · Neustadt', chip: '🏢 Ch.4 Neustadt', music: 'town', ch: 4, n: 2, name: 'Neustadt', stars: ['c4n-yard', 'c4n-r1', 'c4n-wall', 'c4n-dish', 'c4n-home'] },
   playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground', music: 'fun', amb: 'waves', ambVol: 0.14 },
 };
 
 /** the story in order (the Playground is the place to wait for the next chapter) */
-export const ORDER = ['prologue', 'ch1-square', 'ch1-cards', 'ch1-plane', 'ch2-day', 'ch2-call', 'ch2-shy', 'ch3-bridge', 'ch3-moving', 'ch3-train', 'ch4-markt'];
+export const ORDER = ['prologue', 'ch1-square', 'ch1-cards', 'ch1-plane', 'ch2-day', 'ch2-call', 'ch2-shy', 'ch3-bridge', 'ch3-moving', 'ch3-train', 'ch4-markt', 'ch4-neustadt'];
 export const CHAPTERS = {
   0: { title: 'Prologue', name: 'Two Skies', icon: '📖' },
   1: { title: 'Chapter 1', name: 'Syria Unfiltered', icon: '💬' },
