@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { mat, add, rbox, sign, hangSign, sky, makeStar, spinStars, lights } from './common.js';
 import { house } from './medieval.js';
+import { backdropHouses } from './backdrop.js';
 import { checkpoint, lane } from './play.js';
 import { memoryMist } from '../memory.js';
 import { createSalt, CRYSTAL_H } from './salt.js';
@@ -122,8 +123,11 @@ export function buildCh4Markt(root, scene) {
     colliders.push({ type: 'box', x0: -77, x1: 47, z0: -42, z1: 50, top: 0, bottom: -2, safe: true, surface: 'concrete' });
   }
   // houses all round (closed on every side)
+  const far = [];
   const H = (x, z, w, d, floors, rotY, sd, style) => {
-    house(world, x, 0, z, { w, d, floors, rotY, seed: sd, style });
+    // (kit houses only near where the two of them walk; painted boxes for the rest of the square's edge)
+    if (Math.hypot(x - 4, z - 34) < 30 || (x > 30 && z > -12)) house(world, x, 0, z, { w, d, floors, rotY, seed: sd, style });
+    else far.push({ x, z, w: w + 1.6, d: d + 1.6, h: floors * 3.12, rotY });
     const sw = Math.abs(Math.sin(rotY)) > 0.5, hw = (sw ? d : w) / 2 + 1, hd = (sw ? w : d) / 2 + 1;
     colliders.push({ type: 'box', x0: x - hw, x1: x + hw, z0: z - hd, z1: z + hd, top: floors * 3.12 + 3.5, bottom: 0, noGrab: true });
   };
@@ -133,6 +137,7 @@ export function buildCh4Markt(root, scene) {
   for (let z = -34; z <= 40; z += 6) H(42, z, 6, 6, 2 + (hs % 2), -Math.PI / 2, hs++, STY[hs % 3]);          // east row
   for (let z = -34; z <= 40; z += 6) H(-72, z, 6, 6, 2 + (hs % 2), Math.PI / 2, hs++, STY[hs % 3]);          // west row
   for (let x = -66; x <= 36; x += 6) H(x, -38, 6, 6, 3, 0, hs++, STY[hs % 3]);                                // north row
+  backdropHouses(world, far);
 
   // the tram (stopped where the Quiet caught it) and its tracks
   for (const z of [35.3, 36.7]) add(world, new THREE.BoxGeometry(110, 0.06, 0.12), ironM, -15, 0.04, z, { cast: false });

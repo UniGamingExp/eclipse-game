@@ -15,9 +15,10 @@ export const SONG_R = 7, WALL_R = 5, GROW_R = 4.5, LIFE = 14000, CRYSTAL_H = 2.4
  * springs: [{ id, x, y, z, v?: [vx, vy, vz], need?: bellId }]     (need: dry until that bell has rung)
  * walls:   [{ id, x0, x1, z0, z1, y, h }]
  * bells:   [{ id, x, y, z, spring, pair?: bellId, s?: size }]      (y = where it hangs from; pair: both within 8 s)
- * quiet:   [{ x0, x1, y, z, r, period, off? }]
+ * quiet:   [{ x0, x1, y, z, r, period, off? }]      (or pos: (sNow) => [x, z]; r may be changed by the level)
+ * pipes:   [{ x, y, z, to: [x, y, z] }]            (a brass horn: a song sung next to it also sounds at `to`)
  */
-export function createSalt(world, colliders, { key, springs = [], walls = [], bells = [], quiet = [], onRing = null }) {
+export function createSalt(world, colliders, { key, springs = [], walls = [], bells = [], quiet = [], pipes = [], onRing = null }) {
   let api = null;
   const cd = { sun: 0, moon: 0 };
   const saltM = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffd9ec, emissiveIntensity: 0.35, roughness: 0.18, metalness: 0.05, flatShading: true, transparent: true, opacity: 0.93 });
@@ -94,18 +95,35 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
   // ---------------------------------------------------------------- the Quiet
   const quietM = new THREE.MeshStandardMaterial({ color: 0x9a9aa6, roughness: 1, transparent: true, opacity: 0.42, depthWrite: false });
   const Q = quiet.map((q) => {
-    const m = add(world, new THREE.SphereGeometry(q.r, 20, 14), quietM, q.x0, q.y + q.r * 0.6, q.z, { cast: false, receive: false });
+    const m = add(world, new THREE.SphereGeometry(q.r, 20, 14), quietM, q.x0 ?? 0, q.y + q.r * 0.6, q.z, { cast: false, receive: false });
     const dots = add(m, new THREE.SphereGeometry(0.12, 6, 5), mat(0x5a5a66), 0, 0, 0, { cast: false });
     for (const dx of [-0.4, 0.4]) add(m, new THREE.SphereGeometry(0.12, 6, 5), mat(0x5a5a66), dx, 0, 0, { cast: false });
     m.userData.noHide = true;
-    return { ...q, m, dots, x: q.x0 };
+    const o = { ...q, m, dots, x: q.x0, r0: q.r };
+    return o;
   });
-  const quietX = (q, sNow) => (q.x0 + q.x1) / 2 + Math.sin((sNow / 1000) * (2 * Math.PI / q.period) + (q.off || 0)) * (q.x1 - q.x0) / 2;
-  const inQuiet = (p, sNow) => Q.some((q) => Math.hypot(p.x - quietX(q, sNow), p.z - q.z) < q.r && Math.abs(p.y - q.y) < q.r + 1);
+  const quietAt = (q, sNow) => (q.pos ? q.pos(sNow) : [(q.x0 + q.x1) / 2 + Math.sin((sNow / 1000) * (2 * Math.PI / q.period) + (q.off || 0)) * (q.x1 - q.x0) / 2, q.z]);
+  const inQuiet = (p, sNow) => Q.some((q) => { const [x, z] = quietAt(q, sNow); return q.r > 0.05 && Math.hypot(p.x - x, p.z - z) < q.r && Math.abs(p.y - q.y) < q.r + 1; });
+
+  // ---------------------------------------------------------------- brass horns that carry a song somewhere else
+  const brassM = new THREE.MeshStandardMaterial({ color: 0xe2b04a, emissive: 0xffb84a, emissiveIntensity: 0.15, roughness: 0.3, metalness: 0.8, side: THREE.DoubleSide });
+  const horn = (x, y, z, up) => {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.userData.noHide = true; world.add(g);
+    add(g, new THREE.CylinderGeometry(0.07, 0.07, 1.1, 8), brassM, 0, up ? 0.55 : 2.4, 0);
+    const bell = add(g, new THREE.CylinderGeometry(0.42, 0.08, 0.6, 14, 1, true), brassM, 0, up ? 1.35 : 1.75, 0.2);
+    bell.rotation.x = up ? 0.9 : Math.PI - 0.9;
+    return g;
+  };
+  const PP = pipes.map((q) => {
+    horn(q.x, q.y, q.z, true); horn(q.to[0], q.to[1], q.to[2], false);
+    const dy = q.y - q.to[1] - 2.9;
+    if (dy > 0.2 && Math.hypot(q.x - q.to[0], q.z - q.to[2]) < 0.5) add(world, new THREE.CylinderGeometry(0.07, 0.07, dy, 8), brassM, q.x, q.to[1] + 2.9 + dy / 2, q.z).userData.noHide = true;
+    return { ...q, toV: new THREE.Vector3(q.to[0], q.to[1], q.to[2]) };
+  });
 
   // ---------------------------------------------------------------- song rings (a small pool)
   const rings = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const m = add(world, new THREE.RingGeometry(0.93, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xd9b8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }), 0, 0, 0, { cast: false, receive: false });
     m.visible = false; m.userData.noHide = true;
     rings.push({ m, t: 9 });
@@ -151,7 +169,7 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
     } else api.setSave(`${key}/b`, mask('b') | (1 << b.i));
   }
   /** her song rings out from p */
-  function song(p, sNow) {
+  function song(p, sNow, relayed = false) {
     const rg = rings.reduce((a, q) => (q.t > a.t ? q : a));
     rg.t = 0; rg.m.visible = true; rg.m.position.set(p.x, p.y + 0.9, p.z);
     api.sound.play('sing');
@@ -165,9 +183,10 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
       breakWall(w);
       if (authority()) api.setSave(`${key}/w`, mask('w') | (1 << w.i));
     }
+    if (!relayed) for (const q of PP) if (Math.hypot(q.x - p.x, q.z - p.z) < 3 && Math.abs(q.y - p.y) < 3) song(q.toV, sNow, true);
   }
   function breakWall(w, quiet_ = false) {
-    w.gone = true; w.g.visible = false; w.col.disabled = true;
+    w.gone = true; w.g.visible = false; w.col.disabled = true; w.t = performance.now();
     if (quiet_) return;
     for (let k = 0; k < 3; k++) api.fx.sparks(new THREE.Vector3(w.cx, w.y + 0.6 + k * (w.h / 3), w.cz), 0xffffff, 22, 5);
     api.sound.play('shatter');
@@ -211,7 +230,7 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
       for (const w of W) {
         const gone = !!(wm & (1 << w.i));
         if (gone && !w.gone) breakWall(w, true);
-        if (!gone && w.gone && !wm) { w.gone = false; w.g.visible = true; w.col.disabled = false; }   // (the level was restarted)
+        if (!gone && w.gone && !wm && performance.now() - w.t > 4000) { w.gone = false; w.g.visible = true; w.col.disabled = false; }   // (the level was restarted)
       }
       for (const s of S) {
         const on = active(s), up = grown(s, sNow);
@@ -248,10 +267,11 @@ export function createSalt(world, colliders, { key, springs = [], walls = [], be
         b.m.color.setHex(rung ? 0xe2b04a : 0x8a8a92);
       }
       for (const q of Q) {
-        q.x = quietX(q, sNow);
-        q.m.position.x = q.x;
-        q.m.position.y = q.y + q.r * 0.6 + Math.sin(t * 1.3 + q.x0) * 0.15;
-        q.m.scale.setScalar(1 + Math.sin(t * 2.1 + q.x0) * 0.04);
+        const [qx, qz] = quietAt(q, sNow);
+        q.x = qx;
+        q.m.visible = q.r > 0.05;
+        q.m.position.set(qx, q.y + q.r * 0.6 + Math.sin(t * 1.3 + (q.x0 || 0)) * 0.15, qz);
+        q.m.scale.setScalar((q.r / q.r0) * (1 + Math.sin(t * 2.1 + (q.x0 || 0)) * 0.04));
       }
       for (const r of rings) {
         if (!r.m.visible) continue;
