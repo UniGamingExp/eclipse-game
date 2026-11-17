@@ -144,7 +144,7 @@ export function createGarden(world, colliders, { key, patches = [], hot = [], fi
     for (const h of H) {
       const nx = Math.max(h.x0, Math.min(h.x1, p.x)), nz = Math.max(h.z0, Math.min(h.z1, p.z));
       if (Math.hypot(nx - p.x, nz - p.z) < WATER_R + 0.5 && p.y < h.y + 2 && p.y > h.y - 10) {
-        h.until = sNow + COOL; did = true;
+        h.until = sNow + (h.cool || COOL); did = true;
         if (!quiet) api.fx.sparks(new THREE.Vector3(nx, h.y + 0.3, nz), 0xffffff, 20, 3);
       }
     }

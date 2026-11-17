@@ -6,6 +6,7 @@
 //  - Homesickness: grey wisps that rub the colour out again and make ghost pieces fade while they pass
 import * as THREE from 'three';
 import { add } from './common.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const VERT_HEAD = 'varying vec3 vSkW;\n';
 const VERT_BODY = `#include <project_vertex>
@@ -216,4 +217,48 @@ export function createSketch(root, { key, x0, x1, z0, z1, res = 256, ghosts = []
       if (dirty && t - lastUp > 0.08) { tex.needsUpdate = true; dirty = false; lastUp = t; }
     },
   };
+}
+
+/**
+ * Draw-call saver for the sketch levels: everything under a group marked userData.static (houses, walls, ground)
+ * is merged into one mesh per material (and one line set for the pencil outlines). Call after patch().
+ */
+export function mergeStatic(world) {
+  world.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(world.matrixWorld).invert();
+  const buckets = new Map(), lines = new Map(), drop = [];
+  const take = (o) => {
+    const m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
+    g.applyMatrix4(m);
+    return g;
+  };
+  for (const grp of world.children.filter((c) => c.userData.static)) {
+    grp.traverse((o) => {
+      if (o.isMesh && !Array.isArray(o.material) && o.geometry.attributes.uv && o.geometry.attributes.normal) {
+        const key = o.material, list = buckets.get(key) || [];
+        list.push({ g: take(o), cast: o.castShadow, recv: o.receiveShadow }); buckets.set(key, list);
+        drop.push(o);
+      } else if (o.isLineSegments) {
+        const list = lines.get(o.material) || []; list.push(take(o)); lines.set(o.material, list); drop.push(o);
+      }
+    });
+  }
+  for (const o of drop) o.parent?.remove(o);
+  for (const [m, list] of buckets) {
+    for (const cast of [true, false]) {
+      const part = list.filter((x) => x.cast === cast);
+      if (!part.length) continue;
+      const geo = mergeGeometries(part.map((x) => x.g), false);
+      if (!geo) continue;
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.castShadow = cast; mesh.receiveShadow = true; mesh.userData.noHide = true;
+      world.add(mesh);
+    }
+  }
+  for (const [m, list] of lines) {
+    const geo = mergeGeometries(list.map((g) => { for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k); return g; }), false);
+    if (geo) { const l = new THREE.LineSegments(geo, m); l.userData.noHide = true; world.add(l); }
+  }
 }

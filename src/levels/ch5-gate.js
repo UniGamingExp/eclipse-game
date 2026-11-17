@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { mat, add, rbox, sign, hangSign, sky, makeStar, spinStars, lights } from './common.js';
 import { checkpoint, lane } from './play.js';
 import { memoryMist } from '../memory.js';
-import { createSketch } from './sketch.js';
+import { createSketch, mergeStatic } from './sketch.js';
 import { createGarden } from './garden.js';
 import { createMinigame, starsGame, withMinigames } from './minigame.js';
 
@@ -46,22 +46,23 @@ export function buildCh5Gate(root, scene) {
   const glowM = new THREE.MeshStandardMaterial({ color: 0x2a2030, emissive: 0xffc070, emissiveIntensity: 0.35, roughness: 0.6 });
   const waterM = new THREE.MeshStandardMaterial({ color: 0x5aaed8, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.85 });
   const inks = [];
+  const statics = new THREE.Group(); statics.userData.static = true; world.add(statics);
 
   const solid = (x0, x1, z0, z1, top, bottom, m, col = {}, ink = true) => {
-    const mesh = m ? add(world, new THREE.BoxGeometry(x1 - x0, top - bottom, z1 - z0), m, (x0 + x1) / 2, (top + bottom) / 2, (z0 + z1) / 2) : null;
+    const mesh = m ? add(statics, new THREE.BoxGeometry(x1 - x0, top - bottom, z1 - z0), m, (x0 + x1) / 2, (top + bottom) / 2, (z0 + z1) / 2) : null;
     if (mesh) { mesh.userData.noHide = true; if (ink) inks.push(mesh); }
     const c = { type: 'box', x0, x1, z0, z1, top, bottom, noGrab: true, ...col };
     colliders.push(c);
     return Object.assign(c, { mesh });
   };
   const ground = (x0, x1, z0, z1, extra = {}) => {
-    add(world, new THREE.BoxGeometry(x1 - x0, 2, z1 - z0), paveM, (x0 + x1) / 2, -1, (z0 + z1) / 2, { cast: false }).userData.noHide = true;
+    add(statics, new THREE.BoxGeometry(x1 - x0, 2, z1 - z0), paveM, (x0 + x1) / 2, -1, (z0 + z1) / 2, { cast: false }).userData.noHide = true;
     colliders.push({ type: 'box', x0, x1, z0, z1, top: 0, bottom: -2, safe: true, surface: 'concrete', ...extra });
   };
 
   /** a Damascene house: stone, ablaq stripes, a wooden bay window (mashrabiya), an arched door, a flat roof */
   const dHouse = (x, z, w, d, h, rotY, sd) => {
-    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; world.add(g); g.userData.noHide = true;
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; world.add(g); g.userData.noHide = true; g.userData.static = true;
     const body = add(g, new THREE.BoxGeometry(w, h, d), sd % 3 ? stoneM : stone2M, 0, h / 2, 0); inks.push(body);
     add(g, new THREE.BoxGeometry(w + 0.2, 0.5, d + 0.2), creamM, 0, h + 0.25, 0);
     for (let k = 0; k < 4; k++) add(g, new THREE.BoxGeometry(w + 0.06, 0.22, d + 0.06), k % 2 ? creamM : darkStoneM, 0, 2.4 + k * 0.22, 0, { cast: false });
@@ -254,6 +255,7 @@ export function buildCh5Gate(root, scene) {
   for (const s of stars) s.mesh.userData.noSketch = true;
   for (const c of cps) c.g.userData.noSketch = true;
   sketch.patch(world);
+  mergeStatic(world);
 
   // ================================================================ state
   let doneT = -1, restored = false;
