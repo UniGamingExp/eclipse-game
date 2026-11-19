@@ -141,6 +141,8 @@ export function createMinigame(parent, colliders, def) {
 
   return {
     get playing() { return api ? phase(api.serverNow()) === 'play' : false; },
+    /** a ✦ press during the game (games that count presses); true if it was used */
+    press(who) { if (!api || !game.press || phase(api.serverNow()) !== 'play') return false; game.press(who, c); return true; },
     attach(a) { api = a; },
     onEvent(e) {
       if (e.type !== 'mg' || e.id !== id) return false;
@@ -410,4 +412,34 @@ export function withMinigames(abilities, games) {
   const w = Object.create(abilities);
   w.onEvent = (e) => games.some((g) => g.onEvent(e)) || !!abilities.onEvent?.(e);
   return w;
+}
+
+/** 5.3 · Booza Pound: pound your ice cream (✦) as fast as you can; most pounds wins */
+export function mashGame({ tubs, y }) {
+  const score = { sun: 0, moon: 0 }, mallets = {};
+  let sendT = 0;
+  return {
+    build(g) {
+      for (const r of ['sun', 'moon']) {
+        const [x, z] = tubs[r];
+        add(g, new THREE.CylinderGeometry(0.8, 0.6, 0.9, 20, 1, true), mat(0xc87a3a, { metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide }), x, y + 0.45, z);
+        add(g, new THREE.CylinderGeometry(0.72, 0.72, 0.1, 20), mat(0xf4f0e0), x, y + 0.75, z, { cast: false });
+        const m = new THREE.Group(); m.position.set(x, y + 0.9, z); g.add(m);
+        add(m, new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6), mat(0x8a5a3a), 0, 0.8, 0);
+        add(m, new THREE.CylinderGeometry(0.2, 0.2, 0.5, 10).rotateZ(Math.PI / 2), mat(0x8a5a3a), 0, 0.1, 0);
+        mallets[r] = { m, k: 0 };
+      }
+    },
+    start() { score.sun = score.moon = 0; },
+    press(who, c) { mallets[who].k = 1; c.api.sound.play('thud'); c.report('hit', { from: who }); },
+    update(dt, sNow, c) {
+      for (const r of ['sun', 'moon']) { const q = mallets[r]; q.k = Math.max(0, q.k - dt * 6); q.m.position.y = (y + 0.9) + q.k * 0.5; q.m.rotation.z = q.k * 0.3; }
+      if (c.auth) { sendT -= dt; if (sendT <= 0) { sendT = 0.25; c.broadcast('st', { s: [score.sun, score.moon] }); } }
+    },
+    onEvent(e, c) {
+      if (e.k === 'hit' && c.auth && (e.from === 'sun' || e.from === 'moon')) { score[e.from]++; if (e.from !== c.api.role || c.api.kind === 'solo') mallets[e.from].k = 1; }
+      if (e.k === 'st' && !c.auth && Array.isArray(e.s)) { score.sun = e.s[0]; score.moon = e.s[1]; }
+    },
+    score() { return { ...score }; },
+  };
 }

@@ -136,7 +136,7 @@ export function createGarden(world, colliders, { key, patches = [], hot = [], fi
     let did = false;
     let best = null, bd = WATER_R;
     for (const q of P) {
-      if (!isSeeded(q) || isGrown(q)) continue;
+      if (!isSeeded(q) || isGrown(q) || !active(q)) continue;
       const d = Math.hypot(q.x - p.x, q.z - p.z);
       if (d < bd && Math.abs(q.y - p.y) < 3) { bd = d; best = q; }
     }

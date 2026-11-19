@@ -285,6 +285,7 @@ const FX = {
   bounce: (t) => { tone(t, { type: 'sine', f0: 180, f1: 720, dur: 0.32, vol: 0.32 }); tone(t + 0.05, { type: 'triangle', f0: 360, f1: 1100, dur: 0.25, vol: 0.12 }); },
   star: (t) => [784, 988, 1175, 1568].forEach((f, i) => tone(t + i * 0.07, { type: 'triangle', f0: f, dur: 0.22, vol: 0.18 })),
   heart: (t) => { tone(t, { type: 'sine', f0: 660, dur: 0.12, vol: 0.22 }); tone(t + 0.11, { type: 'sine', f0: 880, dur: 0.2, vol: 0.22 }); },
+  thud: (t) => { tone(t, { type: 'sine', f0: 160, f1: 60, dur: 0.16, vol: 0.3 }); tone(t, { type: 'triangle', f0: 420, f1: 200, dur: 0.06, vol: 0.08 }); },
   water: (t) => { for (let i = 0; i < 6; i++) tone(t + i * 0.035, { type: 'sine', f0: 900 + Math.random() * 900, f1: 500, dur: 0.07, vol: 0.06 }); },
   splash: (t) => { for (let i = 0; i < 10; i++) tone(t + i * 0.02, { type: 'triangle', f0: 1400 - i * 90 + Math.random() * 300, f1: 300, dur: 0.12, vol: 0.07 }); },
   bloom: (t) => [523, 659, 784, 1047].forEach((f, i) => tone(t + i * 0.07, { type: 'sine', f0: f, f1: f * 1.02, dur: 0.35, vol: 0.12, attack: 0.02 })),
