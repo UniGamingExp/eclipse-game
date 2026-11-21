@@ -20,6 +20,7 @@ import { buildCh5Gate } from './levels/ch5-gate.js';
 import { buildCh5Touma } from './levels/ch5-touma.js';
 import { buildCh5Souq } from './levels/ch5-souq.js';
 import { buildCh5Midan } from './levels/ch5-midan.js';
+import { buildCh6Hood } from './levels/ch6-hood.js';
 
 export const LEVELS = {
   prologue: { build: buildPrologue, title: 'Prologue · Two Skies', chip: '📖 Prologue', music: 'woods', ch: 0, n: 1, name: 'Two Skies', stars: ['pro-sun', 'pro-moon'] },
@@ -39,11 +40,12 @@ export const LEVELS = {
   'ch5-touma': { build: buildCh5Touma, title: 'Chapter 5 · Bab Touma', chip: '🎖️ Ch.5 Bab Touma', music: 'paws', ch: 5, n: 2, name: 'Bab Touma', stars: ['c5t-tree', 'c5t-sat', 'c5t-chat', 'c5t-plank', 'c5t-well'] },
   'ch5-souq': { build: buildCh5Souq, title: 'Chapter 5 · Souq al-Hamidiyah', chip: '🍨 Ch.5 Souq', music: 'fun', ch: 5, n: 3, name: 'Souq al-Hamidiyah', stars: ['c5s-rubble', 'c5s-rain', 'c5s-ridge', 'c5s-dome', 'c5s-cone'] },
   'ch5-midan': { build: buildCh5Midan, title: 'Chapter 5 · Al-Midan', chip: '🎆 Ch.5 Al-Midan', music: 'mystic', ch: 5, n: 4, name: 'Al-Midan', stars: ['c5m-ghost', 'c5m-roof', 'c5m-lily', 'c5m-mahabba'] },
+  'ch6-hood': { build: buildCh6Hood, title: 'Chapter 6 · The Neighbourhood', chip: '🍦 Ch.6 Neighbourhood', music: 'fun', ch: 6, n: 1, name: 'The Neighbourhood', stars: ['c6n-swirl', 'c6n-bridge', 'c6n-walk', 'c6n-gap', 'c6n-ring'] },
   playground: { build: buildPlayground, title: 'Playground Isle', chip: '🏝️ Playground', music: 'fun', amb: 'waves', ambVol: 0.14 },
 };
 
 /** the story in order (the Playground is the place to wait for the next chapter) */
-export const ORDER = ['prologue', 'ch1-square', 'ch1-cards', 'ch1-plane', 'ch2-day', 'ch2-call', 'ch2-shy', 'ch3-bridge', 'ch3-moving', 'ch3-train', 'ch4-markt', 'ch4-neustadt', 'ch4-leipziger', 'ch5-gate', 'ch5-touma', 'ch5-souq', 'ch5-midan'];
+export const ORDER = ['prologue', 'ch1-square', 'ch1-cards', 'ch1-plane', 'ch2-day', 'ch2-call', 'ch2-shy', 'ch3-bridge', 'ch3-moving', 'ch3-train', 'ch4-markt', 'ch4-neustadt', 'ch4-leipziger', 'ch5-gate', 'ch5-touma', 'ch5-souq', 'ch5-midan', 'ch6-hood'];
 export const CHAPTERS = {
   0: { title: 'Prologue', name: 'Two Skies', icon: '📖' },
   1: { title: 'Chapter 1', name: 'Syria Unfiltered', icon: '💬' },
