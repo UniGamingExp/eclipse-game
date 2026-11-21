@@ -1,6 +1,7 @@
 // Sound: real sound effects (Kenney, CC0) with small synthesized fallbacks, plus background music
 // (see CREDITS.md) that loops seamlessly or with a soft crossfade. iPhone needs a tap to unlock audio.
 // Two switches: sound effects and music (both remembered on the device).
+import { av } from './assets.js';
 import { store } from './util.js';
 
 let ctx = null, master = null, sfxBus = null, musicBus = null;
@@ -61,7 +62,7 @@ function loadSamples() {
   if (samplesRequested || !ctx) return;
   samplesRequested = true;
   const files = new Set(Object.values(SAMPLES).flatMap((s) => s.files));
-  for (const f of files) loadBuffer(`${BASE}sfx/${f}.mp3?v=${V}`).then((b) => buffers.set(f, b)).catch(() => { /* synth fallback */ });
+  for (const f of files) loadBuffer(av(`${BASE}sfx/${f}.mp3`)).then((b) => buffers.set(f, b)).catch(() => { /* synth fallback */ });
 }
 function playSample(set, { vol = 1, rate = 1 } = {}) {
   const S = SAMPLES[set];
@@ -222,7 +223,7 @@ export const music = {
     if (!id) { stopTrack(cur); cur = null; return; }
     if (musicBuf.has(id)) { stopTrack(cur); cur = startTrack(id); return; }
     if (!musicLoading.has(id)) {
-      musicLoading.set(id, loadBuffer(`${BASE}music/${id}.mp3?v=${V}`)
+      musicLoading.set(id, loadBuffer(av(`${BASE}music/${id}.mp3`))
         .then((b) => { musicBuf.set(id, b); music._kick(); })
         .catch(() => musicLoading.delete(id)));
     }
@@ -258,7 +259,7 @@ export const ambience = {
       return;
     }
     if (!ambLoading.has(w.id)) {
-      ambLoading.set(w.id, loadBuffer(`${BASE}amb/${w.id}.mp3?v=${V}`)
+      ambLoading.set(w.id, loadBuffer(av(`${BASE}amb/${w.id}.mp3`))
         .then((b) => { ambBuf.set(w.id, b); ambience._kick(); })
         .catch(() => ambLoading.delete(w.id)));
     }

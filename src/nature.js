@@ -1,6 +1,7 @@
 // Nature models (trees, bushes, flowers, grass, rocks, pebbles, mushrooms) from the Quaternius
 // Stylized Nature MegaKit (CC0), packed by scripts/pack-nature.mjs into assets/nature.glb (~1.6 MB).
 // Loaded once at startup; levels place them with nature.place() (single) or nature.scatter() (instanced).
+import { av, track } from './assets.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -32,7 +33,7 @@ function addWind(material, perMeter) {
 export async function loadNature(url, onProgress) {
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
-  const gltf = await loader.loadAsync(url, (e) => onProgress?.(e.total ? e.loaded / e.total : 0));
+  const gltf = await loader.loadAsync(av(url), track(url, (e) => onProgress?.(e.total ? e.loaded / e.total : 0)));
   const seen = new Set();
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
@@ -71,7 +72,7 @@ export function loadKit(id, version = '') {
   if (!k.p) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    k.p = loader.loadAsync(`${k.url}?v=${version}`).then((gltf) => {
+    k.p = loader.loadAsync(av(k.url), track(k.url)).then((gltf) => {
       const seen = new Set();
       gltf.scene.traverse((o) => {
         if (!o.isMesh) return;

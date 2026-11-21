@@ -1,4 +1,5 @@
 // Eclipse 3D: the two dolls, their moves, and the test island.
+import { av, bytes, asize } from './assets.js';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -91,15 +92,25 @@ window.visualViewport?.addEventListener('resize', resize);
 // ---------------------------------------------------------------- world & actors
 // download the nature models first (trees, flowers, rocks…); the level falls back to simple shapes if it fails
 const useDolls = new URLSearchParams(location.search).has('dolls');
+// boot progress in MB over everything the first level needs (on a slow line that's the part that takes long)
+const bootPaths = ['assets/nature.glb', ...(useDolls ? [] : ['assets/npc/heroes.glb', 'assets/npc/npc-anim.glb'])];
+for (const k of LEVELS[store.get('lastLevel', 'prologue')]?.kits || []) bootPaths.push(k === 'npc' ? 'assets/npc/npc.glb' : `assets/${k}.glb`);
+const bootT0 = performance.now();
+const bootTick = setInterval(() => {
+  const [a, b] = bytes(bootPaths);
+  if (!b) return;
+  const mb = (x) => (x / 1048576).toFixed(1);
+  $('#boot-bar').style.width = `${Math.max(4, (a / b) * 100)}%`;
+  const slow = performance.now() - bootT0 > 12000 && a < b;
+  $('#boot-msg').textContent = a < b ? `Loading the world… ${mb(a)} / ${mb(b)} MB${slow ? '\nSlow internet? It only downloads once; next time it opens right away.' : ''}` : 'Building the world…';
+}, 250);
 const heroesP = useDolls ? null : loadHeroes(__BUILD__);
 heroesP?.catch(() => {});
 try {
-  await loadNature(`assets/nature.glb?v=${__BUILD__}`, (k) => { $('#boot-bar').style.width = `${Math.max(5, k * 100)}%`; });
+  await loadNature('assets/nature.glb');
 } catch (e) {
   console.warn('nature models failed to load', e);
 }
-$('#boot').classList.add('done');
-setTimeout(() => $('#boot').remove(), 600);
 // Sun & Moon (rigged characters, loaded alongside the nature models); the dolls stay as a fallback and with ?dolls=1
 if (!useDolls) { try { await heroesP; } catch (e) { console.warn('heroes failed to load, using the dolls', e); } }
 // building kits for the first level (Chapter 3+ need the medieval town pieces)
@@ -107,7 +118,12 @@ if (!useDolls) { try { await heroesP; } catch (e) { console.warn('heroes failed 
   const first = LEVELS[store.get('lastLevel', 'prologue')];
   for (const k of first?.kits || []) { try { await loadKit(k, __BUILD__); } catch (e) { console.warn('kit failed', k, e); } }
 }
+clearInterval(bootTick);
+$('#boot').classList.add('done');
+setTimeout(() => $('#boot').remove(), 600);
 let world = loadLevel(scene, store.get('lastLevel', 'prologue'));
+// keep the downloaded files on the device (a service worker), so the next visit opens instantly even on a bad line
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 gfx.setLevel(world, LEVELS[world.id], world.camYaw ? world.camYaw.sun ?? 0 : 0);
 memory = createMemory({ grade, save: () => { try { return G?.save ?? null; } catch { return null; } }, sound, caption: (t, ms) => caption(t, ms) });
 memory.setLevel(world, LEVELS[world.id]);
@@ -622,9 +638,19 @@ function playFilm(id, then) {
   box.hidden = false;
   snd.hidden = true;
   v.muted = false;
-  v.src = `${FILMS[id]}?v=${__BUILD__}`;
+  v.src = av(FILMS[id]);
+  // on a slow line the film keeps buffering: after 8 s of waiting in total, skip it (it's in the menu for later)
+  let waitT = 0, lastT = performance.now();
+  const stall = setInterval(() => {
+    if (filmNow !== id) { clearInterval(stall); return; }
+    const now = performance.now();
+    if (v.readyState < 3 && !v.ended) waitT += Math.min(1, (now - lastT) / 1000);
+    lastT = now;
+    if (waitT > 8) { clearInterval(stall); ui.toast('Slow internet: skipped the film. Watch it later in ☰ → 🎬', 5000); done(); }
+  }, 250);
   const done = () => {
     if (!G.intro || filmNow !== id) return;
+    clearInterval(stall);
     G.intro = false;
     filmNow = null;
     v.pause();

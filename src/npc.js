@@ -2,6 +2,7 @@
 // Universal Animation Library 2 clips (all CC0), assembled by scripts/pack-npc.mjs into assets/npc/npc.glb
 // (6 characters) and assets/npc/npc-anim.glb (shared clips). They never block the path and don't talk to the
 // game: they lean on railings, chat on the phone, carry boxes back and forth, eat at the sausage kitchen…
+import { av, track } from './assets.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -16,7 +17,7 @@ export function loadAnims(version = '') {
   if (!pAnim) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    pAnim = loader.loadAsync(`assets/npc/npc-anim.glb?v=${version}`).then((anim) => { for (const a of anim.animations) clips.set(a.name, a); })
+    pAnim = loader.loadAsync(av('assets/npc/npc-anim.glb'), track('assets/npc/npc-anim.glb')).then((anim) => { for (const a of anim.animations) clips.set(a.name, a); })
       .catch((e) => { pAnim = null; throw e; });
   }
   return pAnim;
@@ -27,7 +28,7 @@ function load(version = '') {
   if (!p) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    p = Promise.all([loader.loadAsync(`assets/npc/npc.glb?v=${version}`), loadAnims(version)]).then(([lib]) => {
+    p = Promise.all([loader.loadAsync(av('assets/npc/npc.glb'), track('assets/npc/npc.glb')), loadAnims(version)]).then(([lib]) => {
       // the loader renames repeated bone names (pelvis_1 …); the packer stored the real ones in extras.n
       lib.scene.traverse((o) => { if (o.userData?.n) o.name = o.userData.n; });
       const seen = new Set();

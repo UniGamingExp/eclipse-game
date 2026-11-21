@@ -1,12 +1,19 @@
 // Bundles src/ into build/game.js and stamps a version into index.html (cache busting).
 // Usage: npm run build   (or: npm run watch while developing)
 import * as esbuild from 'esbuild';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
 const watch = process.argv.includes('--watch');
 const now = new Date();
 const build = `${now.toISOString().slice(0, 10)}.${now.toISOString().slice(11, 16).replace(':', '')}`;
+
+// per-file hashes of everything the game downloads (assets/…, memories.enc): { path: [hash, bytes] }
+const assets = {};
+const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f), st = statSync(p); if (st.isDirectory()) walk(p); else assets[p.replace(/\\/g, '/')] = [createHash('sha1').update(readFileSync(p)).digest('hex').slice(0, 10), st.size]; } };
+walk('assets');
+try { assets['memories.enc'] = [createHash('sha1').update(readFileSync('memories.enc')).digest('hex').slice(0, 10), statSync('memories.enc').size]; } catch { /* none */ }
 
 const opts = {
   entryPoints: ['src/main.js'],
@@ -16,7 +23,7 @@ const opts = {
   minify: !watch,
   sourcemap: watch,
   outfile: 'build/game.js',
-  define: { __BUILD__: JSON.stringify(build) },
+  define: { __BUILD__: JSON.stringify(build), __ASSETS__: JSON.stringify(assets) },
   legalComments: 'none',
   logLevel: 'info',
 };

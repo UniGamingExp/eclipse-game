@@ -3,6 +3,7 @@
 // procedural dolls in characters.js: { root, kind, glow, height, kid, yaw, setYaw, land, spin, throwAnim, animate }.
 // Poses the clips don't have (hanging from a ledge or zipline, lifting something over the head, gliding with arms
 // out, reaching for the partner's hand) are made by aiming the arm bones after the clips have been applied.
+import { av, track } from './assets.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -16,7 +17,7 @@ export function loadHeroes(version = '') {
   if (!p) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    p = Promise.all([loader.loadAsync(`assets/npc/heroes.glb?v=${version}`), loadAnims(version)]).then(([g]) => {
+    p = Promise.all([loader.loadAsync(av('assets/npc/heroes.glb'), track('assets/npc/heroes.glb')), loadAnims(version)]).then(([g]) => {
       g.scene.traverse((o) => { if (o.userData?.n) o.name = o.userData.n; });
       const seen = new Set();
       g.scene.traverse((o) => {

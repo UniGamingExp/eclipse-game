@@ -219,7 +219,7 @@ h2 { margin: 0 0 4px; font-size: 22px; }
 #boot.done { opacity: 0; pointer-events: none; }
 #boot > div { display: grid; gap: 10px; justify-items: center; font-family: inherit; }
 #boot b { font-size: 34px; letter-spacing: .5px; }
-#boot small { font-size: 15px; opacity: .9; }
+#boot small { font-size: 15px; opacity: .9; white-space: pre-line; text-align: center; max-width: 86vw; }
 #boot i { display: block; width: 180px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.3); overflow: hidden; }
 #boot u { display: block; height: 100%; width: 5%; background: #fff; border-radius: 3px; transition: width .2s; }
 

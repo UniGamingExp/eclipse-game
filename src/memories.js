@@ -1,12 +1,13 @@
 // Locked memories: photos and captions stored encrypted in memories.enc (AES-256-GCM, key from the
 // shared password via PBKDF2). Nothing personal is readable on the public site without the password.
+import { av } from './assets.js';
 import { store } from './util.js';
 
 const normalize = (p) => p.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, '');
 let cache = null;
 
 async function fetchBundle() {
-  const res = await fetch(`memories.enc?v=${__BUILD__}`);
+  const res = await fetch(av('memories.enc'));
   if (!res.ok) throw new Error('missing');
   return new Uint8Array(await res.arrayBuffer());
 }
