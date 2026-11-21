@@ -115,7 +115,7 @@ export function createGarden(world, colliders, { key, patches = [], hot = [], fi
 
   function seed(p, quiet) {
     if (p.seeded) return;
-    p.seeded = true;
+    p.seeded = true; p.seedT = api.serverNow();
     if (!quiet) { api.sound.play('pin'); api.fx.sparks(new THREE.Vector3(p.x, p.y + 0.5, p.z), 0xc6a8ff, 18, 2.5); }
     if (authority() && !(mask('s') & (1 << p.i))) api.setSave(`${key}/s`, mask('s') | (1 << p.i));
   }
@@ -213,6 +213,7 @@ export function createGarden(world, colliders, { key, patches = [], hot = [], fi
       const sm = mask('s'), gm = mask('g'), fm = mask('f');
       for (const p of P) {
         if (!p.seeded && sm & (1 << p.i)) seed(p, true);
+        if (p.seeded && !p.grown && p.wiltable && !(sm & (1 << p.i)) && p.seedT && api.serverNow() - p.seedT > 2500) p.seeded = false;
         if (!p.grown && gm & (1 << p.i)) grow(p, true);
         const on = active(p);
         p.ring.visible = !p.seeded && on;
@@ -281,6 +282,14 @@ export function createGarden(world, colliders, { key, patches = [], hot = [], fi
   return {
     abilities, attach(a) { api = a; }, patches: P, byId, hot: H, fires: F,
     grown: (id) => isGrown(byId[id]), seeded: (id) => isSeeded(byId[id]),
+    /** a seed that wilts (Sun's phone writes it) */
+    unseed(id) {
+      const p = byId[id];
+      if (!p || isGrown(p)) return;
+      p.seeded = false;
+      api.fx.sparks(new THREE.Vector3(p.x, p.y + 0.4, p.z), 0x8a8a98, 14, 2);
+      if (authority()) api.setSave(`${key}/s`, mask('s') & ~(1 << p.i));
+    },
     grownMask: () => P.reduce((m, p) => (isGrown(p) ? m | (1 << p.i) : m), 0),
   };
 }

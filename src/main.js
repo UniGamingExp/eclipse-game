@@ -321,6 +321,7 @@ function chooseLevel(id) {
   if (id === 'ch5-gate') G.net.setSave('ch5a', null);
   if (id === 'ch5-touma') G.net.setSave('ch5b', null);
   if (id === 'ch5-souq') G.net.setSave('ch5c', null);
+  if (id === 'ch5-midan') G.net.setSave('ch5d', null);
   G.net.setSave('cp', null);
   if (G.save) G.save.cp = null;
   G.net.setSave('level', id);
